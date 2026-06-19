@@ -55,6 +55,50 @@
       <span class="data-status" id="dataStatus" aria-live="polite">Tidak ada data tersimpan.</span>
       <span class="app__footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
     </footer>
+
+    <!-- TEMPORARY debug panel (Phase 4). Lets you type a NIK and inspect every
+         check before OCR is wired in Phase 5. Remove before production. -->
+    <details class="debug" id="nikDebug">
+      <summary>Panel debug NIK (sementara &middot; Phase 4)</summary>
+      <div class="debug__body">
+        <p class="debug__note">
+          Pemeriksaan struktur NIK. Ini hanya alat bantu skrining, bukan bukti
+          keaslian dokumen dan bukan keputusan kredit.
+        </p>
+        <div class="debug__samples">
+          <span>Muat contoh:</span>
+          <button type="button" class="chip" data-fixture="G1">G1</button>
+          <button type="button" class="chip" data-fixture="G2">G2</button>
+          <button type="button" class="chip" data-fixture="G3">G3</button>
+        </div>
+        <div class="debug__grid">
+          <label>NIK (16 digit)
+            <input id="dbgNik" class="mono" type="text" inputmode="numeric" maxlength="16" placeholder="3175061708950001" />
+          </label>
+          <label>Jenis kelamin
+            <select id="dbgSex">
+              <option value="">(kosong)</option>
+              <option value="LAKI-LAKI">LAKI-LAKI</option>
+              <option value="PEREMPUAN">PEREMPUAN</option>
+            </select>
+          </label>
+          <label>Tanggal lahir (dd-mm-yyyy)
+            <input id="dbgDob" class="mono" type="text" placeholder="17-08-1995" />
+          </label>
+          <label>Provinsi
+            <input id="dbgProv" type="text" placeholder="DKI JAKARTA" />
+          </label>
+          <label>Kabupaten / Kota
+            <input id="dbgKab" type="text" placeholder="KOTA ADMINISTRASI JAKARTA TIMUR" />
+          </label>
+          <label>Kecamatan
+            <input id="dbgKec" type="text" placeholder="CAKUNG" />
+          </label>
+        </div>
+        <button type="button" id="dbgRun" class="btn btn--primary">Periksa NIK</button>
+        <div id="dbgResult" class="debug__result" aria-live="polite"></div>
+      </div>
+    </details>
   </main>
 
   <script type="module" src="app.js"></script>

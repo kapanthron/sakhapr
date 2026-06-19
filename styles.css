@@ -264,6 +264,80 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
   color: var(--warn);
 }
 
+/* --- Temporary NIK debug panel (Phase 4) ---------------------------------- */
+.debug {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: #fffdf8;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.debug > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.debug__body { padding-top: 10px; }
+.debug__note { color: var(--ink-soft); font-size: 12px; margin: 0 0 10px; }
+.debug__samples { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.debug__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+.debug__grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.debug__grid input,
+.debug__grid select {
+  font-family: var(--font-text);
+  font-size: 13px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--white);
+}
+.debug__grid input.mono { font-family: var(--font-mono); }
+.debug__result { margin-top: 12px; }
+
+.verdict {
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.verdict--ok { background: #e3f4e7; color: #1d6b34; }
+.verdict--warn { background: #fff4e0; color: var(--warn); }
+.verdict--fail { background: #fbe4e2; color: var(--danger); }
+
+table.checks {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+table.checks th,
+table.checks td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+table.checks th { color: var(--ink-soft); font-weight: 600; }
+.status { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+.status--PASS { color: #1d6b34; }
+.status--WARN { color: var(--warn); }
+.status--FAIL { color: var(--danger); }
+.status--NA { color: var(--ink-soft); }
+
+@media (max-width: 480px) {
+  .debug__grid { grid-template-columns: 1fr; }
+}
+
 /* --- Utilities ------------------------------------------------------------ */
 .visually-hidden {
   position: absolute;

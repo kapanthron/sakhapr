@@ -25,6 +25,8 @@ import {
   validateAnswer,
   buildTranscript,
 } from "./modules/prescreen.js";
+import { validateNik } from "./modules/validateNik.js";
+import { loadRegionData } from "./modules/regionData.js";
 
 /* --- Reference data (loaded once, public, not personal) -------------------- */
 let knowledgeBase = null;
@@ -316,6 +318,94 @@ clearAllBtn.addEventListener("click", () => {
   greet();
 });
 
+/* --- Temporary NIK debug panel (Phase 4) ----------------------------------- */
+
+// Sample printed fields for the three "known good" fixtures.
+const NIK_FIXTURES = {
+  G1: { nik: "3175061708950001", sex: "LAKI-LAKI", dob: "17-08-1995", prov: "DKI JAKARTA", kab: "KOTA ADMINISTRASI JAKARTA TIMUR", kec: "CAKUNG" },
+  G2: { nik: "3203016503880002", sex: "PEREMPUAN", dob: "25-03-1988", prov: "JAWA BARAT", kab: "KABUPATEN CIANJUR", kec: "CIANJUR" },
+  G3: { nik: "3402010102000003", sex: "LAKI-LAKI", dob: "01-02-2000", prov: "DAERAH ISTIMEWA YOGYAKARTA", kab: "KABUPATEN BANTUL", kec: "SRANDAKAN" },
+};
+
+function setupNikDebugPanel() {
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    nik: $("dbgNik"), sex: $("dbgSex"), dob: $("dbgDob"),
+    prov: $("dbgProv"), kab: $("dbgKab"), kec: $("dbgKec"),
+    run: $("dbgRun"), result: $("dbgResult"), panel: $("nikDebug"),
+  };
+  if (!els.run) return;
+
+  els.panel.querySelectorAll("[data-fixture]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const f = NIK_FIXTURES[btn.dataset.fixture];
+      if (!f) return;
+      els.nik.value = f.nik; els.sex.value = f.sex; els.dob.value = f.dob;
+      els.prov.value = f.prov; els.kab.value = f.kab; els.kec.value = f.kec;
+    });
+  });
+
+  els.run.addEventListener("click", async () => {
+    els.result.textContent = "Memuat tabel wilayah…";
+    let dataset;
+    try {
+      dataset = await loadRegionData();
+    } catch (err) {
+      console.error("[SakhaPR] region data load failed:", err);
+      els.result.textContent = "Gagal memuat data wilayah. Jalankan lewat server lokal (mis. `npx serve`).";
+      return;
+    }
+    const printed = {
+      jenis_kelamin: els.sex.value,
+      tanggal_lahir: els.dob.value.trim(),
+      provinsi: els.prov.value.trim(),
+      kabupaten_kota: els.kab.value.trim(),
+      kecamatan: els.kec.value.trim(),
+    };
+    const res = validateNik(els.nik.value.trim(), printed, dataset);
+    renderNikResult(els.result, res);
+  });
+}
+
+const VERDICT_CLASS = {
+  "Consistent": "ok",
+  "Consistent with warnings": "warn",
+  "Inconsistent": "fail",
+};
+
+function renderNikResult(container, res) {
+  container.textContent = "";
+
+  const verdict = document.createElement("div");
+  verdict.className = `verdict verdict--${VERDICT_CLASS[res.verdict] || "warn"}`;
+  verdict.textContent = `Verdict: ${res.verdict}`;
+  container.appendChild(verdict);
+
+  const table = document.createElement("table");
+  table.className = "checks";
+  const head = document.createElement("tr");
+  ["Check", "Status", "Reason"].forEach((h) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    head.appendChild(th);
+  });
+  table.appendChild(head);
+
+  for (const c of res.checks) {
+    const tr = document.createElement("tr");
+    const label = document.createElement("td");
+    label.textContent = c.label;
+    const status = document.createElement("td");
+    status.textContent = c.status;
+    status.className = `status status--${c.status}`;
+    const reason = document.createElement("td");
+    reason.textContent = c.reason;
+    tr.append(label, status, reason);
+    table.appendChild(tr);
+  }
+  container.appendChild(table);
+}
+
 /* --- Boot ------------------------------------------------------------------ */
 
 function init() {
@@ -323,6 +413,7 @@ function init() {
   assertNoPersistentStorage();
   updateDataStatus();
   greet();
+  setupNikDebugPanel();
   composerInput.focus();
 }
 
