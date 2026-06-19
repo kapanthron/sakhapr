@@ -1,0 +1,24 @@
+# Cloudflare Pages — HTTP response headers
+# Format docs: https://developers.cloudflare.com/pages/configuration/headers/
+# This file MUST live in the build output directory root (same folder as index.html).
+#
+# The Content-Security-Policy below is the Path A + Layer 1 baseline for SakhaPR.
+# It is intentionally strict. If you add an optional phase, widen ONLY the one
+# directive named in the comment, and document the origin in PRIVACY.md / DPIA.md.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self'; font-src 'self'; img-src 'self' blob: data:; connect-src 'self'; form-action 'self' mailto:; base-uri 'self'; object-src 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  X-Frame-Options: DENY
+
+# Why each non-obvious directive is here:
+#   script-src 'wasm-unsafe-eval' .. Tesseract.js (Phase 5) compiles WASM in-browser.
+#   worker-src 'self' blob: ......... Tesseract.js spawns a Web Worker (locally vendored).
+#   img-src blob: data: ............. eKTP preview via object URL + canvas downscale.
+#   form-action 'self' mailto: ...... Phase 6 Path A opens a prefilled mailto: draft.
+#
+# Phase 7 (optional, semantic search): add the Transformers.js model origin to
+#   connect-src AND script-src — name the exact origin, then refresh the DPIA.
+# Phase 8 (optional, Path B relay): add ONLY your relay origin to connect-src.

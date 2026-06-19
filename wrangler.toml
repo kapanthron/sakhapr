@@ -1,0 +1,17 @@
+# Cloudflare Pages — settings as code.
+# Pins the build output directory so neither the dashboard nor `wrangler` can
+# silently fall back to a framework scaffold / "hello world" placeholder.
+#
+# SakhaPR has NO build step. The app's index.html lives at the repo root, so the
+# output directory is "." (the repo root itself).
+#
+# If you later move the app into a subfolder (e.g. sakhapr/), change the value
+# below to that folder name and keep _headers inside it.
+
+name = "sakhapr"
+pages_build_output_dir = "."
+
+# Deploy from Git (recommended) OR direct upload:
+#   npx wrangler pages deploy . --project-name sakhapr
+# Run the command from the folder that contains index.html.
+# Do NOT run `npm create cloudflare` — that scaffolds a hello-world Worker.
