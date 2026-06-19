@@ -1,0 +1,220 @@
+{
+  "_meta": {
+    "name": "SakhaPR Prescreen Question Sets",
+    "source": "List pertanyaan prescreen interview awal (UOB KPR)",
+    "compiled_on": "2026-06-20",
+    "language": "id-ID",
+    "usage": "After intent is READY_TO_APPLY, pick the set by product (decision_routing), run questions one at a time, store answers in memory, then produce file a (.txt). Honour 'conditional': skip a question if its dependency is not met. 'flag_hint' lets the assistant raise an early signal (e.g. risk) for the sales side; it is NOT a credit decision.",
+    "disclaimer": "Interview awal ini hanya untuk triase awal, bukan keputusan kredit. Keputusan akhir mengikuti analisa kredit dan Perjanjian Kredit."
+  },
+  "sets": {
+    "primary": {
+      "label": "Pengajuan KPR Primary",
+      "product_id": "kpr_flexi_primary",
+      "intro": "Baik pak/bu, terima kasih konfirmasinya. Sebelum kami teruskan ke tim marketing, apakah boleh dibantu interview awal?",
+      "questions": [
+        {
+          "no": 1,
+          "id": "beli_developer_atau_second",
+          "text": "Pembelian dari developer atau properti second? Apakah sudah booking fee atau UTJ?",
+          "type": "choice",
+          "options": [
+            "Developer",
+            "Second"
+          ],
+          "flag_hint": "readiness"
+        },
+        {
+          "no": 2,
+          "id": "profesi_dan_lama_kerja",
+          "text": "Kerja atau usaha di bidang apa? Sudah berapa lama?",
+          "type": "text",
+          "flag_hint": "capacity"
+        },
+        {
+          "no": 3,
+          "id": "history_telat_restruktur_12bln",
+          "text": "Apakah pernah ada history telat atau ikut restrukturisasi dalam 12 bulan terakhir?",
+          "type": "choice",
+          "options": [
+            "Tidak pernah",
+            "Pernah"
+          ],
+          "flag_hint": "risk"
+        },
+        {
+          "no": 4,
+          "id": "rencana_huni",
+          "text": "Rencana dihuni sendiri atau disewakan?",
+          "type": "choice",
+          "options": [
+            "Dihuni sendiri",
+            "Disewakan"
+          ]
+        },
+        {
+          "no": 5,
+          "id": "harga_transaksi",
+          "text": "Harga transaksi berapa?",
+          "type": "number",
+          "flag_hint": "plafon_basis"
+        },
+        {
+          "no": 6,
+          "id": "jaminan_sertifikat_atau_ppjb",
+          "text": "Apabila beli rumah second, apakah jaminan sudah sertifikat atau masih PPJB?",
+          "type": "choice",
+          "options": [
+            "Sudah sertifikat",
+            "Masih PPJB"
+          ],
+          "conditional": {
+            "depends_on": "beli_developer_atau_second",
+            "equals": "Second"
+          }
+        }
+      ]
+    },
+    "secondary": {
+      "label": "Pengajuan KPR Secondary",
+      "product_id": "kpr_secondary",
+      "intro": "Baik pak/bu, terima kasih konfirmasinya. Sebelum kami teruskan ke tim marketing, apakah boleh dibantu interview awal?",
+      "questions": [
+        {
+          "no": 1,
+          "id": "beli_developer_atau_second",
+          "text": "Pembelian dari developer atau properti second? Apakah sudah booking fee atau UTJ?",
+          "type": "choice",
+          "options": [
+            "Developer",
+            "Second"
+          ],
+          "flag_hint": "readiness"
+        },
+        {
+          "no": 2,
+          "id": "profesi_dan_lama_kerja",
+          "text": "Kerja atau usaha di bidang apa? Sudah berapa lama?",
+          "type": "text",
+          "flag_hint": "capacity"
+        },
+        {
+          "no": 3,
+          "id": "history_telat_restruktur_12bln",
+          "text": "Apakah pernah ada history telat atau ikut restrukturisasi dalam 12 bulan terakhir?",
+          "type": "choice",
+          "options": [
+            "Tidak pernah",
+            "Pernah"
+          ],
+          "flag_hint": "risk"
+        },
+        {
+          "no": 4,
+          "id": "rencana_huni",
+          "text": "Rencana dihuni sendiri atau disewakan?",
+          "type": "choice",
+          "options": [
+            "Dihuni sendiri",
+            "Disewakan"
+          ]
+        },
+        {
+          "no": 5,
+          "id": "harga_transaksi",
+          "text": "Harga transaksi berapa?",
+          "type": "number",
+          "flag_hint": "plafon_basis"
+        },
+        {
+          "no": 6,
+          "id": "jaminan_sertifikat_atau_ppjb",
+          "text": "Apabila beli rumah second, apakah jaminan sudah sertifikat atau masih PPJB?",
+          "type": "choice",
+          "options": [
+            "Sudah sertifikat",
+            "Masih PPJB"
+          ],
+          "conditional": {
+            "depends_on": "beli_developer_atau_second",
+            "equals": "Second"
+          }
+        }
+      ]
+    },
+    "take_over": {
+      "label": "Pengajuan KPR Take Over",
+      "product_id": "kpr_take_over",
+      "intro": "Baik pak/bu, untuk interview awal sebelum kami teruskan ke marketing, apakah boleh dibantu?",
+      "questions": [
+        {
+          "no": 1,
+          "id": "jaminan_sertifikat_atau_ppjb",
+          "text": "Apakah sudah sertifikat atau masih PPJB?",
+          "type": "choice",
+          "options": [
+            "Sudah sertifikat",
+            "Masih PPJB"
+          ]
+        },
+        {
+          "no": 2,
+          "id": "profesi_dan_lama_kerja",
+          "text": "Kerja atau usaha di bidang apa? Sudah berapa lama?",
+          "type": "text",
+          "flag_hint": "capacity"
+        },
+        {
+          "no": 3,
+          "id": "history_telat_restruktur_12bln",
+          "text": "Apakah pernah ikut restrukturisasi atau ada history keterlambatan dalam 12 bulan terakhir?",
+          "type": "choice",
+          "options": [
+            "Tidak pernah",
+            "Pernah"
+          ],
+          "flag_hint": "risk"
+        },
+        {
+          "no": 4,
+          "id": "kondisi_jaminan",
+          "text": "Kondisi jaminan kosong, dihuni, atau disewakan?",
+          "type": "choice",
+          "options": [
+            "Kosong",
+            "Dihuni",
+            "Disewakan"
+          ]
+        },
+        {
+          "no": 5,
+          "id": "jenis_fasilitas_bank_asal",
+          "text": "Fasilitas di bank asal berupa KPR atau multiguna?",
+          "type": "choice",
+          "options": [
+            "KPR",
+            "Multiguna"
+          ],
+          "flag_hint": "routing"
+        },
+        {
+          "no": 6,
+          "id": "bank_asal",
+          "text": "Take over dari bank mana?",
+          "type": "text"
+        },
+        {
+          "no": 7,
+          "id": "rencana_top_up",
+          "text": "Apakah ada rencana top up?",
+          "type": "choice",
+          "options": [
+            "Ya",
+            "Tidak"
+          ],
+          "flag_hint": "upsell"
+        }
+      ]
+    }
+  }
+}

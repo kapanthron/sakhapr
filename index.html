@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SakhaPR — Asisten KPR UOB</title>
+  <meta name="description" content="SakhaPR: asisten KPR UOB Indonesia yang memproses data di perangkat Anda (UU No. 27 Tahun 2022)." />
+  <!--
+    Content Security Policy is served as a real HTTP header from the repo-root
+    `_headers` file on Cloudflare Pages. We intentionally do NOT duplicate it as a
+    <meta> tag here, to avoid two sources of truth that can drift apart.
+  -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Persistent PDPA / UU PDP notice. Must stay visible at all times. -->
+  <header class="pdpa-banner" role="region" aria-label="Pemberitahuan perlindungan data pribadi">
+    <span class="pdpa-banner__icon" aria-hidden="true">&#128274;</span>
+    <p class="pdpa-banner__text">
+      Aplikasi ini memproses data pribadi sesuai <strong>UU No. 27 Tahun 2022</strong>
+      (Pelindungan Data Pribadi). Data eKTP Anda diproses di perangkat Anda. File hanya
+      dikirim ke UOB setelah Anda menyetujui dan menekan kirim. Anda dapat menghapus
+      seluruh data kapan saja.
+    </p>
+  </header>
+
+  <main class="app">
+    <div class="app__topbar">
+      <div class="brand">
+        <span class="brand__name">SakhaPR</span>
+        <span class="brand__sub">PARIKSA &middot; Asisten KPR UOB</span>
+      </div>
+      <button id="clearAllBtn" type="button" class="btn btn--ghost" title="Hapus seluruh data dari memori">
+        Hapus semua data
+      </button>
+    </div>
+
+    <!-- Chat transcript -->
+    <section id="chatLog" class="chat" aria-live="polite" aria-label="Percakapan"></section>
+
+    <!-- Composer -->
+    <form id="composer" class="composer" autocomplete="off">
+      <label class="visually-hidden" for="composerInput">Ketik pertanyaan Anda</label>
+      <input
+        id="composerInput"
+        class="composer__input"
+        type="text"
+        placeholder="Tanya apa saja tentang KPR UOB&hellip;"
+        inputmode="text"
+      />
+      <button type="submit" class="btn btn--primary">Kirim</button>
+    </form>
+
+    <footer class="app__footer">
+      <span class="data-status" id="dataStatus" aria-live="polite">Tidak ada data tersimpan.</span>
+      <span class="app__footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
+    </footer>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

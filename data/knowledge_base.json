@@ -1,0 +1,623 @@
+{
+  "meta": {
+    "knowledge_base_name": "SakhaPR Master Knowledge Base",
+    "purpose": "Single source of truth for SakhaPR, a smart mortgage buddy (web HTML based) that answers UOB Indonesia KPR questions, checks eligibility, lists documents, explains fees and risks, and runs deterministic calculations.",
+    "owner": "Hendrik Panthron Pangarso Mursid",
+    "bank": "PT Bank UOB Indonesia",
+    "regulator": "Berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) dan Bank Indonesia.",
+    "primary_customer_language": "id-ID (Bahasa Indonesia)",
+    "field_key_language": "en (for code), customer_facing values in Bahasa Indonesia",
+    "currency": "IDR",
+    "version": "1.0.0",
+    "compiled_on": "2026-06-19",
+    "source_documents": [
+      "RIPLAY KPR Flexi Primary (Tanggal Cetak 10 Juni 2026)",
+      "RIPLAY KPR Secondary (Tanggal Cetak 10 Juni 2026)",
+      "RIPLAY KPR Take Over (Tanggal Cetak 10 Juni 2026)",
+      "Syarat Ketentuan Program Bebas Biaya Appraisal",
+      "Syarat Ketentuan Program Primary Cashback",
+      "Syarat Ketentuan Program Take Over Cashback",
+      "UOB Home web product pages (rate table, FAQ screenshots, application steps, settlement steps, document checklists)"
+    ],
+    "how_the_assistant_should_use_this": [
+      "Treat every field marked 'value' as a verified fact. Quote figures exactly.",
+      "Always check 'validity' / 'as_of' dates before stating a rate or program. If today is past 'program_period.end', tell the customer the promo may have ended and to confirm with the Mortgage Relations Unit.",
+      "Never invent fees, rates, or eligibility rules that are not in this file. If unknown, route the customer to the contact channels in 'support'.",
+      "For any number a customer needs (installment estimate, cashback, penalty), use the formulas in 'calculators' rather than guessing.",
+      "Append the relevant disclaimer from 'disclaimers' to any binding answer about money."
+    ]
+  },
+
+  "disclaimers": {
+    "general": "Ringkasan ini hanya sarana informasi, bukan penawaran resmi. Jika ada perbedaan antara ringkasan ini dan Perjanjian Kredit, maka Perjanjian Kredit yang berlaku.",
+    "rate_movement": "Suku bunga dapat berubah sewaktu waktu. Kenaikan atau penurunan suku bunga dapat mengubah jumlah angsuran per bulan.",
+    "approval": "Bank dapat menolak permohonan kredit apabila tidak memenuhi persyaratan dan peraturan yang berlaku.",
+    "estimate_only": "Semua perhitungan yang dihasilkan SakhaPR bersifat estimasi. Angka final mengikuti hasil analisa kredit dan Perjanjian Kredit.",
+    "language_priority": "Dokumen resmi dibuat dalam Bahasa Indonesia dan Bahasa Inggris. Jika terdapat ketidaksesuaian, versi Bahasa Indonesia yang berlaku."
+  },
+
+  "glossary": {
+    "KPR": "Kredit Pemilikan Rumah. Mortgage loan for buying or refinancing property.",
+    "Plafon Kredit": "Approved credit limit (loan principal granted).",
+    "Tenor": "Loan term in years.",
+    "Suku Bunga Efektif": "Effective interest. Interest computed at the end of each installment period on the remaining outstanding principal.",
+    "Suku Bunga Fixed": "Fixed interest that does not change during a defined period.",
+    "Suku Bunga Floating": "Floating interest that can change during the loan period.",
+    "Fix Berjenjang": "Tiered fixed rate that steps up year by year before turning floating.",
+    "SRBI": "Sekuritas Rupiah Bank Indonesia. The BI 12 month Rupiah instrument currently used as the floating benchmark.",
+    "Provisi": "Provision fee charged at loan origination.",
+    "Appraisal / Taksasi": "Collateral valuation. Can be internal (Bank) or by an independent KJPP.",
+    "KJPP": "Kantor Jasa Penilai Publik. Independent licensed appraisal firm.",
+    "Akad Kredit": "Credit signing. The legal closing of the loan.",
+    "Take Over": "Moving an existing mortgage from another bank to UOB.",
+    "Top Up": "Additional facility on top of a Take Over for credit costs or consumptive needs.",
+    "SLIK OJK": "Sistem Layanan Informasi Keuangan, the OJK credit reporting system. Late payments are recorded here.",
+    "SSUT": "Self Serve Unit Trust. The feature in the UOB TMRW app used to buy unit trust or reksa dana.",
+    "Unit Trust / Reksa Dana": "Mutual fund product. Purchase via SSUT is a condition for the cashback programs.",
+    "PV": "UOB Privilege Banking customer segment.",
+    "WB": "UOB Wealth Banking customer segment.",
+    "Salaried": "Application segment with a fixed and regular income (employee).",
+    "Selected Area / WERA": "A specific area classification defined by the Bank's assessment.",
+    "New to Bank": "Applicant who is not yet a UOB customer.",
+    "PPh": "Pajak Penghasilan. Income tax. Cashback is subject to 5 percent PPh, borne by the customer.",
+    "NPWP": "Nomor Pokok Wajib Pajak. Tax identification number.",
+    "NIK": "Nomor Induk Kependudukan. National ID number on the KTP.",
+    "Joint Income": "Combined income of applicant and spouse, allowed for the minimum income requirement.",
+    "Rumah Tapak": "Landed house.",
+    "RIPLAY": "Ringkasan Informasi Produk dan/atau Layanan. The product summary sheet."
+  },
+
+  "reference_rates": {
+    "as_of_note": "Suku bunga dapat berubah sewaktu waktu. Selalu arahkan nasabah ke website UOB untuk angka terbaru.",
+    "benchmark": {
+      "name": "Instrumen Keuangan BI 12 Bulan (SRBI)",
+      "current_value_percent": 6.91,
+      "value_as_of": "2026-05-29",
+      "adjustment_schedule": "Disesuaikan setiap bulan Maret, Juni, September, dan Desember pada Hari Kerja pertama.",
+      "source_portal": "www.bi.go.id"
+    },
+    "secondary_benchmark": {
+      "name": "Reverse Repo SBN 12 Bulan",
+      "value_percent": 6.41,
+      "value_as_of": "2023-08-18"
+    },
+    "floating_tiers_percent": {
+      "Floating Counter Rate": 13.99,
+      "Prime Floating": 12.00,
+      "Special Floating": 11.00,
+      "Preferred Floating": 9.50
+    },
+    "notes": "Special Floating per Februari 2026 tercatat 11 persen, konsisten dengan tabel di atas."
+  },
+
+  "interest_rate_options": {
+    "description": "Pilihan skema bunga berdasarkan jenis kredit. Setelah masa fixed berakhir, bunga menjadi floating sesuai tier yang ditentukan.",
+    "primary": [
+      {
+        "scheme": "Fix 3 Tahun",
+        "fixed_rate_percent": 3.99,
+        "floating_after": "Special Floating",
+        "min_tenor_years": 10
+      },
+      {
+        "scheme": "Fix 5 Tahun",
+        "fixed_rate_percent": 5.35,
+        "floating_after": "Prime Floating",
+        "min_tenor_years": 12
+      },
+      {
+        "scheme": "Fix Berjenjang 7 Tahun",
+        "tiered_fixed_rate_percent": {
+          "year_1": 2.99,
+          "year_2_to_3": 5.99,
+          "year_4_to_5": 8.99,
+          "year_6_to_7": 9.99
+        },
+        "floating_after": "Preferred Floating + 0.5%",
+        "min_tenor_years": 12
+      }
+    ],
+    "secondary": [
+      {
+        "scheme": "Fix 3 Tahun",
+        "fixed_rate_percent": 4.50,
+        "floating_after": "Special Floating",
+        "min_tenor_years": 10
+      },
+      {
+        "scheme": "Fix 5 Tahun",
+        "fixed_rate_percent": 5.50,
+        "floating_after": "Prime Floating",
+        "min_tenor_years": 12
+      }
+    ]
+  },
+
+  "products": [
+    {
+      "id": "kpr_flexi_primary",
+      "name": "KPR Flexi Primary",
+      "product_type": "Kredit Konsumer",
+      "description": "Kredit pembelian properti baru untuk nasabah baru yang menggabungkan manfaat tabungan dengan fasilitas KPR. Saldo tabungan diperhitungkan untuk mengurangi porsi bunga pinjaman.",
+      "use_case": "Beli properti baru di developer kerjasama UOB, sambil memanfaatkan saldo tabungan untuk menekan bunga.",
+      "currency": "IDR",
+      "credit_limit": { "min": 150000000, "max": 20000000000 },
+      "tenor_years": { "min": 3, "max": 30 },
+      "collateral_types": ["Rumah", "Apartemen", "Ruko", "Rukan", "Tanah"],
+      "interest": {
+        "formula": "Instrumen Keuangan BI 12 Bulan + 2.50% per annum (efektif)",
+        "type": "Floating",
+        "current_estimate_percent": 9.41,
+        "current_estimate_note": "SRBI 6.91% per 29 Mei 2026 + 2.50%. Estimasi, berubah setiap penyesuaian benchmark."
+      },
+      "installment_from": 1251450,
+      "key_features": [
+        "Angsuran per bulan untuk pembelian properti di developer kerjasama UOB.",
+        "Porsi bunga berkurang karena memperhitungkan 80% saldo harian tabungan yang dihubungkan ke fasilitas KPR, sehingga saldo pinjaman lebih cepat berkurang atau lunas.",
+        "Maksimum saldo harian tabungan yang diperhitungkan adalah 125% dari pokok pinjaman terhutang dari waktu ke waktu.",
+        "Saldo tabungan dapat ditarik kapan saja, tidak ada dana yang ditahan.",
+        "Tenor sampai 30 tahun khusus fasilitas KPR pertama dan nasabah karyawan dengan agunan rumah atau apartemen."
+      ],
+      "flexi_mechanism_note": "Tabungan yang sudah dihubungkan ke fasilitas Flexi tidak mendapat bunga, karena manfaat tabungan dialihkan untuk menekan bunga pinjaman.",
+      "land_collateral_rule": "Untuk agunan tanah, maksimal plafon Rp10.000.000.000 dengan maksimal tenor 10 tahun.",
+      "fees": {
+        "provisi_administrasi": "1.1% dari Limit Kredit",
+        "appraisal": "Tidak ada",
+        "credit_agreement_binding": "Sesuai tarif standar notaris rekanan Bank",
+        "life_insurance": "Sesuai tarif perusahaan asuransi jiwa kredit",
+        "collateral_insurance": "Sesuai tarif perusahaan asuransi agunan",
+        "late_penalty": "4% per bulan atau 48% per tahun dari jumlah angsuran yang terlambat dibayar",
+        "early_settlement": "Tidak dikenakan biaya pelunasan dipercepat atau penalti"
+      },
+      "simulation_example": {
+        "debtor_age": 35,
+        "property_price": 1000000000,
+        "credit_limit": 900000000,
+        "ltv_percent": 90,
+        "savings_balance": 200000000,
+        "tenor_years": 10,
+        "rate": "Instrumen Keuangan BI 12 bulan + 2.50%",
+        "provisi_admin": 9900000,
+        "appraisal": 0,
+        "life_insurance": 6111000,
+        "collateral_insurance": 1019000,
+        "monthly_installment": 11601900,
+        "total_loan_cost": 17030000,
+        "total_interest_over_tenor": 297029601,
+        "total_paid_by_consumer": 1214059601,
+        "estimated_payoff_month": 104,
+        "notes": "Total bunga dan tenor lunas dapat berubah sesuai bunga pinjaman dan nilai saldo tabungan. Total yang dibayar belum termasuk biaya notaris, pajak jual beli, dan balik nama."
+      },
+      "eligible_programs": ["primary_cashback"]
+    },
+    {
+      "id": "kpr_secondary",
+      "name": "KPR Secondary",
+      "product_type": "Kredit Konsumer",
+      "description": "Kredit untuk debitur perseorangan untuk pembelian properti second (bekas).",
+      "use_case": "Beli rumah atau properti bekas dari penjual perorangan.",
+      "currency": "IDR",
+      "credit_limit": { "min": 150000000, "max": 20000000000 },
+      "tenor_years": { "min": 10, "max": 30 },
+      "collateral_types": ["Rumah", "Apartemen", "Ruko", "Rukan"],
+      "interest": {
+        "formula": "Mulai 4.50% per annum (efektif), Fixed 3 Tahun",
+        "type": "Fixed lalu Floating",
+        "starting_rate_percent": 4.50
+      },
+      "installment_from": 760050,
+      "key_features": [
+        "Angsuran per bulan untuk pembiayaan pembelian properti secondary.",
+        "Angsuran ringan dan terjangkau sampai dengan 360 kali.",
+        "Tenor sampai 30 tahun khusus fasilitas KPR pertama dan nasabah karyawan dengan agunan rumah atau apartemen."
+      ],
+      "fees": {
+        "provisi_administrasi": "1.1% dari Limit Kredit",
+        "appraisal": "Rp500.000 (internal) atau sesuai tarif biaya KJPP",
+        "credit_agreement_binding": "Sesuai tarif standar notaris rekanan Bank",
+        "life_insurance": "Sesuai tarif perusahaan asuransi jiwa kredit",
+        "collateral_insurance": "Sesuai tarif perusahaan asuransi agunan",
+        "late_penalty": "4% per bulan atau 48% per tahun dari jumlah angsuran yang terlambat dibayar",
+        "early_settlement": "4% selama 8 tahun pertama dari nilai pelunasan"
+      },
+      "simulation_example": {
+        "debtor_age": 35,
+        "property_price": 1000000000,
+        "credit_limit": 900000000,
+        "ltv_percent": 90,
+        "tenor_years": 10,
+        "rate": "4.50% p.a. fixed 3 tahun pertama, lalu Special Floating (11% per Februari 2026)",
+        "provisi_admin": 9900000,
+        "appraisal": 500000,
+        "life_insurance": 6111000,
+        "collateral_insurance": 1019000,
+        "monthly_installment_fixed_period": 9327600,
+        "monthly_installment_floating_period": 11489991,
+        "floating_period_note": "Angsuran masa floating tahun ke 4 sampai jatuh tempo kredit.",
+        "total_loan_cost": 17530000,
+        "total_interest_over_tenor": 400905330,
+        "total_paid_by_consumer": 1318435330,
+        "notes": "Total bunga dapat berubah sesuai bunga pinjaman. Belum termasuk biaya notaris, pajak jual beli, dan balik nama."
+      },
+      "eligible_programs": ["free_appraisal"]
+    },
+    {
+      "id": "kpr_take_over",
+      "name": "KPR Take Over",
+      "product_type": "Kredit Konsumer",
+      "description": "Kredit untuk debitur perseorangan untuk pengambilalihan fasilitas KPR dari bank lain.",
+      "use_case": "Pindahkan KPR dari bank lain ke UOB agar angsuran lebih terjangkau, dengan opsi Top Up.",
+      "currency": "IDR",
+      "credit_limit": { "min": 150000000, "max": 20000000000 },
+      "tenor_years": { "min": 10, "max": 20 },
+      "collateral_types": ["Rumah", "Apartemen", "Ruko", "Rukan"],
+      "interest": {
+        "formula": "Mulai 4.50% per annum (efektif), Fixed 3 Tahun",
+        "type": "Fixed lalu Floating",
+        "starting_rate_percent": 4.50
+      },
+      "installment_from": 949050,
+      "key_features": [
+        "Angsuran per bulan untuk pengambilalihan fasilitas KPR nasabah dari bank lain.",
+        "Angsuran lebih terjangkau dengan tenor sampai 20 tahun.",
+        "Dapat mengajukan penambahan fasilitas kredit (Top Up) untuk biaya biaya kredit dan kebutuhan konsumtif dengan tenor sampai 15 tahun."
+      ],
+      "top_up": {
+        "available": true,
+        "max_tenor_years": 15,
+        "purpose": "Biaya kredit dan kebutuhan konsumtif"
+      },
+      "fees": {
+        "provisi_administrasi": "1.1% dari Limit Kredit",
+        "appraisal": "Rp500.000 (internal) atau sesuai tarif biaya KJPP",
+        "credit_agreement_binding": "Sesuai tarif standar notaris rekanan Bank",
+        "life_insurance": "Sesuai tarif perusahaan asuransi jiwa kredit",
+        "collateral_insurance": "Sesuai tarif perusahaan asuransi agunan",
+        "late_penalty": "4% per bulan atau 48% per tahun dari jumlah angsuran yang terlambat dibayar",
+        "early_settlement": "4% selama 8 tahun pertama dari nilai pelunasan"
+      },
+      "simulation_example": {
+        "debtor_age": 35,
+        "property_price": 1000000000,
+        "credit_limit": 900000000,
+        "ltv_percent": 90,
+        "tenor_years": 10,
+        "rate": "4.50% p.a. fixed 3 tahun pertama, lalu Special Floating (11% per Februari 2026)",
+        "provisi_admin": 9900000,
+        "appraisal": 500000,
+        "life_insurance": 6111000,
+        "collateral_insurance": 1019000,
+        "monthly_installment_fixed_period": 9327600,
+        "monthly_installment_floating_period": 11489991,
+        "total_loan_cost": 17530000,
+        "total_interest_over_tenor": 400905330,
+        "total_paid_by_consumer": 1318435330
+      },
+      "eligible_programs": ["free_appraisal", "take_over_cashback"]
+    }
+  ],
+
+  "eligibility": {
+    "general_requirements": [
+      "Warga Negara Indonesia (WNI).",
+      "Perorangan, bukan badan usaha.",
+      "Usia minimal 21 tahun atau telah menikah.",
+      "Usia maksimal pada akhir masa kredit: 60 tahun untuk karyawan (atau sesuai usia pensiun), 70 tahun untuk profesional atau wiraswasta.",
+      "Mempunyai total penghasilan tetap minimal Rp10.000.000 per bulan (berlaku joint income suami istri)."
+    ],
+    "structured_rules": {
+      "citizenship": "WNI",
+      "entity": "Perorangan",
+      "min_age_years": 21,
+      "married_alternative": true,
+      "max_age_at_loan_end": { "karyawan": 60, "profesional": 70, "wiraswasta": 70, "note": "Karyawan dapat mengikuti usia pensiun." },
+      "min_monthly_income": 10000000,
+      "joint_income_allowed": true
+    },
+    "max_tenor_30y_condition": "Tenor 30 tahun hanya untuk fasilitas KPR pertama, nasabah karyawan, dengan jenis agunan rumah atau apartemen."
+  },
+
+  "required_documents": {
+    "note": "Dokumen wajib berbeda berdasarkan status pekerjaan. Tanda 'true' artinya dokumen diperlukan untuk segmen tersebut.",
+    "matrix": [
+      { "no": 1, "document": "Fotokopi KTP Pemohon dan Pasangan (Suami / Istri)", "karyawan": true, "profesional": true, "wiraswasta": true },
+      { "no": 2, "document": "Fotokopi Kartu Keluarga dan Akta Nikah", "karyawan": true, "profesional": true, "wiraswasta": true },
+      { "no": 3, "document": "Fotokopi NPWP Pribadi", "karyawan": true, "profesional": true, "wiraswasta": true },
+      { "no": 4, "document": "Fotokopi NPWP Perusahaan", "karyawan": false, "profesional": true, "wiraswasta": true },
+      { "no": 5, "document": "Fotokopi Rekening Koran / Tabungan 3 sampai 6 bulan terakhir", "karyawan": true, "profesional": true, "wiraswasta": true },
+      { "no": 6, "document": "Slip Gaji / Surat Keterangan Kerja dan Gaji / SPT PPh 21", "karyawan": true, "profesional": false, "wiraswasta": false },
+      { "no": 7, "document": "Laporan Keuangan / Bukti Penghasilan / SPT PPh 21", "karyawan": false, "profesional": true, "wiraswasta": true },
+      { "no": 8, "document": "Fotokopi Surat Perizinan atau Keterangan Usaha (SIUP / TDP / NIB / SKDU) dan Akta Pendirian Perusahaan dan Perubahannya, jika badan usaha berbentuk PT atau CV", "karyawan": false, "profesional": false, "wiraswasta": true },
+      { "no": 9, "document": "Fotokopi Surat Izin Profesi / SK Pengangkatan dari Instansi Terkait", "karyawan": false, "profesional": true, "wiraswasta": false },
+      { "no": 10, "document": "Dokumen Agunan. Untuk Primary: Surat Pesanan Properti (SPR) dari Developer. Untuk Secondary atau Take Over: Sertifikat Kepemilikan, Izin Mendirikan Bangunan, Akta Jual Beli, dan Pajak Bumi dan Bangunan terakhir.", "karyawan": true, "profesional": true, "wiraswasta": true }
+    ]
+  },
+
+  "fees": {
+    "loan_origination_fees": [
+      { "name": "Biaya Penilaian Agunan (Appraisal / Taksasi)", "detail": "Flexi Primary: tidak ada. Secondary dan Take Over: Rp500.000 internal atau sesuai tarif KJPP." },
+      { "name": "Biaya Provisi dan Administrasi Kredit", "detail": "1.1% dari Limit Kredit." },
+      { "name": "Biaya Notaris (Perjanjian Kredit dan Pengikatan Agunan)", "detail": "Sesuai tarif standar notaris rekanan Bank." },
+      { "name": "Biaya Premi Asuransi Jiwa Kredit", "detail": "Sesuai tarif perusahaan asuransi jiwa kredit." },
+      { "name": "Biaya Premi Asuransi Agunan (Kebakaran)", "detail": "Sesuai tarif perusahaan asuransi agunan." }
+    ],
+    "incidental_fees": [
+      { "name": "Biaya Denda Keterlambatan", "detail": "4% per bulan atau 48% per tahun dari jumlah angsuran yang terlambat dibayar." },
+      { "name": "Biaya Pelunasan Dipercepat", "detail": "Flexi Primary: tidak ada penalti. Secondary dan Take Over: 4% selama 8 tahun pertama dari nilai pelunasan." },
+      { "name": "Biaya administrasi keterlambatan pengambilan dokumen jaminan", "detail": "Berlaku jika dokumen barang jaminan tidak diambil dalam 1 bulan sejak tanggal surat keterangan lunas diterbitkan." }
+    ],
+    "akad_fee_0_percent_installment": {
+      "name": "Konversi Biaya Akad Kredit menjadi Cicilan 0% selama 12 bulan dengan Kartu Kredit UOB",
+      "summary": "UOB Home membantu mengatur pengeluaran biaya akad. Bunga 0% dengan cicilan 12 bulan untuk biaya akad KPR.",
+      "applies_to_fees": "Biaya akad kredit seperti administrasi, provisi, asuransi, dan sebagainya.",
+      "terms": "Syarat dan ketentuan berlaku."
+    }
+  },
+
+  "risks": [
+    "Terdapat tambahan biaya apabila melakukan pelunasan sebelum masa penalti yang tercantum dalam perjanjian kredit berakhir.",
+    "Kenaikan angsuran setelah masa bunga fixed atau teaser berakhir.",
+    "Muncul denda tunggakan dan tercatat dalam sistem SLIK Otoritas Jasa Keuangan apabila pembayaran angsuran tidak tepat waktu.",
+    "Bank UOB Indonesia dapat mengambil alih kepemilikan agunan apabila debitur tidak dapat memenuhi kewajiban.",
+    "Pada KPR Flexi Primary, saldo tabungan yang dihubungkan tidak mendapat bunga karena manfaatnya dialihkan untuk menekan bunga pinjaman.",
+    "Ahli waris debitur wajib melunasi sisa pinjaman jika manfaat asuransi jiwa kredit tidak dapat diklaim.",
+    "Biaya tambahan dapat timbul apabila kredit macet, misalnya biaya penagihan oleh Bank."
+  ],
+
+  "processes": {
+    "application_steps": [
+      "Siapkan dokumen pribadi, data keuangan, dan data jaminan.",
+      "Ajukan KPR UOB melalui e-form di website UOB Indonesia.",
+      "Diskusikan kebutuhan KPR bersama Home Loan Specialist UOB Indonesia.",
+      "Dapatkan ragam pilihan properti melalui Property Agent (Broker) atau Developer Rekanan UOB Indonesia.",
+      "Tunggu informasi atas status pengajuan KPR dari Home Loan Specialist UOB Indonesia."
+    ],
+    "early_settlement_steps": [
+      "Debitur mengajukan surat asli permohonan tertulis yang ditandatangani di atas materai kepada Bank, dengan melampirkan identitas debitur yang masih berlaku.",
+      "Proses pelunasan dipercepat mengikuti ketentuan pelunasan fasilitas kredit yang berlaku di Bank saat ini.",
+      "Pelunasan dipercepat dapat diproses pada hari kerja dengan batas waktu pelunasan di tanggal 10 setiap bulannya.",
+      "Pelunasan sebagian dilakukan bersamaan dengan tanggal jatuh tempo angsuran, hanya dapat dilakukan 1 kali dalam setahun, dengan jumlah maksimal 20 persen dari sisa pinjaman.",
+      "Pelunasan dipercepat dikenakan biaya administrasi pelunasan atau penalti sesuai yang ditetapkan dalam perjanjian kredit."
+    ],
+    "insurance_refund_on_early_settlement": "Apabila dilakukan pelunasan dipercepat, nasabah dapat mengajukan pengembalian (refund) premi asuransi yang telah dibayarkan, sesuai pemanfaatan asuransi yang telah digunakan.",
+    "choice_rights": "Nasabah berhak memilih notaris maupun asuransi rekanan Bank yang akan digunakan."
+  },
+
+  "programs": [
+    {
+      "id": "free_appraisal",
+      "name": "Bebas Biaya Appraisal",
+      "tagline": "Langkah Pertama tanpa Biaya dengan UOB HOME",
+      "program_period": { "start": "2026-04-01", "end": "2026-12-31", "basis": "tanggal pengajuan appraisal" },
+      "applies_to_products": ["kpr_secondary", "kpr_take_over"],
+      "applies_to_facilities": [
+        "Fasilitas KPR Secondary, termasuk Fasilitas Take Over Jual Beli",
+        "Fasilitas KPR Take Over atau Take Over dengan Top Up"
+      ],
+      "benefit": "Potongan biaya appraisal internal Bank UOB. Biaya internal appraisal adalah Rp500.000.",
+      "scheme": [
+        {
+          "category": 1,
+          "discount": "100% / bebas biaya",
+          "eligible_if_any": [
+            "Nasabah UOB Privilege Banking (PV)",
+            "Nasabah UOB Wealth Banking (WB)",
+            "Pengajuan KPR dengan Plafon Kredit lebih besar atau sama dengan Rp1.100.000.000",
+            "Salaried atau Selected Area"
+          ]
+        },
+        {
+          "category": 2,
+          "discount": "50%",
+          "eligible_if": "Segmen lainnya di luar Kategori 1"
+        }
+      ],
+      "terms": [
+        "Potongan biaya internal appraisal berlaku maksimum 2 jaminan per debitur selama periode program.",
+        "Appraisal internal dibatasi Rp10.000.000.000 terhadap seluruh fasilitas nasabah. Jika melebihi, wajib menggunakan appraisal independen yang ditunjuk Bank UOB.",
+        "Tidak dapat digabungkan dengan promo KPR UOB lainnya.",
+        "Suku bunga mengikuti suku bunga yang berlaku pada periode program dan dapat dilihat di website UOB.",
+        "Bank dapat mengubah atau memberhentikan program dengan pemberitahuan terlebih dahulu.",
+        "Batas waktu pengaduan 30 hari kalender setelah tanggal kunjungan tim appraisal ke lokasi agunan."
+      ],
+      "illustrations": [
+        { "case": 1, "category": 1, "segment": "Nasabah UOB PV", "application": "< Rp2,5 M", "selected_area": false, "discount": "100% / Bebas" },
+        { "case": 2, "category": 1, "segment": "New to Bank", "application": ">= Rp2,5 M", "selected_area": false, "discount": "100% / Bebas" },
+        { "case": 3, "category": 1, "segment": "Nasabah UOB WB", "application": "< Rp1,1 M", "selected_area": false, "discount": "100% / Bebas" },
+        { "case": 4, "category": 1, "segment": "New to Bank", "application": ">= Rp1,1 M", "selected_area": false, "discount": "100% / Bebas" },
+        { "case": 5, "category": 1, "segment": "Salaried", "application": "min Rp150 juta", "selected_area": false, "discount": "100% / Bebas" },
+        { "case": 6, "category": 1, "segment": "Non Salaried", "application": "min Rp150 juta", "selected_area": true, "discount": "100% / Bebas" },
+        { "case": 7, "category": 2, "segment": "Non Salaried", "application": "min Rp150 juta", "selected_area": false, "discount": "50%" }
+      ]
+    },
+    {
+      "id": "primary_cashback",
+      "name": "Primary Cashback",
+      "tagline": "Awal Tahun Punya Rumah Baru dengan UOB HOME",
+      "program_period": { "start": "2026-04-01", "end": "2026-12-31", "basis": "tanggal akad kredit" },
+      "applies_to_products": ["kpr_flexi_primary"],
+      "applies_to_facilities": ["KPR Pembelian Primary di Developer Kerjasama Bank UOB"],
+      "benefit": "Cashback biaya administrasi kredit sebesar 1% dari total plafon kredit yang disetujui, dengan maksimum per kategori. Cashback dikenakan PPh 5% yang ditanggung nasabah.",
+      "scheme": [
+        { "category": "A", "max_cashback": 25000000, "eligible_if_any": ["Nasabah UOB Privilege Banking (PV)", "Pengajuan KPR dengan Plafon Kredit >= Rp2.500.000.000"] },
+        { "category": "B", "max_cashback": 15000000, "eligible_if_any": ["Nasabah UOB Wealth Banking (WB)", "Pengajuan KPR dengan Plafon Kredit >= Rp1.100.000.000"] },
+        { "category": "C", "max_cashback": 7500000, "eligible_if": "Pengajuan dengan Plafon Kredit minimal Rp500.000.000" }
+      ],
+      "terms": [
+        "Wajib membeli produk unit trust atau reksa dana melalui fitur Self Serve Unit Trust (SSUT) di aplikasi UOB TMRW secara mandiri.",
+        "Dibaca bersama Syarat dan Ketentuan Umum Kredit Konsumen Beragunan dan Syarat dan Ketentuan Transaksi Produk Unit Trust di UOB TMRW.",
+        "Tidak dapat digabungkan dengan promo KPR UOB lainnya, termasuk diskon.",
+        "Biaya administrasi kredit 1.1% dari plafon, tidak dapat didiskon.",
+        "Cashback dikreditkan ke rekening pendebetan KPR paling lambat 5 hari kerja setelah pencairan kredit.",
+        "Pemadanan NPWP dengan NIK diperlukan untuk menghindari kendala administrasi perpajakan.",
+        "Pajak program ditanggung nasabah (PPh 5%).",
+        "Batas waktu pengaduan 30 hari kalender setelah cashback dikreditkan."
+      ],
+      "illustrations": [
+        { "case": 1, "category": "A", "segment": "Nasabah UOB PV", "plafon": 2000000000, "admin_1_1_percent": 22000000, "cashback_gross": 20000000, "cashback_capped": 20000000, "pph_5_percent": 1000000, "cashback_received": 19000000 },
+        { "case": 2, "category": "A", "segment": "Pengajuan >= Rp2,5 M", "plafon": 2500000000, "admin_1_1_percent": 27500000, "cashback_gross": 25000000, "cashback_capped": 25000000, "pph_5_percent": 1250000, "cashback_received": 23750000 },
+        { "case": 3, "category": "B", "segment": "Nasabah UOB WB", "plafon": 1000000000, "admin_1_1_percent": 11000000, "cashback_gross": 10000000, "cashback_capped": 10000000, "pph_5_percent": 500000, "cashback_received": 9500000 },
+        { "case": 4, "category": "B", "segment": "Pengajuan >= Rp1,1 M", "plafon": 2000000000, "admin_1_1_percent": 22000000, "cashback_gross": 20000000, "cashback_capped": 15000000, "pph_5_percent": 750000, "cashback_received": 14250000 },
+        { "case": 5, "category": "C", "segment": "Pengajuan min. Rp500 juta", "plafon": 650000000, "admin_1_1_percent": 7150000, "cashback_gross": 6500000, "cashback_capped": 6500000, "pph_5_percent": 325000, "cashback_received": 6175000 },
+        { "case": 6, "category": "C", "segment": "Pengajuan min. Rp500 juta", "plafon": 1000000000, "admin_1_1_percent": 11000000, "cashback_gross": 10000000, "cashback_capped": 7500000, "pph_5_percent": 375000, "cashback_received": 7125000 }
+      ]
+    },
+    {
+      "id": "take_over_cashback",
+      "name": "Take Over Cashback",
+      "tagline": "Awal Tahun Makin Ringan dengan UOB HOME",
+      "program_period": { "start": "2026-04-01", "end": "2026-12-31", "basis": "tanggal akad kredit" },
+      "applies_to_products": ["kpr_take_over"],
+      "applies_to_facilities": ["Take Over Fasilitas KPR", "Take Over Fasilitas KPR dengan Top Up"],
+      "benefit": "Dua manfaat: (a) bebas biaya appraisal internal bank, dan (b) cashback biaya administrasi kredit sebesar 1% dari total plafon kredit yang disetujui, dengan maksimum per kategori. Cashback dikenakan PPh 5% yang ditanggung nasabah.",
+      "scheme": [
+        { "category": "A", "max_cashback": 25000000, "eligible_if_any": ["Nasabah UOB Privilege Banking (PV)", "Pengajuan KPR dengan Plafon Kredit >= Rp2.500.000.000"] },
+        { "category": "B", "max_cashback": 15000000, "eligible_if_any": ["Nasabah UOB Wealth Banking (WB)", "Pengajuan KPR dengan Plafon Kredit >= Rp1.100.000.000"] },
+        { "category": "C", "max_cashback": 7500000, "eligible_if": "Pengajuan dengan Plafon Kredit minimal Rp500.000.000" }
+      ],
+      "terms": [
+        "Wajib membeli produk unit trust atau reksa dana melalui fitur SSUT di aplikasi UOB TMRW secara mandiri.",
+        "Appraisal internal dibatasi Rp10.000.000.000 terhadap seluruh fasilitas nasabah. Jika melebihi, wajib appraisal independen.",
+        "Tidak dapat digabungkan dengan promo KPR UOB lainnya, termasuk diskon.",
+        "Biaya administrasi kredit 1.1% dari plafon, tidak dapat didiskon.",
+        "Cashback dikreditkan ke rekening pendebetan KPR paling lambat 5 hari kerja setelah pencairan kredit.",
+        "Pemadanan NPWP dengan NIK diperlukan.",
+        "Pajak program ditanggung nasabah (PPh 5%).",
+        "Batas waktu pengaduan 30 hari kalender setelah cashback dikreditkan."
+      ],
+      "illustrations": [
+        { "case": 1, "category": "A", "segment": "Nasabah UOB PV", "plafon": 2000000000, "admin_1_1_percent": 22000000, "cashback_gross": 20000000, "cashback_capped": 20000000, "pph_5_percent": 1000000, "cashback_received": 19000000 },
+        { "case": 2, "category": "A", "segment": "Pengajuan >= Rp2,5 M", "plafon": 2500000000, "admin_1_1_percent": 27500000, "cashback_gross": 25000000, "cashback_capped": 25000000, "pph_5_percent": 1250000, "cashback_received": 23750000 },
+        { "case": 3, "category": "B", "segment": "Nasabah UOB WB", "plafon": 1000000000, "admin_1_1_percent": 11000000, "cashback_gross": 10000000, "cashback_capped": 10000000, "pph_5_percent": 500000, "cashback_received": 9500000 },
+        { "case": 4, "category": "B", "segment": "Pengajuan >= Rp1,1 M", "plafon": 2000000000, "admin_1_1_percent": 22000000, "cashback_gross": 20000000, "cashback_capped": 15000000, "pph_5_percent": 750000, "cashback_received": 14250000 },
+        { "case": 5, "category": "C", "segment": "Pengajuan min. Rp500 juta", "plafon": 650000000, "admin_1_1_percent": 7150000, "cashback_gross": 6500000, "cashback_capped": 6500000, "pph_5_percent": 325000, "cashback_received": 6175000 },
+        { "case": 6, "category": "C", "segment": "Pengajuan min. Rp500 juta", "plafon": 1000000000, "admin_1_1_percent": 11000000, "cashback_gross": 10000000, "cashback_capped": 7500000, "pph_5_percent": 375000, "cashback_received": 7125000 }
+      ]
+    }
+  ],
+
+  "calculators": {
+    "note": "Gunakan rumus ini agar jawaban angka deterministik dan konsisten dengan ilustrasi resmi.",
+    "provisi_admin": {
+      "formula": "provisi_admin = 0.011 * plafon_kredit",
+      "example": "plafon 1.000.000.000 => 11.000.000"
+    },
+    "cashback": {
+      "applies_to": ["primary_cashback", "take_over_cashback"],
+      "steps": [
+        "Tentukan kategori (A, B, atau C) dari segmen nasabah atau plafon.",
+        "cashback_gross = 0.01 * plafon_kredit",
+        "cashback_capped = min(cashback_gross, max_cashback_kategori)",
+        "pph = 0.05 * cashback_capped",
+        "cashback_received = cashback_capped - pph"
+      ],
+      "category_caps": { "A": 25000000, "B": 15000000, "C": 7500000 },
+      "category_resolution": {
+        "A": "Nasabah PV ATAU plafon >= 2.500.000.000",
+        "B": "Nasabah WB ATAU plafon >= 1.100.000.000",
+        "C": "Plafon minimal 500.000.000",
+        "priority": "Pakai kategori dengan cap tertinggi yang syaratnya terpenuhi."
+      },
+      "worked_example": "Plafon 2.000.000.000, segmen Pengajuan >= 1,1 M (Kategori B): gross 20.000.000, capped 15.000.000, pph 750.000, diterima 14.250.000."
+    },
+    "late_penalty": {
+      "formula": "denda = 0.04 * jumlah_angsuran_terlambat (per bulan), atau setara 48% per tahun",
+      "note": "Dihitung dari jumlah angsuran yang terlambat dibayar, bukan dari pokok."
+    },
+    "early_settlement_penalty": {
+      "flexi_primary": "Tidak ada penalti.",
+      "secondary_and_take_over": "penalti = 0.04 * nilai_pelunasan, berlaku selama 8 tahun pertama."
+    },
+    "flexi_interest_reduction": {
+      "concept": "Pada Flexi Primary, 80% dari saldo harian tabungan yang dihubungkan ikut mengurangi basis perhitungan bunga.",
+      "max_offset": "Saldo yang diperhitungkan dibatasi maksimal 125% dari pokok pinjaman terhutang.",
+      "effective_interest_base": "basis_bunga = pokok_terhutang - min(0.80 * saldo_tabungan_harian, 1.25 * pokok_terhutang)",
+      "caution": "Saldo tabungan yang dihubungkan tidak mendapat bunga tabungan."
+    },
+    "monthly_installment_estimate": {
+      "formula": "Anuitas: M = P * (i * (1+i)^n) / ((1+i)^n - 1), dengan i = bunga_tahunan_efektif/12 dan n = tenor_bulan.",
+      "caution": "Gunakan hanya sebagai estimasi. Angka final mengikuti analisa kredit. Untuk produk fixed lalu floating, hitung per fase bunga."
+    },
+    "interest_rate_resolver": {
+      "note": "Setelah masa fixed berakhir, bunga menjadi floating sesuai tier.",
+      "flexi_primary_current": "SRBI (6.91% per 29 Mei 2026) + 2.50% = sekitar 9.41%.",
+      "floating_tiers_percent": { "Floating Counter Rate": 13.99, "Prime Floating": 12.00, "Special Floating": 11.00, "Preferred Floating": 9.50 }
+    }
+  },
+
+  "decision_routing": {
+    "which_product": [
+      { "if": "Beli properti baru di developer kerjasama UOB", "recommend": "kpr_flexi_primary", "eligible_program": "primary_cashback" },
+      { "if": "Beli properti bekas atau second", "recommend": "kpr_secondary", "eligible_program": "free_appraisal" },
+      { "if": "Pindahkan KPR dari bank lain ke UOB", "recommend": "kpr_take_over", "eligible_program": ["free_appraisal", "take_over_cashback"] }
+    ],
+    "program_conflict_rule": "Setiap program tidak dapat digabungkan dengan promo KPR UOB lainnya. Jika nasabah memenuhi beberapa promo, hanya satu yang dapat dipakai. Take Over Cashback sudah mencakup bebas appraisal, jadi tidak perlu digabung dengan program Bebas Biaya Appraisal.",
+    "cashback_requires_ssut": "Cashback hanya cair jika nasabah membeli unit trust atau reksa dana via SSUT di UOB TMRW."
+  },
+
+  "faq": [
+    {
+      "intent": "produk_apa_saja",
+      "question_examples": ["KPR UOB ada apa saja?", "Jenis KPR apa yang tersedia?"],
+      "answer": "UOB menyediakan tiga jenis KPR utama: KPR Flexi Primary untuk pembelian properti baru di developer kerjasama, KPR Secondary untuk pembelian properti bekas, dan KPR Take Over untuk memindahkan KPR dari bank lain (dengan opsi Top Up)."
+    },
+    {
+      "intent": "syarat_umum",
+      "question_examples": ["Apa syarat pengajuan KPR UOB?", "Persyaratan umumnya apa?"],
+      "answer": "WNI, perorangan, usia minimal 21 tahun atau sudah menikah, usia maksimal di akhir kredit 60 tahun untuk karyawan dan 70 tahun untuk profesional atau wiraswasta, serta penghasilan tetap minimal Rp10.000.000 per bulan (boleh joint income suami istri)."
+    },
+    {
+      "intent": "dokumen",
+      "question_examples": ["Dokumen apa yang harus disiapkan?", "Berkas KPR untuk karyawan apa saja?"],
+      "answer": "Dokumen wajib berbeda menurut status pekerjaan (karyawan, profesional, wiraswasta). Inti yang sama: KTP pemohon dan pasangan, Kartu Keluarga dan Akta Nikah, NPWP Pribadi, rekening koran 3 sampai 6 bulan, bukti penghasilan, dan dokumen agunan. SakhaPR menampilkan checklist sesuai status pekerjaan yang dipilih nasabah."
+    },
+    {
+      "intent": "biaya_kredit",
+      "question_examples": ["Biaya KPR apa saja yang dikenakan?", "Ada biaya apa saja?"],
+      "answer": "Biaya yang umum dikenakan: biaya penilaian agunan (appraisal), biaya provisi dan administrasi (1.1% dari plafon), biaya notaris, serta premi asuransi jiwa dan asuransi kebakaran. Biaya akad bisa dikonversi menjadi cicilan 0% selama 12 bulan dengan Kartu Kredit UOB."
+    },
+    {
+      "intent": "appraisal_gratis",
+      "question_examples": ["Apakah ada promo gratis appraisal?", "Bebas biaya appraisal berlaku untuk siapa?"],
+      "answer": "Ya. Program Bebas Biaya Appraisal berlaku 1 April sampai 31 Desember 2026 untuk KPR Secondary dan Take Over. Potongan 100% jika nasabah PV atau WB, atau plafon minimal Rp1,1 miliar, atau Salaried atau Selected Area. Selain itu potongan 50%. Biaya internal appraisal normalnya Rp500.000."
+    },
+    {
+      "intent": "cashback",
+      "question_examples": ["Berapa cashback KPR?", "Bagaimana cara dapat cashback?"],
+      "answer": "Cashback 1% dari plafon kredit, dengan maksimum Rp25 juta (Kategori A), Rp15 juta (Kategori B), atau Rp7,5 juta (Kategori C), dan dipotong PPh 5%. Syarat utamanya nasabah harus membeli unit trust atau reksa dana via SSUT di aplikasi UOB TMRW. Berlaku untuk Primary dan Take Over selama 1 April sampai 31 Desember 2026."
+    },
+    {
+      "intent": "suku_bunga",
+      "question_examples": ["Berapa suku bunga KPR UOB?", "Bunga fixed berapa?"],
+      "answer": "Untuk Primary, mulai dari 3.99% fix 3 tahun, 5.35% fix 5 tahun, atau skema fix berjenjang 7 tahun mulai 2.99%. Untuk Secondary, mulai 4.50% fix 3 tahun atau 5.50% fix 5 tahun. KPR Flexi Primary memakai SRBI 12 bulan + 2.50% (sekitar 9.41% per akhir Mei 2026). Setelah masa fixed, bunga menjadi floating. Angka dapat berubah, cek website UOB untuk yang terbaru."
+    },
+    {
+      "intent": "pelunasan",
+      "question_examples": ["Bagaimana cara pelunasan dipercepat?", "Ada penalti pelunasan?"],
+      "answer": "Nasabah mengajukan surat permohonan asli bermaterai dengan identitas yang masih berlaku. Pelunasan diproses di hari kerja dengan batas tanggal 10 setiap bulan. Pelunasan sebagian hanya 1 kali setahun dan maksimal 20% dari sisa pinjaman. Penalti: Flexi Primary tidak ada penalti, sedangkan Secondary dan Take Over dikenakan 4% selama 8 tahun pertama dari nilai pelunasan."
+    },
+    {
+      "intent": "risiko",
+      "question_examples": ["Apa risiko KPR?", "Risiko yang mungkin timbul?"],
+      "answer": "Risiko utama: biaya tambahan jika pelunasan sebelum masa penalti berakhir, kenaikan angsuran setelah masa fixed berakhir, denda dan catatan SLIK OJK jika telat bayar, dan Bank dapat mengambil alih agunan jika debitur gagal memenuhi kewajiban."
+    },
+    {
+      "intent": "tenor",
+      "question_examples": ["Berapa tenor maksimal?", "Bisa sampai 30 tahun?"],
+      "answer": "Tenor sampai 30 tahun hanya untuk KPR pertama, nasabah karyawan, dengan agunan rumah atau apartemen. Secondary 10 sampai 30 tahun, Take Over 10 sampai 20 tahun (Top Up sampai 15 tahun), Flexi Primary 3 sampai 30 tahun."
+    },
+    {
+      "intent": "cara_pengajuan",
+      "question_examples": ["Bagaimana cara ajukan KPR?", "Langkah pengajuan KPR?"],
+      "answer": "Siapkan dokumen pribadi, data keuangan, dan data jaminan. Ajukan lewat e-form di website UOB Indonesia, diskusikan dengan Home Loan Specialist, pilih properti lewat broker atau developer rekanan, lalu tunggu status pengajuan dari Home Loan Specialist."
+    }
+  ],
+
+  "support": {
+    "mortgage_relations_unit": "021 2927 6100 ext. 8354-57 / 8239-8242",
+    "mortgage_relations_email": "mortgagerelations@uob.co.id",
+    "uob_contact_centre": "14008",
+    "customer_care_email": "UOBCare@uob.co.id",
+    "website": "www.uob.co.id"
+  }
+}
