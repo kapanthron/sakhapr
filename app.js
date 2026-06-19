@@ -16,6 +16,20 @@ import {
   assertNoPersistentStorage,
   cspSelfCheck,
 } from "./modules/privacy.js";
+import { classifyIntent } from "./modules/intentRouter.js";
+import { answer } from "./modules/knowledgeAnswer.js";
+
+/* --- Knowledge base (loaded once, public reference data, not personal) ----- */
+let knowledgeBase = null;
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+
+async function loadKnowledgeBase() {
+  if (knowledgeBase) return knowledgeBase;
+  const res = await fetch("data/knowledge_base.json");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  knowledgeBase = await res.json();
+  return knowledgeBase;
+}
 
 /* --- DOM handles ----------------------------------------------------------- */
 const chatLog = document.getElementById("chatLog");
@@ -70,7 +84,13 @@ function greet() {
 
 /* --- Composer handling ----------------------------------------------------- */
 
-composer.addEventListener("submit", (e) => {
+/** Render an answer object (body + disclaimer) as one bot bubble. */
+function renderAnswer(res) {
+  const body = res.disclaimer ? `${res.text}\n\n— ${res.disclaimer}` : res.text;
+  addMessage("bot", body);
+}
+
+composer.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = composerInput.value.trim();
   if (!text) return;
@@ -78,14 +98,25 @@ composer.addEventListener("submit", (e) => {
   addMessage("user", text);
   composerInput.value = "";
 
-  // Phase 1 placeholder. Phase 2 replaces this with the intent router + KB answer.
-  window.setTimeout(() => {
+  try {
+    const kb = await loadKnowledgeBase();
+    const classification = classifyIntent(text);
+    const res = answer(kb, classification, TODAY_ISO);
+
+    // Remember the running context (in memory only) for later phases.
+    store.intent = classification.intent;
+    if (res.product) store.product = res.product;
+
+    renderAnswer(res);
+  } catch (err) {
+    console.error("[SakhaPR] answer failed:", err);
     addMessage(
       "bot",
-      "Terima kasih. Mesin tanya-jawab akan aktif pada tahap berikutnya. " +
-        "Untuk saat ini, ini adalah kerangka aplikasi (Phase 1)."
+      "Maaf, basis pengetahuan belum bisa dimuat. Jika Anda membuka file ini " +
+        "langsung (file://), jalankan lewat server lokal (mis. `npx serve`) atau " +
+        "buka versi yang sudah ter-deploy."
     );
-  }, 200);
+  }
 });
 
 /* --- Clear all data -------------------------------------------------------- */
