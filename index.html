@@ -11,6 +11,9 @@
     <meta> tag here, to avoid two sources of truth that can drift apart.
   -->
   <link rel="stylesheet" href="styles.css" />
+  <!-- jsPDF (vendored locally, UMD) for the NIK report PDF. Exposes window.jspdf.
+       Classic deferred script so it runs before app.js (same-origin, CSP 'self'). -->
+  <script defer src="vendor/jspdf/jspdf.umd.min.js"></script>
 </head>
 <body>
   <!-- Persistent PDPA / UU PDP notice. Must stay visible at all times. -->

@@ -304,6 +304,7 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
   border-radius: var(--radius-sm);
 }
 .ektp .debug__grid { margin-top: 12px; }
+.ektp__actions { margin-top: 12px; }
 
 /* --- Temporary NIK debug panel (Phase 4) ---------------------------------- */
 .debug {

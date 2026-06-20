@@ -28,6 +28,7 @@ import {
 import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
 import { runOcr, terminateOcr } from "./modules/ocr.js";
+import { buildNikReportPdf } from "./modules/pdfReport.js";
 
 /* --- Reference data (loaded once, public, not personal) -------------------- */
 let knowledgeBase = null;
@@ -507,6 +508,30 @@ function setupEktp() {
     store.ektp.fields = printed;
     store.ektp.verdict = res;
     updateDataStatus();
+
+    // Offer the PDF report (file c).
+    const actions = document.createElement("div");
+    actions.className = "ektp__actions";
+    const pdfBtn = document.createElement("button");
+    pdfBtn.type = "button";
+    pdfBtn.className = "btn btn--primary";
+    pdfBtn.textContent = "Unduh laporan NIK (.pdf)";
+    pdfBtn.addEventListener("click", () => {
+      try {
+        const { filename, blob } = buildNikReportPdf(res, {
+          timestamp: new Date().toLocaleString("id-ID"),
+          printed,
+        });
+        store.files.fileC = blob; // kept in memory for the Phase 6 bundle
+        downloadBlob(blob, filename);
+        updateDataStatus();
+      } catch (err) {
+        console.error("[SakhaPR] PDF generation failed:", err);
+        ektp.status.textContent = "Gagal membuat PDF. Pastikan halaman termuat penuh, lalu coba lagi.";
+      }
+    });
+    actions.appendChild(pdfBtn);
+    ektp.result.appendChild(actions);
   });
 }
 
