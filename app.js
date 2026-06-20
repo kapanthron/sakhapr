@@ -29,6 +29,8 @@ import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
 import { runOcr, terminateOcr } from "./modules/ocr.js";
 import { buildNikReportPdf } from "./modules/pdfReport.js";
+import { buildBundle, formatBytes } from "./modules/bundle.js";
+import { openMailDraft } from "./modules/sendDraft.js";
 
 /* --- Reference data (loaded once, public, not personal) -------------------- */
 let knowledgeBase = null;
@@ -535,6 +537,82 @@ function setupEktp() {
   });
 }
 
+/* --- Bundle + send (Path A, Phase 6) --------------------------------------- */
+
+const PRODUCT_NAMES = {
+  kpr_flexi_primary: "KPR Flexi Primary",
+  kpr_secondary: "KPR Secondary",
+  kpr_take_over: "KPR Take Over",
+};
+
+/** Which of the three files are ready? */
+function missingParts() {
+  const missing = [];
+  if (!store.files.fileA) missing.push("transkrip prescreen (file a)");
+  if (!(store.ektp && store.ektp.image)) missing.push("gambar eKTP (file b)");
+  if (!store.files.fileC) missing.push("laporan NIK (file c)");
+  return missing;
+}
+
+function setupSend() {
+  const statusEl = document.getElementById("sendStatus");
+  const buildBtn = document.getElementById("sendBuild");
+  const afterEl = document.getElementById("sendAfter");
+  if (!buildBtn) return;
+
+  buildBtn.addEventListener("click", async () => {
+    afterEl.textContent = "";
+    const missing = missingParts();
+    if (missing.length) {
+      statusEl.textContent = `Belum lengkap. Masih kurang: ${missing.join(", ")}.`;
+      return;
+    }
+
+    statusEl.textContent = "Menyusun paket (memperkecil gambar bila perlu)…";
+    buildBtn.disabled = true;
+    try {
+      const result = await buildBundle({
+        fileA: store.files.fileA,
+        fileB: store.ektp.image,
+        fileC: store.files.fileC,
+        baseName: "sakhapr_lead",
+      });
+
+      store.files.bundle = result.blob; // in memory
+      downloadBlob(result.blob, result.filename);
+
+      statusEl.textContent =
+        `Paket dibuat: ${result.filename} (${formatBytes(result.sizeBytes)})` +
+        (result.imageDownscaled ? ` — gambar diperkecil menjadi ${formatBytes(result.finalImageBytes)}.` : ".") +
+        (result.fits ? " Di bawah 5MB." : " PERINGATAN: masih di atas 5MB.");
+
+      const verdict = store.ektp.verdict && store.ektp.verdict.verdict;
+      const session = flow.session || store.prescreen;
+      openMailDraft({
+        productName: PRODUCT_NAMES[store.product] || store.product || "",
+        prescreenLabel: session ? session.label : "",
+        prescreenDone: session ? session.isComplete() : false,
+        nikVerdict: verdict || "",
+        bundleName: result.filename,
+        bundleSize: formatBytes(result.sizeBytes),
+      });
+
+      // Prompt Clear all data after sending.
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "btn btn--primary";
+      clearBtn.textContent = "Selesai — hapus semua data";
+      clearBtn.addEventListener("click", () => clearAllBtn.click());
+      afterEl.appendChild(clearBtn);
+    } catch (err) {
+      console.error("[SakhaPR] bundle/send failed:", err);
+      statusEl.textContent = `Gagal menyiapkan paket: ${err.message}`;
+    } finally {
+      buildBtn.disabled = false;
+    }
+  });
+}
+
 /* --- Boot ------------------------------------------------------------------ */
 
 function init() {
@@ -544,6 +622,7 @@ function init() {
   greet();
   setupNikDebugPanel();
   setupEktp();
+  setupSend();
   composerInput.focus();
 }
 

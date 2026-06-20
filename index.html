@@ -114,6 +114,23 @@
       <div id="ektpResult" class="debug__result" aria-live="polite"></div>
     </section>
 
+    <!-- Bundle + send (Path A) -->
+    <section class="send" id="sendSection">
+      <h2 class="ektp__title">Kirim paket ke UOB</h2>
+      <p class="ektp__disclaimer">
+        Paket berisi transkrip prescreen (file a), gambar eKTP (file b), dan
+        laporan skrining NIK (file c), dijaga di bawah 5MB. Penerima:
+        <strong>hendrik.panthron@uob.co.id</strong>. Browser tidak dapat
+        melampirkan file secara otomatis: aplikasi mengunduh paket, lalu membuka
+        draf email; Anda melampirkan paket yang terunduh dan menekan kirim.
+      </p>
+      <div id="sendStatus" class="ektp__status" aria-live="polite">Lengkapi prescreen dan pemeriksaan eKTP untuk menyiapkan paket.</div>
+      <div class="ektp__actions">
+        <button type="button" id="sendBuild" class="btn btn--primary">Buat paket &amp; buka draf email</button>
+      </div>
+      <div id="sendAfter" class="ektp__actions"></div>
+    </section>
+
     <!-- TEMPORARY debug panel (Phase 4). Lets you type a NIK and inspect every
          check before OCR is wired in Phase 5. Remove before production. -->
     <details class="debug" id="nikDebug">
