@@ -14,6 +14,27 @@
       "intro": "Baik pak/bu, terima kasih konfirmasinya. Sebelum kami teruskan ke tim marketing, apakah boleh dibantu interview awal?",
       "questions": [
         {
+          "no": 0,
+          "id": "nama_lengkap",
+          "text": "Nama lengkap sesuai KTP?",
+          "type": "text",
+          "flag_hint": "identitas"
+        },
+        {
+          "no": 0,
+          "id": "nomor_handphone",
+          "text": "Nomor handphone aktif (WhatsApp)?",
+          "type": "tel",
+          "flag_hint": "kontak"
+        },
+        {
+          "no": 0,
+          "id": "email_aktif",
+          "text": "Email aktif?",
+          "type": "email",
+          "flag_hint": "kontak"
+        },
+        {
           "no": 1,
           "id": "beli_developer_atau_second",
           "text": "Pembelian dari developer atau properti second? Apakah sudah booking fee atau UTJ?",
@@ -81,6 +102,27 @@
       "intro": "Baik pak/bu, terima kasih konfirmasinya. Sebelum kami teruskan ke tim marketing, apakah boleh dibantu interview awal?",
       "questions": [
         {
+          "no": 0,
+          "id": "nama_lengkap",
+          "text": "Nama lengkap sesuai KTP?",
+          "type": "text",
+          "flag_hint": "identitas"
+        },
+        {
+          "no": 0,
+          "id": "nomor_handphone",
+          "text": "Nomor handphone aktif (WhatsApp)?",
+          "type": "tel",
+          "flag_hint": "kontak"
+        },
+        {
+          "no": 0,
+          "id": "email_aktif",
+          "text": "Email aktif?",
+          "type": "email",
+          "flag_hint": "kontak"
+        },
+        {
           "no": 1,
           "id": "beli_developer_atau_second",
           "text": "Pembelian dari developer atau properti second? Apakah sudah booking fee atau UTJ?",
@@ -147,6 +189,27 @@
       "product_id": "kpr_take_over",
       "intro": "Baik pak/bu, untuk interview awal sebelum kami teruskan ke marketing, apakah boleh dibantu?",
       "questions": [
+        {
+          "no": 0,
+          "id": "nama_lengkap",
+          "text": "Nama lengkap sesuai KTP?",
+          "type": "text",
+          "flag_hint": "identitas"
+        },
+        {
+          "no": 0,
+          "id": "nomor_handphone",
+          "text": "Nomor handphone aktif (WhatsApp)?",
+          "type": "tel",
+          "flag_hint": "kontak"
+        },
+        {
+          "no": 0,
+          "id": "email_aktif",
+          "text": "Email aktif?",
+          "type": "email",
+          "flag_hint": "kontak"
+        },
         {
           "no": 1,
           "id": "jaminan_sertifikat_atau_ppjb",

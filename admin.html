@@ -25,6 +25,11 @@
       <button id="logoutBtn" type="button" class="btn btn--ghost" hidden>Keluar</button>
     </div>
 
+    <nav class="admin-nav" id="adminNav" hidden>
+      <button type="button" id="tabLeads" class="btn btn--ghost is-active">Log Lead</button>
+      <button type="button" id="tabPariksa" class="btn btn--ghost">Pariksa (uji OCR)</button>
+    </nav>
+
     <!-- Login -->
     <section class="ektp" id="loginView" hidden>
       <h2 class="ektp__title">Masuk Super Admin</h2>
@@ -48,6 +53,41 @@
       </div>
       <div id="leadsStatus" class="ektp__status" aria-live="polite"></div>
       <div id="leadsList"></div>
+    </section>
+
+    <!-- Pariksa: OCR + NIK structure test tool (admin QA) -->
+    <section id="pariksaView" hidden>
+      <h2 class="ektp__title">Pariksa — Uji OCR &amp; Struktur NIK</h2>
+      <p class="ektp__disclaimer">
+        Unggah foto eKTP untuk menguji akurasi OCR dan pemeriksaan struktur NIK.
+        Berjalan di perangkat ini (tidak disimpan). Koreksi field bila OCR keliru,
+        lalu klik Periksa NIK.
+      </p>
+      <input type="file" id="pkFile" accept="image/*" />
+      <div id="pkStatus" class="ektp__status" aria-live="polite"></div>
+      <img id="pkPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
+
+      <div class="debug__grid" id="pkFields" hidden>
+        <label>NIK (16 digit)
+          <input id="pkNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
+        </label>
+        <label>Jenis kelamin
+          <select id="pkSex">
+            <option value="">(kosong)</option>
+            <option value="LAKI-LAKI">LAKI-LAKI</option>
+            <option value="PEREMPUAN">PEREMPUAN</option>
+          </select>
+        </label>
+        <label>Tanggal lahir (dd-mm-yyyy)
+          <input id="pkDob" class="mono" type="text" placeholder="17-08-1995" />
+        </label>
+        <label>Provinsi <input id="pkProv" type="text" /></label>
+        <label>Kabupaten / Kota <input id="pkKab" type="text" /></label>
+        <label>Kecamatan <input id="pkKec" type="text" /></label>
+      </div>
+
+      <button type="button" id="pkCheck" class="btn btn--primary" hidden>Periksa NIK</button>
+      <div id="pkResult" class="debug__result" aria-live="polite"></div>
     </section>
   </main>
 

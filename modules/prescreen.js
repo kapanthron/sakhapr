@@ -101,6 +101,17 @@ export function validateAnswer(q, raw) {
     return { ok: true, value: digits };
   }
 
+  if (q.type === "email") {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return { ok: true, value: s };
+    return { ok: false, error: "Mohon masukkan email yang valid, contoh: nama@email.com." };
+  }
+
+  if (q.type === "tel") {
+    const digits = s.replace(/[^0-9]/g, "");
+    if (digits.length >= 9 && digits.length <= 15) return { ok: true, value: s };
+    return { ok: false, error: "Mohon masukkan nomor handphone yang valid (9–15 digit)." };
+  }
+
   return { ok: true, value: s }; // free text
 }
 
@@ -132,10 +143,12 @@ export function buildTranscript(session, timestamp) {
   L.push("Pertanyaan & Jawaban");
   L.push("-".repeat(44));
 
+  let idx = 0;
   for (const q of session.questions) {
     const a = session.answers[q.id];
     if (!a) continue; // skipped by a conditional
-    L.push(`${q.no}. ${q.text}`);
+    idx++;
+    L.push(`${idx}. ${q.text}`);
     L.push(`   Jawaban: ${formatValue(a)}`);
   }
 

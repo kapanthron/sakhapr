@@ -192,7 +192,9 @@ function askNextQuestion() {
   const q = session.next();
   if (!q) return finishPrescreen();
 
-  const prefix = `Pertanyaan ${q.no}. `;
+  // Number questions by position asked (the static "no" is ignored), so adding
+  // questions to a set never requires renumbering.
+  const prefix = `Pertanyaan ${Object.keys(session.answers).length + 1}. `;
   if (q.type === "choice") {
     addMessage("bot", prefix + q.text);
     addChips(q.options, submitPrescreenAnswer);

@@ -308,6 +308,8 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
 
 /* --- Super Admin: lead log ------------------------------------------------- */
 .ektp__title--flush { margin: 0; }
+.admin-nav { display: flex; gap: 8px; margin-bottom: 4px; }
+.admin-nav .btn.is-active { background: var(--teal); color: var(--white); border-color: var(--teal); }
 .lead-card {
   background: var(--white);
   border: 1px solid var(--line);
