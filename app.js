@@ -27,6 +27,7 @@ import {
 } from "./modules/prescreen.js";
 import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
+import { runOcr, terminateOcr } from "./modules/ocr.js";
 
 /* --- Reference data (loaded once, public, not personal) -------------------- */
 let knowledgeBase = null;
@@ -306,6 +307,8 @@ clearAllBtn.addEventListener("click", () => {
   clearAllData();
   flow.mode = "idle";
   flow.session = null;
+  resetEktpUi();
+  terminateOcr(); // free the OCR worker
   chatLog.innerHTML = "";
   updateDataStatus();
 
@@ -406,6 +409,107 @@ function renderNikResult(container, res) {
   container.appendChild(table);
 }
 
+/* --- eKTP upload + OCR + NIK screening (Phase 5a) -------------------------- */
+
+const ektp = {};
+function cacheEktpEls() {
+  const $ = (id) => document.getElementById(id);
+  Object.assign(ektp, {
+    consent: $("ektpConsent"), file: $("ektpFile"), hint: $("ektpHint"),
+    status: $("ektpStatus"), preview: $("ektpPreview"), fields: $("ektpFields"),
+    check: $("ektpCheck"), result: $("ektpResult"),
+    nik: $("ekNik"), sex: $("ekSex"), dob: $("ekDob"),
+    prov: $("ekProv"), kab: $("ekKab"), kec: $("ekKec"),
+  });
+}
+
+function resetEktpUi() {
+  if (!ektp.consent) return;
+  ektp.consent.checked = false;
+  ektp.file.value = "";
+  ektp.file.disabled = true;
+  ektp.hint.textContent = "Centang persetujuan untuk mengaktifkan unggah eKTP.";
+  ektp.status.textContent = "";
+  ektp.preview.hidden = true;
+  ektp.preview.removeAttribute("src");
+  ektp.fields.hidden = true;
+  ektp.check.hidden = true;
+  ektp.result.textContent = "";
+  [ektp.nik, ektp.dob, ektp.prov, ektp.kab, ektp.kec].forEach((el) => (el.value = ""));
+  ektp.sex.value = "";
+}
+
+function setupEktp() {
+  cacheEktpEls();
+  if (!ektp.consent) return;
+
+  // Consent gate: the file picker is disabled until consent is ticked.
+  ektp.consent.addEventListener("change", () => {
+    const ok = ektp.consent.checked;
+    ektp.file.disabled = !ok;
+    ektp.hint.textContent = ok
+      ? "Unggah foto eKTP (gambar diproses di perangkat Anda)."
+      : "Centang persetujuan untuk mengaktifkan unggah eKTP.";
+  });
+
+  ektp.file.addEventListener("change", async () => {
+    const file = ektp.file.files && ektp.file.files[0];
+    if (!file) return;
+
+    // In-memory preview via a tracked (revocable) object URL.
+    ektp.preview.src = trackedObjectURL(file);
+    ektp.preview.hidden = false;
+    store.ektp = store.ektp || {};
+    store.ektp.image = file; // kept in memory for the Phase 6 bundle (file b)
+    updateDataStatus();
+
+    ektp.fields.hidden = false;
+    ektp.check.hidden = false;
+    ektp.status.textContent = "Memuat mesin OCR (sekali di awal) lalu membaca eKTP…";
+
+    try {
+      const { fields } = await runOcr(file, (m) => {
+        ektp.status.textContent = `OCR: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
+      });
+      ektp.nik.value = fields.nik || "";
+      ektp.dob.value = fields.tanggal_lahir || "";
+      ektp.sex.value = fields.jenis_kelamin || "";
+      ektp.prov.value = fields.provinsi || "";
+      ektp.kab.value = fields.kabupaten_kota || "";
+      ektp.kec.value = fields.kecamatan || "";
+      ektp.status.textContent = "OCR selesai. Periksa & koreksi field bila perlu, lalu klik Periksa NIK.";
+    } catch (err) {
+      console.error("[SakhaPR] OCR failed:", err);
+      ektp.status.textContent =
+        "Mesin OCR gagal dimuat/berjalan. Anda tetap bisa mengisi field eKTP secara manual, lalu klik Periksa NIK.";
+    }
+  });
+
+  ektp.check.addEventListener("click", async () => {
+    let dataset;
+    try {
+      dataset = await loadRegionData();
+    } catch (err) {
+      console.error("[SakhaPR] region data load failed:", err);
+      ektp.result.textContent = "Gagal memuat data wilayah. Jalankan lewat server lokal atau versi ter-deploy.";
+      return;
+    }
+    const printed = {
+      jenis_kelamin: ektp.sex.value,
+      tanggal_lahir: ektp.dob.value.trim(),
+      provinsi: ektp.prov.value.trim(),
+      kabupaten_kota: ektp.kab.value.trim(),
+      kecamatan: ektp.kec.value.trim(),
+    };
+    const res = validateNik(ektp.nik.value.trim(), printed, dataset);
+    renderNikResult(ektp.result, res);
+    store.ektp = store.ektp || {};
+    store.ektp.fields = printed;
+    store.ektp.verdict = res;
+    updateDataStatus();
+  });
+}
+
 /* --- Boot ------------------------------------------------------------------ */
 
 function init() {
@@ -414,6 +518,7 @@ function init() {
   updateDataStatus();
   greet();
   setupNikDebugPanel();
+  setupEktp();
   composerInput.focus();
 }
 

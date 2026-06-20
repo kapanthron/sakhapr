@@ -56,6 +56,61 @@
       <span class="app__footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
     </footer>
 
+    <!-- eKTP upload + on-device OCR + NIK screening (PARIKSA) -->
+    <section class="ektp" id="ektpSection">
+      <h2 class="ektp__title">Unggah eKTP — PARIKSA</h2>
+      <p class="ektp__disclaimer">
+        Pemeriksaan NIK ini hanya alat bantu skrining struktur dan konsistensi.
+        Ini bukan bukti keaslian dokumen dan bukan keputusan kredit. Verifikasi
+        akhir dilakukan oleh petugas. Gambar eKTP diproses di perangkat Anda.
+      </p>
+
+      <label class="consent">
+        <input type="checkbox" id="ektpConsent" />
+        <span>
+          Saya menyetujui data eKTP saya diproses di perangkat ini untuk skrining
+          struktur NIK, dan dikirim ke <strong>hendrik.panthron@uob.co.id</strong>
+          hanya setelah saya menekan tombol kirim.
+        </span>
+      </label>
+
+      <div class="ektp__upload">
+        <input type="file" id="ektpFile" accept="image/*" disabled />
+        <span class="ektp__hint" id="ektpHint">Centang persetujuan untuk mengaktifkan unggah eKTP.</span>
+      </div>
+
+      <div id="ektpStatus" class="ektp__status" aria-live="polite"></div>
+      <img id="ektpPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
+
+      <div class="debug__grid" id="ektpFields" hidden>
+        <label>NIK (16 digit)
+          <input id="ekNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
+        </label>
+        <label>Jenis kelamin
+          <select id="ekSex">
+            <option value="">(kosong)</option>
+            <option value="LAKI-LAKI">LAKI-LAKI</option>
+            <option value="PEREMPUAN">PEREMPUAN</option>
+          </select>
+        </label>
+        <label>Tanggal lahir (dd-mm-yyyy)
+          <input id="ekDob" class="mono" type="text" placeholder="17-08-1995" />
+        </label>
+        <label>Provinsi
+          <input id="ekProv" type="text" />
+        </label>
+        <label>Kabupaten / Kota
+          <input id="ekKab" type="text" />
+        </label>
+        <label>Kecamatan
+          <input id="ekKec" type="text" />
+        </label>
+      </div>
+
+      <button type="button" id="ektpCheck" class="btn btn--primary" hidden>Periksa NIK</button>
+      <div id="ektpResult" class="debug__result" aria-live="polite"></div>
+    </section>
+
     <!-- TEMPORARY debug panel (Phase 4). Lets you type a NIK and inspect every
          check before OCR is wired in Phase 5. Remove before production. -->
     <details class="debug" id="nikDebug">
