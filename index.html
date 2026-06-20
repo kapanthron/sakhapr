@@ -120,6 +120,13 @@
 
       <img id="ektpPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
 
+      <div id="ektpNikWrap" class="ektp__nik" hidden>
+        <label>NIK (16 digit) — pastikan sudah benar sebelum mengirim
+          <input id="ektpNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
+        </label>
+        <div id="ektpNikStatus" class="ektp__nikstatus" aria-live="polite"></div>
+      </div>
+
       <div class="ektp__actions">
         <button type="button" id="ektpSend" class="btn btn--primary" disabled>Kirim</button>
       </div>

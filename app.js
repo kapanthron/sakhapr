@@ -512,9 +512,10 @@ clearAllBtn.addEventListener("click", () => {
   greet();
 });
 
-/* --- eKTP upload + automatic identification (ML OCR) + forward -------------- */
+/* --- eKTP upload: read the NIK (OCR), verify, then send -------------------- */
 
 const MAX_EKTP_BYTES = 3 * 1024 * 1024; // 3 MB
+let ektpDataset = null;
 
 const ektp = {};
 function cacheEktpEls() {
@@ -523,6 +524,7 @@ function cacheEktpEls() {
     section: $("ektpSection"),
     consent: $("ektpConsent"), file: $("ektpFile"), hint: $("ektpHint"),
     status: $("ektpStatus"), preview: $("ektpPreview"), send: $("ektpSend"),
+    nikWrap: $("ektpNikWrap"), nik: $("ektpNik"), nikStatus: $("ektpNikStatus"),
   });
 }
 
@@ -531,11 +533,15 @@ function resetEktpUi() {
   ektp.consent.checked = false;
   ektp.file.value = "";
   ektp.file.disabled = true;
+  ektp.nik.disabled = false;
   ektp.hint.textContent = "Centang persetujuan untuk memilih foto eKTP.";
   ektp.status.textContent = "";
   ektp.preview.hidden = true;
   ektp.preview.removeAttribute("src");
   ektp.send.disabled = true;
+  ektp.nikWrap.hidden = true;
+  ektp.nik.value = "";
+  ektp.nikStatus.textContent = "";
   if (ektp.section) ektp.section.hidden = true;
 }
 
@@ -543,37 +549,87 @@ function setupEktp() {
   cacheEktpEls();
   if (!ektp.consent) return;
 
-  // Consent gate: the file picker stays disabled until consent is ticked.
   ektp.consent.addEventListener("change", () => {
     const ok = ektp.consent.checked;
     ektp.file.disabled = !ok;
     if (!ok) ektp.send.disabled = true;
     ektp.hint.textContent = ok
-      ? "Pilih foto eKTP (jelas, < 3 MB), lalu klik Kirim."
+      ? "Pilih foto eKTP (jelas, < 3 MB). Sistem membaca NIK otomatis."
       : "Centang persetujuan untuk memilih foto eKTP.";
   });
 
-  // Pick a file -> preview + size check. Sending happens on the Kirim button.
-  ektp.file.addEventListener("change", () => {
+  // Pick a file -> OCR the NIK only; show it for verification. Send stays
+  // disabled until the NIK is valid.
+  ektp.file.addEventListener("change", async () => {
     const file = ektp.file.files && ektp.file.files[0];
     if (!file) return;
     ektp.preview.src = trackedObjectURL(file);
     ektp.preview.hidden = false;
+    ektp.send.disabled = true;
+    ektp.nikWrap.hidden = true;
 
     if (file.size > MAX_EKTP_BYTES) {
       const mb = (file.size / (1024 * 1024)).toFixed(1);
       ektp.status.textContent = `Ukuran foto ${mb} MB melebihi 3 MB. Mohon gunakan foto yang lebih kecil.`;
-      ektp.send.disabled = true;
       return;
     }
-    ektp.status.textContent = "Foto siap. Klik Kirim untuk memproses dan mengirim.";
-    ektp.send.disabled = false;
+    store.ektp = store.ektp || {};
+    store.ektp.image = file;
+    updateDataStatus();
+
+    ektp.status.textContent = "Membaca NIK dari eKTP…";
+    try {
+      const { fields } = await runOcr(file, (m) => {
+        ektp.status.textContent = `Membaca NIK: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
+      });
+      ektp.nik.value = fields.nik || "";
+      ektp.nikWrap.hidden = false;
+      ektp.status.textContent = fields.nik
+        ? "NIK terbaca. Mohon periksa & koreksi bila perlu, lalu Kirim."
+        : "NIK tidak terbaca otomatis. Mohon ketik NIK (16 digit) secara manual.";
+      await validateNikField();
+    } catch (err) {
+      console.error("[SakhaPR] NIK OCR failed:", err);
+      ektp.nik.value = "";
+      ektp.nikWrap.hidden = false;
+      ektp.status.textContent = "OCR gagal. Mohon ketik NIK (16 digit) secara manual.";
+      await validateNikField();
+    }
   });
 
-  ektp.send.addEventListener("click", () => {
-    const file = ektp.file.files && ektp.file.files[0];
-    if (file) processEktp(file);
-  });
+  ektp.nik.addEventListener("input", () => { validateNikField().catch(() => {}); });
+  ektp.send.addEventListener("click", () => { submitEktp().catch((e) => console.error(e)); });
+}
+
+/** Validate the NIK field; enable Kirim only when structurally acceptable. */
+async function validateNikField() {
+  const nik = (ektp.nik.value || "").replace(/\D/g, "").slice(0, 16);
+  if (ektp.nik.value !== nik) ektp.nik.value = nik;
+  if (nik.length !== 16) {
+    ektp.nikStatus.textContent = `NIK harus 16 digit (saat ini ${nik.length}).`;
+    ektp.nikStatus.className = "ektp__nikstatus is-bad";
+    ektp.send.disabled = true;
+    return;
+  }
+  try { if (!ektpDataset) ektpDataset = await loadRegionData(); } catch { /* allow on format+date */ }
+  const dataset = ektpDataset || { provinsi: {}, kabupaten_kota: {}, kecamatan: {} };
+  const verdict = validateNik(nik, {}, dataset);
+  store.ektp = store.ektp || {};
+  store.ektp.nik = nik;
+  store.ektp.verdict = verdict;
+
+  const ok = verdict.verdict !== "Inconsistent"; // i.e. format + birth-date are valid
+  if (ok) {
+    ektp.nikStatus.textContent = "NIK valid secara struktur. Anda dapat menekan Kirim.";
+    ektp.nikStatus.className = "ektp__nikstatus is-good";
+  } else {
+    const dateCheck = (verdict.checks || []).find((c) => c.id === "date");
+    ektp.nikStatus.textContent =
+      "NIK belum valid: " +
+      (dateCheck && dateCheck.status === "FAIL" ? "tanggal lahir pada NIK tidak masuk akal." : "periksa kembali angkanya.");
+    ektp.nikStatus.className = "ektp__nikstatus is-bad";
+  }
+  ektp.send.disabled = !ok;
 }
 
 /** Build the chat conversation log text from the in-memory messages. */
@@ -589,55 +645,26 @@ function buildChatLogBlob() {
 }
 
 /**
- * The whole eKTP step, automatic and behind the scenes:
- * on-device ML OCR -> NIK structure check -> build report PDF ->
- * forward all three files to the backend (which stores + emails them).
- * The customer only sees progress and a final confirmation.
+ * After the NIK is verified, build the NIK structure report and forward the
+ * package (prescreen + eKTP image + report + chat log) to the backend.
  */
-async function processEktp(file) {
-  ektp.send.disabled = true;
-  ektp.file.disabled = true;
-  store.ektp = store.ektp || {};
-  store.ektp.image = file;
-  updateDataStatus();
-
+async function submitEktp() {
+  const file = ektp.file.files && ektp.file.files[0];
+  if (!file || ektp.send.disabled) return;
   if (!store.files.fileA) {
-    ektp.status.textContent =
-      "Mohon selesaikan prescreen di atas terlebih dahulu sebelum mengirim eKTP.";
-    ektp.file.disabled = false;
-    ektp.send.disabled = false;
+    ektp.status.textContent = "Mohon selesaikan prescreen di atas terlebih dahulu sebelum mengirim.";
     return;
   }
+  ektp.send.disabled = true;
+  ektp.file.disabled = true;
+  ektp.nik.disabled = true;
 
   try {
-    // 1) On-device OCR (machine learning) + deterministic NIK check.
-    ektp.status.textContent = "Mengidentifikasi eKTP di perangkat Anda (OCR mesin learning)…";
-    const [{ fields }, dataset] = await Promise.all([
-      runOcr(file, (m) => {
-        ektp.status.textContent = `Identifikasi eKTP: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
-      }),
-      loadRegionData(),
-    ]);
-    const printed = {
-      jenis_kelamin: fields.jenis_kelamin || "",
-      tanggal_lahir: fields.tanggal_lahir || "",
-      provinsi: fields.provinsi || "",
-      kabupaten_kota: fields.kabupaten_kota || "",
-      kecamatan: fields.kecamatan || "",
-    };
-    const verdict = validateNik(fields.nik || "", printed, dataset);
-    store.ektp.fields = printed;
-    store.ektp.verdict = verdict;
-
-    // 2) Build the NIK report PDF (file c) behind the scenes.
-    ektp.status.textContent = "Menyusun laporan skrining…";
-    const { blob: reportBlob } = buildNikReportPdf(verdict, {
-      timestamp: nowWIB(),
-      printed,
-    });
+    const verdict = store.ektp.verdict; // set by validateNikField()
+    ektp.status.textContent = "Menyusun laporan skrining NIK…";
+    const { blob: reportBlob } = buildNikReportPdf(verdict, { timestamp: nowWIB(), printed: {} });
     store.files.fileC = reportBlob;
 
-    // 3) Forward the files to the backend (store + email).
     ektp.status.textContent = "Meneruskan berkas ke UOB…";
     const session = flow.session || store.prescreen;
     const result = await submitLead({
@@ -650,25 +677,25 @@ async function processEktp(file) {
         productName: PRODUCT_NAMES[store.product] || store.product || "",
         prescreenLabel: session ? session.label : "",
         prescreenStatus: session && session.isComplete() ? "selesai" : "",
-        nikVerdict: verdict.verdict || "",
+        nikVerdict: (verdict && verdict.verdict) || "",
       },
     });
 
     store.ektp.submitted = result.id;
     ektp.status.textContent =
       "Terima kasih. Data Anda telah diteruskan ke tim UOB Mortgage Relations untuk " +
-      `ditindaklanjuti. (Ref: ${result.id.slice(0, 8)}). Anda dapat menutup halaman ini.`;
+      `ditindaklanjuti. (Ref: ${result.id.slice(0, 8)}).`;
     addMessage(
       "bot",
       "Pengajuan Anda sudah kami terima dan teruskan ke tim UOB. Tim akan menghubungi Anda. Terima kasih!",
       { persist: false }
     );
   } catch (err) {
-    console.error("[SakhaPR] eKTP processing/forward failed:", err);
-    ektp.status.textContent =
-      "Maaf, terjadi kendala saat memproses atau meneruskan data. Mohon coba lagi atau hubungi UOB.";
-    ektp.file.disabled = false;
+    console.error("[SakhaPR] submit failed:", err);
+    ektp.status.textContent = "Maaf, terjadi kendala saat meneruskan data. Mohon coba lagi.";
     ektp.send.disabled = false;
+    ektp.file.disabled = false;
+    ektp.nik.disabled = false;
   }
 }
 

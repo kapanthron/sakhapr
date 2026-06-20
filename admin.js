@@ -91,7 +91,7 @@ function renderLeads(leads) {
       `<div><strong>${escapeHtml(lead.productName || lead.product || (isSession ? "Sesi chat" : "(produk?)"))}</strong>` +
       (isSession ? ` <span class="badge">sesi · tidak dikirim</span>` : "") +
       `<span class="lead-card__id mono">${escapeHtml(lead.id)}</span></div>` +
-      `<div class="lead-card__time mono">${escapeHtml(fmtTime(lead.ts))}</div>`;
+      `<div class="lead-card__time mono">${escapeHtml(lead.ts_wib || fmtTime(lead.ts))} WIB</div>`;
     card.appendChild(head);
 
     const meta = document.createElement("div");

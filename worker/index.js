@@ -22,6 +22,11 @@
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
 const COOKIE_NAME = "sakhapr_admin";
 
+/** Human-readable timestamp in WIB (Asia/Jakarta). */
+function wibNow() {
+  return new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -101,6 +106,7 @@ async function handleSubmit(request, env) {
   const meta = {
     id,
     ts,
+    ts_wib: wibNow(),
     type: "lead",
     product: form.get("product") || "",
     productName: form.get("productName") || "",
@@ -142,6 +148,7 @@ async function handleSession(request, env) {
   const meta = {
     id,
     ts: new Date().toISOString(),
+    ts_wib: wibNow(),
     type: "session",
     product: b.product || "",
     productName: b.productName || "",
