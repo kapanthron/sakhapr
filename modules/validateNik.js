@@ -98,14 +98,16 @@ export function validateNik(nikRaw, printed, dataset) {
 
   // Check 2: region resolves
   if (kecName) {
-    add("region", "Region code resolves", "PASS", `${kecName}, ${kabName}, ${provName}.`);
+    add("region", "Region code resolves", "PASS",
+      `Provinsi ${code2} = ${provName}; Kab/Kota ${code4} = ${kabName}; Kecamatan ${code6} = ${kecName}.`);
   } else {
     const level = !provName ? "provinsi (PP)" : !kabName ? "kabupaten/kota (RR)" : "kecamatan (SS)";
     add(
       "region",
       "Region code resolves",
       "WARN",
-      `Well formed but ${level} code not found in the snapshot. Codes change over time; refresh the table.`
+      `Provinsi ${code2}=${provName || "?"}, Kab/Kota ${code4}=${kabName || "?"}, Kecamatan ${code6}=${kecName || "?"}. ` +
+        `Kode ${level} tidak ditemukan di snapshot; kode wilayah dapat berubah, perbarui tabel.`
     );
   }
 
@@ -192,7 +194,7 @@ export function validateNik(nikRaw, printed, dataset) {
     seq === "0000" ? "Sequence 0000 is unusual." : `Sequence ${seq}.`
   );
 
-  return finalize(nik, checks, { realDay, mm, year, sex: inferredSex, kecName, kabName, provName });
+  return finalize(nik, checks, { realDay, mm, year, sex: inferredSex, code2, code4, code6, kecName, kabName, provName });
 }
 
 function finalize(nik, checks, decoded) {

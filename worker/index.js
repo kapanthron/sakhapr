@@ -27,6 +27,17 @@ function wibNow() {
   return new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 }
 
+/** Short reference: YYYYMMDD-HHMM-NNNNN (WIB date/time + 5-digit code). */
+function makeRef() {
+  const p = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date());
+  const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+  const code = String(Math.floor(Math.random() * 100000)).padStart(5, "0");
+  return `${g("year")}${g("month")}${g("day")}-${g("hour")}${g("minute")}-${code}`;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -103,8 +114,10 @@ async function handleSubmit(request, env) {
     });
   }
 
+  const ref = makeRef();
   const meta = {
     id,
+    ref,
     ts,
     ts_wib: wibNow(),
     type: "lead",
@@ -129,7 +142,7 @@ async function handleSubmit(request, env) {
     httpMetadata: { contentType: "application/json" },
   });
 
-  return json({ ok: true, id, email: meta.email.status });
+  return json({ ok: true, id, ref, email: meta.email.status });
 }
 
 /* --- Session log (every conversation, even if not submitted) ---------------- */
@@ -147,6 +160,7 @@ async function handleSession(request, env) {
   }
   const meta = {
     id,
+    ref: makeRef(),
     ts: new Date().toISOString(),
     ts_wib: wibNow(),
     type: "session",
@@ -445,7 +459,11 @@ async function handleFile(url, env) {
   }
   const obj = await env.BUCKET.get(key);
   if (!obj) return json({ ok: false, error: "Tidak ditemukan." }, 404);
-  const name = key.split("/").pop();
+  // Allow the admin to request a unique download filename (so files with the
+  // same base name don't overwrite each other).
+  const requested = url.searchParams.get("name") || "";
+  const safe = requested.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80);
+  const name = safe || key.split("/").pop();
   return new Response(obj.body, {
     headers: {
       "Content-Type": obj.httpMetadata?.contentType || "application/octet-stream",

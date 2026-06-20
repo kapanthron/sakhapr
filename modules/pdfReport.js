@@ -97,10 +97,13 @@ export function buildNikReportPdf(result, opts = {}) {
     const dob = `${String(d.realDay).padStart(2, "0")}-${String(d.mm).padStart(2, "0")}-${d.year}`;
     doc.text(`Decoded : ${dob}, ${d.sex}`, M, y);
     y += 14;
-    const region = [d.kecName, d.kabName, d.provName].filter(Boolean).join(", ");
-    if (region) {
-      doc.setFont("helvetica", "normal");
-      const lines = doc.splitTextToSize(`Wilayah : ${region}`, contentW);
+    doc.setFont("helvetica", "normal");
+    if (d.code2 || d.kecName) {
+      const region =
+        `Wilayah : Prov ${d.code2 || "?"} (${d.provName || "?"}), ` +
+        `Kab/Kota ${d.code4 || "?"} (${d.kabName || "?"}), ` +
+        `Kec ${d.code6 || "?"} (${d.kecName || "?"})`;
+      const lines = doc.splitTextToSize(region, contentW);
       doc.text(lines, M, y);
       y += lines.length * 13;
     }

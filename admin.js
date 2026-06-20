@@ -61,8 +61,13 @@ const EMAIL_LABEL = {
 function fmtTime(ts) {
   return new Date(ts).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 }
-function fileUrl(prefix, id, name) {
-  return `/api/admin/file?key=${encodeURIComponent(`${prefix}/${id}/${name}`)}`;
+/** Build a download URL with a unique filename (base_<ref>.ext). */
+function fileUrl(prefix, id, name, ref) {
+  const dot = name.lastIndexOf(".");
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  const dl = ref ? `${base}_${ref}${ext}` : name;
+  return `/api/admin/file?key=${encodeURIComponent(`${prefix}/${id}/${name}`)}&name=${encodeURIComponent(dl)}`;
 }
 
 function renderLeads(leads) {
@@ -90,7 +95,7 @@ function renderLeads(leads) {
     head.innerHTML =
       `<div><strong>${escapeHtml(lead.productName || lead.product || (isSession ? "Sesi chat" : "(produk?)"))}</strong>` +
       (isSession ? ` <span class="badge">sesi · tidak dikirim</span>` : "") +
-      `<span class="lead-card__id mono">${escapeHtml(lead.id)}</span></div>` +
+      `<span class="lead-card__id mono">Ref: ${escapeHtml(lead.ref || lead.id)}</span></div>` +
       `<div class="lead-card__time mono">${escapeHtml(lead.ts_wib || fmtTime(lead.ts))} WIB</div>`;
     card.appendChild(head);
 
@@ -122,7 +127,9 @@ function renderLeads(leads) {
       const a = document.createElement("a");
       a.className = "chip";
       a.textContent = label;
-      a.href = fileUrl(prefix, lead.id, name);
+      a.href = fileUrl(prefix, lead.id, name, lead.ref);
+      const dot = name.lastIndexOf(".");
+      a.download = (lead.ref ? `${dot > 0 ? name.slice(0, dot) : name}_${lead.ref}${dot > 0 ? name.slice(dot) : ""}` : name);
       dl.appendChild(a);
     }
     const del = document.createElement("button");

@@ -443,14 +443,27 @@ async function handleKbMessage(text) {
   }
 
   // Otherwise answer with Workers AI (grounded), falling back to the KB answer.
+  const typing = addTyping();
   try {
     const reply = await askLlm(text, recentHistory());
+    typing.remove();
     addMessage("bot", reply);
   } catch (err) {
+    typing.remove();
     console.warn("[SakhaPR] LLM unavailable, using offline answer:", err.message);
     renderAnswer(detRes);
   }
   addContinuationChips();
+}
+
+/** A "typing…" bubble shown while the assistant is composing a reply. */
+function addTyping() {
+  const el = document.createElement("div");
+  el.className = "msg msg--bot typing";
+  el.innerHTML = '<span class="typing__dot"></span><span class="typing__dot"></span><span class="typing__dot"></span>';
+  chatLog.appendChild(el);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return el;
 }
 
 /** After an answer, offer to start the application or keep asking. */
@@ -684,7 +697,7 @@ async function submitEktp() {
     store.ektp.submitted = result.id;
     ektp.status.textContent =
       "Terima kasih. Data Anda telah diteruskan ke tim UOB Mortgage Relations untuk " +
-      `ditindaklanjuti. (Ref: ${result.id.slice(0, 8)}).`;
+      `ditindaklanjuti. (No. Ref: ${result.ref || result.id.slice(0, 8)}).`;
     addMessage(
       "bot",
       "Pengajuan Anda sudah kami terima dan teruskan ke tim UOB. Tim akan menghubungi Anda. Terima kasih!",

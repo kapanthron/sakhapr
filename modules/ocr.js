@@ -84,10 +84,71 @@ export async function runOcr(imageFile, onProgress) {
   const worker = await getWorker((m) => {
     if (onProgress && m && typeof m.progress === "number") onProgress(m);
   });
-  let input = imageFile;
-  try { input = await preprocess(imageFile); } catch { input = imageFile; }
-  const { data } = await worker.recognize(input);
-  return { text: data.text || "", fields: parseEktp(data.text || "") };
+  let canvas = imageFile;
+  try { canvas = await preprocess(imageFile); } catch { canvas = imageFile; }
+
+  // Pass 1: full OCR (text + word boxes).
+  const { data } = await worker.recognize(canvas, {}, { blocks: true });
+  const text = data.text || "";
+  const fields = parseEktp(text);
+
+  // Pass 2: NIK-focused. Crop the NIK line if we can locate it, then re-read
+  // with a digits-only whitelist (Tesseract can't substitute letters), which
+  // is markedly more accurate for the 16-digit number.
+  try {
+    const nik = await readNikFocused(worker, canvas, data);
+    if (nik) fields.nik = nik;
+  } catch (err) {
+    /* keep the pass-1 NIK */
+  }
+  return { text, fields };
+}
+
+/** Find the bbox of the line that contains the NIK, from Tesseract blocks. */
+function findNikBbox(data) {
+  const blocks = data && data.blocks;
+  if (!Array.isArray(blocks)) return null;
+  for (const b of blocks) {
+    for (const p of (b.paragraphs || [])) {
+      for (const l of (p.lines || [])) {
+        if (/n\s*[i1l]\s*k/i.test(l.text || "") && /\d/.test(l.text || "")) return l.bbox || null;
+      }
+    }
+  }
+  return null;
+}
+
+function cropCanvas(src, bbox) {
+  const pad = 8;
+  const x = Math.max(0, Math.floor(bbox.x0 - pad));
+  const y = Math.max(0, Math.floor(bbox.y0 - pad));
+  const w = Math.min(src.width - x, Math.ceil(bbox.x1 - bbox.x0 + pad * 2));
+  const h = Math.min(src.height - y, Math.ceil(bbox.y1 - bbox.y0 + pad * 2));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, w);
+  c.height = Math.max(1, h);
+  c.getContext("2d").drawImage(src, x, y, w, h, 0, 0, w, h);
+  return c;
+}
+
+/** Re-OCR the NIK region with a digits-only whitelist; returns 16 digits or "". */
+async function readNikFocused(worker, canvas, data) {
+  const bbox = findNikBbox(data);
+  let region = canvas;
+  if (bbox && canvas && canvas.getContext) region = cropCanvas(canvas, bbox);
+  try {
+    await worker.setParameters({
+      tessedit_char_whitelist: "0123456789",
+      tessedit_pageseg_mode: bbox ? "7" : "6", // 7 = single line (cropped); else block
+    });
+    const { data: d2 } = await worker.recognize(region);
+    const digits = (d2.text || "").replace(/[^0-9]/g, "");
+    const m = digits.match(/\d{16}/);
+    return m ? m[0] : "";
+  } finally {
+    // Restore defaults for the next card.
+    try { await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "6" }); } catch { /* ignore */ }
+  }
 }
 
 /** Free the OCR worker (call on Clear all data). */

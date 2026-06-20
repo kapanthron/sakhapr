@@ -163,6 +163,16 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
 .msg--bot li { margin: 2px 0; }
 .msg--bot code { font-family: var(--font-mono); font-size: 0.92em; background: rgba(0,0,0,.05); padding: 0 3px; border-radius: 3px; }
 .msg--bot strong { font-weight: 700; }
+.typing { display: inline-flex; gap: 4px; align-items: center; }
+.typing__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--teal);
+  opacity: .35;
+  animation: typingBlink 1.2s infinite ease-in-out;
+}
+.typing__dot:nth-child(2) { animation-delay: .2s; }
+.typing__dot:nth-child(3) { animation-delay: .4s; }
+@keyframes typingBlink { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
 .msg--user {
   align-self: flex-end;
   background: var(--cream-2);
