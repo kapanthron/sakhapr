@@ -18,16 +18,60 @@ let workerPromise = null;
 
 async function getWorker(logger) {
   if (workerPromise) return workerPromise;
-  workerPromise = Tesseract.createWorker("ind+eng", 1, {
-    workerPath: asset("worker.min.js"),
-    corePath: asset("tesseract-core-simd-lstm.wasm.js"), // specific file: skips CDN/relaxed-simd probing
-    langPath: asset(""), // directory holding ind/eng .traineddata.gz
-    gzip: true,
-    cacheMethod: "none", // never persist the model (no IndexedDB)
-    workerBlobURL: true, // worker.min.js -> blob worker (CSP worker-src 'self' blob:)
-    logger,
-  });
+  workerPromise = (async () => {
+    const w = await Tesseract.createWorker("ind+eng", 1, {
+      workerPath: asset("worker.min.js"),
+      corePath: asset("tesseract-core-simd-lstm.wasm.js"), // specific file: skips CDN/relaxed-simd probing
+      langPath: asset(""), // directory holding ind/eng .traineddata.gz
+      gzip: true,
+      cacheMethod: "none", // never persist the model (no IndexedDB)
+      workerBlobURL: true, // worker.min.js -> blob worker (CSP worker-src 'self' blob:)
+      logger,
+    });
+    // PSM 6 = a single uniform block of text (good for an ID card).
+    try { await w.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" }); } catch { /* ignore */ }
+    return w;
+  })();
   return workerPromise;
+}
+
+/** Load an image blob into an <img>. */
+function loadImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Gagal memuat gambar.")); };
+    img.src = url;
+  });
+}
+
+/**
+ * Pre-process for OCR: scale to a legible width, greyscale, and stretch contrast.
+ * This markedly improves NIK/field recognition on phone photos.
+ * @returns {Promise<HTMLCanvasElement>}
+ */
+async function preprocess(blob) {
+  const img = await loadImage(blob);
+  const targetW = Math.min(2000, Math.max(1200, img.width)); // upscale small, cap large
+  const ratio = targetW / img.width;
+  const w = Math.round(img.width * ratio);
+  const h = Math.round(img.height * ratio);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+  const id = ctx.getImageData(0, 0, w, h);
+  const d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    let v = (g - 128) * 1.3 + 128; // mild contrast; let Tesseract binarise
+    v = v < 0 ? 0 : v > 255 ? 255 : v;
+    d[i] = d[i + 1] = d[i + 2] = v;
+  }
+  ctx.putImageData(id, 0, 0);
+  return canvas;
 }
 
 /**
@@ -40,7 +84,9 @@ export async function runOcr(imageFile, onProgress) {
   const worker = await getWorker((m) => {
     if (onProgress && m && typeof m.progress === "number") onProgress(m);
   });
-  const { data } = await worker.recognize(imageFile);
+  let input = imageFile;
+  try { input = await preprocess(imageFile); } catch { input = imageFile; }
+  const { data } = await worker.recognize(input);
   return { text: data.text || "", fields: parseEktp(data.text || "") };
 }
 
@@ -61,23 +107,47 @@ export async function terminateOcr() {
  * imperfect, so the UI shows these as editable boxes for correction.
  * @param {string} text
  */
+/** Map common OCR letter↔digit confusions to digits (for NIK only). */
+function digitFix(s) {
+  return s
+    .replace(/[OoQ]/g, "0").replace(/[IilL|!]/g, "1").replace(/[Bb]/g, "8")
+    .replace(/[Ss]/g, "5").replace(/[Zz]/g, "2").replace(/[Tt]/g, "7")
+    .replace(/[gqG]/g, "9").replace(/[A]/g, "4").replace(/[eE]/g, "3");
+}
+
+/** Pull a 16-digit NIK out of OCR text, tolerating letter↔digit confusions. */
+function extractNik(raw) {
+  const lines = raw.split(/\r?\n/);
+  const tryGet = (s) => {
+    const fixed = digitFix(s).replace(/[^0-9]/g, "");
+    const m = fixed.match(/\d{16}/);
+    return m ? m[0] : "";
+  };
+  // 1) The line that mentions NIK (best signal), text after the label first.
+  const nikLine = lines.find((l) => /n\s*[i1l]\s*k/i.test(l));
+  if (nikLine) {
+    const after = nikLine.replace(/.*n\s*[i1l]\s*k\s*[:.\-]?/i, "");
+    const n = tryGet(after) || tryGet(nikLine);
+    if (n) return n;
+  }
+  // 2) Any line with ~16 alphanumerics that fixes to 16 digits.
+  for (const l of lines) {
+    if ((l.replace(/[^0-9A-Za-z]/g, "").length) >= 16) {
+      const n = tryGet(l);
+      if (n) return n;
+    }
+  }
+  // 3) Last resort: a plain 16-digit run anywhere.
+  const m = raw.replace(/[^0-9]/g, " ").match(/\d{16}/);
+  return m ? m[0] : "";
+}
+
 export function parseEktp(text) {
   const raw = String(text || "");
   const upper = raw.toUpperCase();
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const onlyDigits = (s) => (s.match(/[0-9]/g) || []).join("");
 
-  // NIK — prefer the line mentioning NIK, else the first 16-digit run anywhere.
-  let nik = "";
-  const nikLine = lines.find((l) => /NIK/i.test(l));
-  if (nikLine) {
-    const d = onlyDigits(nikLine);
-    if (d.length >= 16) nik = d.slice(0, 16);
-  }
-  if (!nik) {
-    const m = raw.replace(/[^0-9]/g, " ").match(/\d{16}/);
-    if (m) nik = m[0];
-  }
+  const nik = extractNik(raw);
 
   // Birth date dd-mm-yyyy (tolerate separators / OCR spaces).
   let tanggal_lahir = "";

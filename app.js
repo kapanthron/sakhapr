@@ -141,14 +141,44 @@ function updateDataStatus() {
 
 /* --- Greeting -------------------------------------------------------------- */
 
+// Context-appropriate starter ("umpan") questions shown at the opening.
+const SUGGESTIONS = [
+  { label: "Take over KPR", q: "Saya mau take over KPR dari bank lain ke UOB. Bagaimana caranya dan apa syaratnya?" },
+  { label: "Syarat penghasilan", q: "Berapa minimum gaji untuk mengajukan KPR UOB?" },
+  { label: "Hitung cicilan", q: "Tolong hitung cicilan KPR. Harga rumah Rp800 juta, DP 20%, tenor 20 tahun." },
+  { label: "Cashback promo", q: "Berapa cashback maksimal Kategori A dan apa syaratnya?" },
+  { label: "Dokumen", q: "Saya karyawan swasta. Dokumen apa saja yang perlu disiapkan untuk KPR?" },
+  { label: "Proses KPR", q: "Berapa lama proses KPR UOB dari pengajuan sampai akad?" },
+];
+
+function addSuggestions() {
+  const row = document.createElement("div");
+  row.className = "chips";
+  for (const s of SUGGESTIONS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip";
+    btn.textContent = s.label;
+    btn.addEventListener("click", () => {
+      row.remove();
+      addMessage("user", s.q);
+      handleKbMessage(s.q).catch((e) => console.error("[SakhaPR] suggestion failed:", e));
+    });
+    row.appendChild(btn);
+  }
+  chatLog.appendChild(row);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
 function greet() {
   addMessage(
     "bot",
     "Halo! Saya SakhaPR, asisten KPR UOB Indonesia. " +
       "Saya bisa menjawab pertanyaan seputar KPR, membantu memilih produk yang tepat, " +
-      "dan menjalankan prescreen awal. Silakan tanya apa saja.",
+      "dan menjalankan prescreen awal. Silakan tanya apa saja, atau pilih salah satu di bawah.",
     { persist: false }
   );
+  addSuggestions();
 }
 
 /* --- Composer handling ----------------------------------------------------- */

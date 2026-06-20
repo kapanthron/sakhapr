@@ -130,7 +130,9 @@ const SYSTEM_PROMPT =
   "katakan dengan jujur bahwa Anda belum memiliki datanya dan arahkan nasabah ke " +
   "Mortgage Relations Unit (mortgagerelations@uob.co.id). Untuk pertanyaan soal " +
   "uang (bunga, biaya, cashback, denda), sertakan pengingat singkat bahwa angka " +
-  "bersifat estimasi dan dapat berubah. Pemeriksaan ini bukan keputusan kredit.";
+  "bersifat estimasi dan dapat berubah. Pemeriksaan ini bukan keputusan kredit. " +
+  "Jawab langsung dan ringkas (maksimal sekitar 6 kalimat) dan selalu selesaikan " +
+  "kalimat terakhir. Jangan mengulang salam pembuka di setiap jawaban.";
 
 let KB_CONTEXT = null;
 
@@ -138,7 +140,7 @@ async function kbContext(env, url) {
   if (KB_CONTEXT) return KB_CONTEXT;
   const res = await env.ASSETS.fetch(new Request(new URL("/data/knowledge_base.json", url)));
   const kb = await res.json();
-  KB_CONTEXT = buildContext(kb).slice(0, 14000);
+  KB_CONTEXT = buildContext(kb).slice(0, 120000);
   return KB_CONTEXT;
 }
 
@@ -160,6 +162,8 @@ function buildContext(kb) {
   for (const e of kb.eligibility?.general_requirements || []) L.push(`- ${e}`);
   L.push("\nFAQ:");
   for (const f of kb.faq || []) L.push(`T: ${(f.question_examples || [])[0] || f.intent}\nJ: ${f.answer}`);
+  L.push("\nTANYA-JAWAB TAMBAHAN:");
+  for (const q of kb.supplemental_qa || []) L.push(`[${q.category}] T: ${q.question}\nJ: ${q.answer}`);
   L.push("\nKONTAK: " + JSON.stringify(kb.support || {}));
   return L.join("\n");
 }
@@ -240,7 +244,7 @@ async function callGemini(env, sys, history, message) {
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: sys }] },
     contents,
-    generationConfig: { maxOutputTokens: 600, temperature: 0.3 },
+    generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
   });
 
   const call = async (model) =>
@@ -266,12 +270,12 @@ async function callGemini(env, sys, history, message) {
 
 /** Cloudflare Workers AI (free daily allocation; the [ai] binding). */
 async function callWorkersAi(env, sys, history, message) {
-  const messages = [{ role: "system", content: sys }];
+  const messages = [{ role: "system", content: sys.slice(0, 9000) }]; // llama context is small
   for (const h of history) {
     if (h && h.content) messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: String(h.content).slice(0, 1200) });
   }
   messages.push({ role: "user", content: message.slice(0, 1200) });
-  const out = await env.AI.run(CHAT_MODEL, { messages, max_tokens: 512 });
+  const out = await env.AI.run(CHAT_MODEL, { messages, max_tokens: 1024 });
   return (out && (out.response || out.result || "")).trim();
 }
 
