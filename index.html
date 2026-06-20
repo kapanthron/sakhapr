@@ -59,6 +59,44 @@
       <span class="app__footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
     </footer>
 
+    <!-- Simulation: monthly installment + potential cashback (deterministic) -->
+    <details class="sim" id="simPanel">
+      <summary>Simulasi Angsuran &amp; Cashback</summary>
+      <div class="sim__body">
+        <p class="ektp__disclaimer">
+          Estimasi memakai suku bunga dari knowledge base UOB. Angka final mengikuti
+          analisa kredit dan Perjanjian Kredit.
+        </p>
+        <div class="debug__grid">
+          <label>Jenis fasilitas
+            <select id="simFacility">
+              <option value="primary">KPR Primary</option>
+              <option value="secondary">KPR Secondary</option>
+              <option value="take_over">KPR Take Over</option>
+            </select>
+          </label>
+          <label>Skema bunga
+            <select id="simScheme"></select>
+          </label>
+          <label>Plafon kredit (Rp)
+            <input id="simPlafon" class="mono" type="text" inputmode="numeric" placeholder="900000000" />
+          </label>
+          <label>Tenor (tahun)
+            <input id="simTenor" class="mono" type="number" min="1" max="30" placeholder="10" />
+          </label>
+          <label>Segmen (untuk cashback)
+            <select id="simSegment">
+              <option value="">New to Bank / lainnya</option>
+              <option value="PV">UOB Privilege (PV)</option>
+              <option value="WB">UOB Wealth (WB)</option>
+            </select>
+          </label>
+        </div>
+        <button type="button" id="simRun" class="btn btn--primary">Hitung</button>
+        <div id="simResult" class="debug__result" aria-live="polite"></div>
+      </div>
+    </details>
+
     <!-- eKTP upload + on-device ML identification (revealed after prescreen) -->
     <section class="ektp" id="ektpSection" hidden>
       <h2 class="ektp__title">Unggah eKTP</h2>

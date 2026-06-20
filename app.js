@@ -21,6 +21,20 @@ import { classifyIntent, INTENTS } from "./modules/intentRouter.js";
 import { answer } from "./modules/knowledgeAnswer.js";
 import { askLlm } from "./modules/chat.js";
 import {
+  schemesForFacility,
+  computeInstallment,
+  computeCashback,
+  cashbackProgramFor,
+  provisiAdmin,
+  formatRp,
+} from "./modules/calculator.js";
+
+const FACILITY_TO_PRODUCT = {
+  primary: "kpr_flexi_primary",
+  secondary: "kpr_secondary",
+  take_over: "kpr_take_over",
+};
+import {
   PrescreenSession,
   productToSet,
   validateAnswer,
@@ -253,7 +267,22 @@ function recentHistory() {
     .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
 }
 
+const SIM_RE = /simulasi|angsuran|cicilan|hitung.*(bunga|angsuran|cashback)|estimasi.*angsuran/i;
+
 async function handleKbMessage(text) {
+  // Numeric questions go to the deterministic simulator, not the LLM.
+  if (SIM_RE.test(text)) {
+    addMessage(
+      "bot",
+      "Untuk menghitung angsuran bulanan dan potensi cashback secara akurat, silakan isi panel " +
+        "\"Simulasi Angsuran & Cashback\" di bawah (pilih fasilitas, skema bunga, plafon, dan tenor)."
+    );
+    const panel = document.getElementById("simPanel");
+    if (panel) { panel.open = true; panel.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    addContinuationChips();
+    return;
+  }
+
   const kb = await loadKnowledgeBase();
   const classification = classifyIntent(text);
   const detRes = answer(kb, classification, TODAY_ISO); // deterministic: product routing + fallback
@@ -495,6 +524,112 @@ async function processEktp(file) {
   }
 }
 
+/* --- Simulation (deterministic installment + cashback) --------------------- */
+
+let simSchemes = [];
+
+function setupSimulation() {
+  const el = {
+    facility: document.getElementById("simFacility"),
+    scheme: document.getElementById("simScheme"),
+    plafon: document.getElementById("simPlafon"),
+    tenor: document.getElementById("simTenor"),
+    segment: document.getElementById("simSegment"),
+    run: document.getElementById("simRun"),
+    result: document.getElementById("simResult"),
+  };
+  if (!el.run) return;
+
+  async function populate() {
+    const kb = await loadKnowledgeBase();
+    simSchemes = schemesForFacility(kb, el.facility.value);
+    el.scheme.textContent = "";
+    simSchemes.forEach((s, i) => {
+      const o = document.createElement("option");
+      o.value = String(i);
+      o.textContent = s.label;
+      el.scheme.appendChild(o);
+    });
+  }
+
+  el.facility.addEventListener("change", () => { populate().catch(() => {}); });
+  el.run.addEventListener("click", () => runSimulation(el).catch((e) => {
+    console.error("[SakhaPR] sim failed:", e);
+    el.result.textContent = "Gagal menghitung. Pastikan halaman termuat penuh.";
+  }));
+  populate().catch(() => { el.result.textContent = "Gagal memuat data. Jalankan lewat server/deploy."; });
+}
+
+async function runSimulation(el) {
+  const kb = await loadKnowledgeBase();
+  const facility = el.facility.value;
+  const scheme = simSchemes[parseInt(el.scheme.value, 10)];
+  const plafon = parseInt(String(el.plafon.value).replace(/[^0-9]/g, ""), 10);
+  const tenor = parseInt(el.tenor.value, 10);
+
+  const product = (kb.products || []).find((p) => p.id === FACILITY_TO_PRODUCT[facility]);
+  const errs = [];
+  if (!plafon) errs.push("Isi plafon kredit (angka).");
+  if (!tenor) errs.push("Isi tenor (tahun).");
+  if (plafon && product && (plafon < product.credit_limit.min || plafon > product.credit_limit.max))
+    errs.push(`Plafon untuk ${product.name} antara ${formatRp(product.credit_limit.min)} dan ${formatRp(product.credit_limit.max)}.`);
+  if (tenor && product && (tenor < product.tenor_years.min || tenor > product.tenor_years.max))
+    errs.push(`Tenor untuk ${product.name} antara ${product.tenor_years.min}–${product.tenor_years.max} tahun.`);
+  if (scheme && scheme.minTenor && tenor && tenor < scheme.minTenor)
+    errs.push(`Skema "${scheme.label}" minimal tenor ${scheme.minTenor} tahun.`);
+  if (errs.length) { el.result.textContent = errs.join(" "); return; }
+
+  const sched = computeInstallment(plafon, tenor, scheme);
+  const provisi = provisiAdmin(plafon);
+  const progId = cashbackProgramFor(facility);
+  const cb = progId ? computeCashback(kb, plafon, el.segment.value) : null;
+  const prog = progId ? (kb.programs || []).find((p) => p.id === progId) : null;
+
+  renderSimulation(el.result, { product, scheme, plafon, tenor, sched, provisi, cb, prog });
+}
+
+function renderSimulation(container, r) {
+  container.textContent = "";
+  const add = (cls, text) => {
+    const d = document.createElement("div");
+    if (cls) d.className = cls;
+    d.textContent = text;
+    container.appendChild(d);
+    return d;
+  };
+
+  add("sim__h", `${r.product ? r.product.name : ""} · ${r.scheme.label}`);
+  add("", `Plafon ${formatRp(r.plafon)} · Tenor ${r.tenor} tahun`);
+
+  add("sim__h", "Estimasi angsuran per bulan");
+  r.sched.forEach((p, i) => {
+    const span = i === 0 ? `${r.sched.length > 1 ? p.months + " bln pertama" : "seluruh tenor"}` : `${p.months} bln berikutnya`;
+    add("sim__row", `• Bunga ${p.rate}% (${span}): ${formatRp(p.installment)} / bln`);
+  });
+  add("sim__note", "Provisi & administrasi (1.1%): " + formatRp(r.provisi));
+
+  if (r.cb) {
+    add("sim__h", "Potensi cashback");
+    add("sim__row", `Kategori ${r.cb.category} · cashback diterima: ${formatRp(r.cb.received)}`);
+    add("sim__note", `(1% = ${formatRp(r.cb.gross)}, maksimum ${formatRp(r.cb.cap)} → ${formatRp(r.cb.capped)}, dipotong PPh 5% ${formatRp(r.cb.pph)})`);
+    add("sim__note", "Syarat: wajib membeli unit trust/reksa dana via SSUT di UOB TMRW.");
+    if (r.prog && r.prog.program_period && TODAY_ISO > r.prog.program_period.end) {
+      add("sim__warn", `Catatan: periode program "${r.prog.name}" tercatat berakhir ${r.prog.program_period.end}.`);
+    }
+  } else if (cashbackProgramForLabel(r)) {
+    add("sim__note", "Plafon di bawah Rp500 juta belum memenuhi kategori cashback.");
+  }
+
+  const disc = document.createElement("div");
+  disc.className = "sim__disc";
+  disc.textContent = "— Semua perhitungan bersifat estimasi. Angka final mengikuti analisa kredit dan Perjanjian Kredit.";
+  container.appendChild(disc);
+}
+
+function cashbackProgramForLabel(r) {
+  return r.prog != null; // program exists but plafon too low -> cb null
+}
+
 /* --- Boot ------------------------------------------------------------------ */
 
 function init() {
@@ -503,6 +638,7 @@ function init() {
   updateDataStatus();
   greet();
   setupEktp();
+  setupSimulation();
   composerInput.focus();
 }
 
