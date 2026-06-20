@@ -1,17 +1,23 @@
-# Cloudflare Pages — settings as code.
-# Pins the build output directory so neither the dashboard nor `wrangler` can
-# silently fall back to a framework scaffold / "hello world" placeholder.
+# Cloudflare Workers — static-assets config for SakhaPR.
 #
-# SakhaPR has NO build step. The app's index.html lives at the repo root, so the
-# output directory is "." (the repo root itself).
+# This project deploys via the Workers Builds flow (Deploy command:
+# `npx wrangler deploy`). SakhaPR has NO build step and no server-side code:
+# it is a static site served from the repo root as Worker Assets.
 #
-# If you later move the app into a subfolder (e.g. sakhapr/), change the value
-# below to that folder name and keep _headers inside it.
+# `wrangler deploy` reads the [assets] block below and uploads the directory.
+# The _headers file in that directory (the strict CSP) is applied by Workers
+# Assets, exactly as it would be on Pages.
 
 name = "sakhapr"
-pages_build_output_dir = "."
+compatibility_date = "2026-06-20"
 
-# Deploy from Git (recommended) OR direct upload:
-#   npx wrangler pages deploy . --project-name sakhapr
-# Run the command from the folder that contains index.html.
-# Do NOT run `npm create cloudflare` — that scaffolds a hello-world Worker.
+[assets]
+directory = "./"
+
+# Notes:
+# - No `main` / Worker script: this is an assets-only deployment.
+# - Keep the Deploy command as `npx wrangler deploy` (the default for this flow).
+# - .assetsignore (next to this file) keeps docs/config out of the public site.
+# - Classic Pages alternative (different flow): a project whose Deploy command is
+#   `npx wrangler pages deploy . --project-name sakhapr` would instead use
+#   `pages_build_output_dir = "."` and ignore the [assets] block.

@@ -1,0 +1,7 @@
+# Files uploaded to the repo but NOT part of the public app.
+# gitignore-style patterns. Do NOT list _headers here — it must be served.
+*.md
+wrangler.toml
+.assetsignore
+.gitignore
+reference/

@@ -1,36 +1,54 @@
-# Deploying SakhaPR to Cloudflare Pages
+# Deploying SakhaPR to Cloudflare
 
-SakhaPR is a **no-build static site** (plain HTML/CSS/ES modules). The only way it
-turns into a "hello world" placeholder is if Cloudflare is told to *build* it.
-The rules below keep that from happening.
+SakhaPR is a **no-build static site** (plain HTML/CSS/ES modules). It serves the
+repo root as static assets; `_headers` carries the strict CSP. There are two
+Cloudflare flows — pick the one that matches how your project was created.
 
-## The settings that matter (memorize these)
+## Flow in use: Workers Builds (Deploy command `npx wrangler deploy`)
 
-| Setting | Value | Why |
-|---|---|---|
-| Framework preset | **None** | Any preset injects a build command. |
-| Build command | **(empty)** | There is nothing to compile. Never `npm run build`. |
-| Build output directory | **`/`** (repo root) | The folder that contains `index.html`. |
-| Root directory | **`/`** | App files live at the repo root. |
+If the project's **Deploy command** is `npx wrangler deploy` (Workers Builds),
+the config is the `[assets]` block in `wrangler.toml`:
 
-These are also pinned in `wrangler.toml` (`pages_build_output_dir = "."`) so the
-CLI and dashboard agree.
+```toml
+name = "sakhapr"
+compatibility_date = "2026-06-20"
 
-> If you later nest the app under a subfolder (e.g. `sakhapr/`), set the output
-> directory to that folder **and** update `pages_build_output_dir` to match, and
-> keep `_headers` inside that folder.
+[assets]
+directory = "./"
+```
+
+- **Build command:** None (nothing to compile).
+- **Deploy command:** `npx wrangler deploy` (default — leave it).
+- **Root directory:** `/`.
+- `wrangler deploy` uploads the asset directory; `_headers` (CSP) is applied by
+  Workers Assets; `.assetsignore` keeps docs/config out of the public site.
+
+> Common failure: a `wrangler.toml` that only has `pages_build_output_dir` makes
+> `wrangler deploy` fail with **"Missing entry-point to Worker script or to
+> assets directory"** — because that key is Pages-only. The `[assets]` block
+> above is what `wrangler deploy` needs.
+
+## Alternative: classic Pages
+
+| Setting | Value |
+|---|---|
+| Framework preset | **None** |
+| Build command | **(empty)** |
+| Build output directory | **`/`** |
+
+This flow uses `wrangler pages deploy . --project-name sakhapr` and the
+`pages_build_output_dir = "."` key instead of `[assets]`.
 
 ## Route A — Git-connected (recommended)
 
 1. Push the finished app to `kapanthron/sakhapr`.
-2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** →
+2. Cloudflare dashboard → **Workers & Pages → Create → Connect to Git** →
    select `kapanthron/sakhapr`.
-3. Pick the production branch.
-4. Build settings: **Framework preset = None, Build command = (blank),
-   Output directory = `/`**.
-5. **Save and Deploy.** The "build" just copies static files.
-6. Open the `*.pages.dev` URL, hard-refresh, and confirm the **PDPA banner**
-   renders — not a Cloudflare placeholder.
+3. Pick the production branch (`main`).
+4. Build command empty; keep the default Deploy command for the flow.
+5. **Save and Deploy.**
+6. Open the deployed URL, hard-refresh, and confirm the **PDPA banner** renders —
+   not a Cloudflare placeholder.
 
 ## Route B — Wrangler direct upload (no Git)
 
