@@ -90,12 +90,39 @@ const dataStatus = document.getElementById("dataStatus");
  * @param {string} text
  * @param {{persist?: boolean}} [opts]  persist=false for ephemeral system notes
  */
+/** WIB timestamp string for all generated artifacts. */
+function nowWIB() {
+  return new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+}
+
+/** Minimal, XSS-safe Markdown -> HTML (bold, inline code, bullet/numbered lists). */
+function mdToHtml(src) {
+  const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+?)`/g, "<code>$1</code>");
+  const lines = String(src).replace(/\r/g, "").split("\n");
+  let html = "";
+  let list = null;
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { close(); continue; }
+    let m;
+    if ((m = line.match(/^[-*•]\s+(.*)/))) { if (list !== "ul") { close(); html += "<ul>"; list = "ul"; } html += `<li>${inline(m[1])}</li>`; continue; }
+    if ((m = line.match(/^\d+[.)]\s+(.*)/))) { if (list !== "ol") { close(); html += "<ol>"; list = "ol"; } html += `<li>${inline(m[1])}</li>`; continue; }
+    close();
+    html += `<p>${inline(line)}</p>`;
+  }
+  close();
+  return html;
+}
+
 function addMessage(role, text, opts = {}) {
   const { persist = true } = opts;
 
   const el = document.createElement("div");
   el.className = `msg msg--${role}`;
-  el.textContent = text;
+  if (role === "bot") el.innerHTML = mdToHtml(text); // render Markdown tidily
+  else el.textContent = text;
   chatLog.appendChild(el);
   chatLog.scrollTop = chatLog.scrollHeight;
 
@@ -271,7 +298,7 @@ function finishPrescreen() {
 
   // Build the prescreen transcript (file a) silently and keep it in memory.
   // The customer never sees or downloads it; it is forwarded behind the scenes.
-  const { text } = buildTranscript(session, new Date().toLocaleString("id-ID"));
+  const { text } = buildTranscript(session, nowWIB());
   store.files.fileA = new Blob([text], { type: "text/plain;charset=utf-8" });
   updateDataStatus();
 
@@ -549,13 +576,16 @@ function setupEktp() {
   });
 }
 
-/** Build the chat conversation log (.txt) from the in-memory messages. */
-function buildChatLogBlob() {
-  const L = ["SakhaPR — Log Chat", "=".repeat(40), `Tanggal: ${new Date().toLocaleString("id-ID")}`, ""];
+/** Build the chat conversation log text from the in-memory messages. */
+function buildChatLogText() {
+  const L = ["SakhaPR — Log Chat", "=".repeat(40), `Tanggal: ${nowWIB()}`, ""];
   for (const m of store.messages) {
     L.push(`[${m.role === "user" ? "Nasabah" : "SakhaPR"}] ${m.text}`);
   }
-  return new Blob([L.join("\n")], { type: "text/plain;charset=utf-8" });
+  return L.join("\n");
+}
+function buildChatLogBlob() {
+  return new Blob([buildChatLogText()], { type: "text/plain;charset=utf-8" });
 }
 
 /**
@@ -602,7 +632,7 @@ async function processEktp(file) {
     // 2) Build the NIK report PDF (file c) behind the scenes.
     ektp.status.textContent = "Menyusun laporan skrining…";
     const { blob: reportBlob } = buildNikReportPdf(verdict, {
-      timestamp: new Date().toLocaleString("id-ID"),
+      timestamp: nowWIB(),
       printed,
     });
     store.files.fileC = reportBlob;
@@ -747,6 +777,36 @@ function renderSimulation(container, r) {
 function cashbackProgramForLabel(r) {
   return r.prog != null; // program exists but plafon too low -> cb null
 }
+
+/* --- Session logging (every conversation, even if not submitted) ----------- */
+
+const SESSION_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
+
+/** Send the chat session to the admin log (best-effort, via sendBeacon). */
+function sendSessionLog() {
+  // Submitted sessions are already stored as full leads; skip those.
+  if (store.ektp && store.ektp.submitted) return;
+  if (!store.messages.length) return;
+  const session = flow.session || store.prescreen;
+  const payload = {
+    sessionId: SESSION_ID,
+    chatlog: buildChatLogText(),
+    product: store.product || "",
+    productName: PRODUCT_NAMES[store.product] || store.product || "",
+    prescreenLabel: session ? session.label : "",
+    prescreenStatus: session ? (session.isComplete() ? "selesai" : "belum selesai") : "",
+    nikVerdict: (store.ektp && store.ektp.verdict && store.ektp.verdict.verdict) || "",
+  };
+  try {
+    const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+    navigator.sendBeacon("/api/session", blob);
+  } catch (e) {
+    /* best-effort */
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") sendSessionLog();
+});
 
 /* --- Boot ------------------------------------------------------------------ */
 

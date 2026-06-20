@@ -58,20 +58,27 @@ const EMAIL_LABEL = {
   pending: "… tertunda",
 };
 
-function fileUrl(id, name) {
-  return `/api/admin/file?key=${encodeURIComponent(`leads/${id}/${name}`)}`;
+function fmtTime(ts) {
+  return new Date(ts).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
+}
+function fileUrl(prefix, id, name) {
+  return `/api/admin/file?key=${encodeURIComponent(`${prefix}/${id}/${name}`)}`;
 }
 
 function renderLeads(leads) {
   const list = $("leadsList");
   list.textContent = "";
   if (!leads.length) {
-    $("leadsStatus").textContent = "Belum ada lead tersimpan.";
+    $("leadsStatus").textContent = "Belum ada data tersimpan.";
     return;
   }
-  $("leadsStatus").textContent = `${leads.length} lead tersimpan.`;
+  const nLead = leads.filter((l) => l.type !== "session").length;
+  const nSess = leads.length - nLead;
+  $("leadsStatus").textContent = `${nLead} lead dikirim · ${nSess} sesi chat (tidak dikirim).`;
 
   for (const lead of leads) {
+    const isSession = lead.type === "session";
+    const prefix = isSession ? "sessions" : "leads";
     const card = document.createElement("div");
     card.className = "lead-card";
 
@@ -81,41 +88,67 @@ function renderLeads(leads) {
     const head = document.createElement("div");
     head.className = "lead-card__head";
     head.innerHTML =
-      `<div><strong>${escapeHtml(lead.productName || lead.product || "(produk?)")}</strong>` +
+      `<div><strong>${escapeHtml(lead.productName || lead.product || (isSession ? "Sesi chat" : "(produk?)"))}</strong>` +
+      (isSession ? ` <span class="badge">sesi · tidak dikirim</span>` : "") +
       `<span class="lead-card__id mono">${escapeHtml(lead.id)}</span></div>` +
-      `<div class="lead-card__time mono">${escapeHtml(new Date(lead.ts).toLocaleString("id-ID"))}</div>`;
+      `<div class="lead-card__time mono">${escapeHtml(fmtTime(lead.ts))}</div>`;
     card.appendChild(head);
 
     const meta = document.createElement("div");
     meta.className = "lead-card__meta";
-    meta.innerHTML =
+    let metaHtml =
       `<span>Prescreen: <strong>${escapeHtml(lead.prescreenLabel || "-")} ${escapeHtml(lead.prescreenStatus || "")}</strong></span>` +
-      `<span>Verdict NIK: <strong>${escapeHtml(lead.nikVerdict || "-")}</strong></span>` +
-      `<span>Email ke ${escapeHtml(email.to || "-")}: <strong class="status--${emailClass}">${EMAIL_LABEL[email.status] || email.status || "-"}</strong>` +
-      (email.error ? ` <span class="lead-card__err">(${escapeHtml(email.error)})</span>` : "") +
-      `</span>`;
+      `<span>Verdict NIK: <strong>${escapeHtml(lead.nikVerdict || "-")}</strong></span>`;
+    if (!isSession) {
+      metaHtml +=
+        `<span>Email ke ${escapeHtml(email.to || "-")}: <strong class="status--${emailClass}">${EMAIL_LABEL[email.status] || email.status || "-"}</strong>` +
+        (email.error ? ` <span class="lead-card__err">(${escapeHtml(email.error)})</span>` : "") +
+        `</span>`;
+    }
+    meta.innerHTML = metaHtml;
     card.appendChild(meta);
 
     const files = lead.files || {};
     const dl = document.createElement("div");
     dl.className = "chips";
-    const links = [
+    for (const [label, name] of [
       ["Prescreen (.txt)", files.prescreen],
       ["Log chat (.txt)", files.chatlog],
       ["eKTP", files.ektp],
       ["Laporan NIK (.pdf)", files.report],
       ["meta.json", "meta.json"],
-    ];
-    for (const [label, name] of links) {
+    ]) {
       if (!name) continue;
       const a = document.createElement("a");
       a.className = "chip";
       a.textContent = label;
-      a.href = fileUrl(lead.id, name);
+      a.href = fileUrl(prefix, lead.id, name);
       dl.appendChild(a);
     }
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "chip chip--danger";
+    del.textContent = "Hapus";
+    del.addEventListener("click", () => deleteRecord(lead.id, card));
+    dl.appendChild(del);
+
     card.appendChild(dl);
     list.appendChild(card);
+  }
+}
+
+async function deleteRecord(id, card) {
+  if (!confirm("Hapus log ini secara permanen?")) return;
+  try {
+    const r = await fetch("/api/admin/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (r.ok) card.remove();
+    else alert("Gagal menghapus.");
+  } catch (e) {
+    alert("Gagal menghapus: " + e.message);
   }
 }
 

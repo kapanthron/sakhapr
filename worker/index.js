@@ -34,11 +34,17 @@ export default {
       if (pathname === "/api/chat" && request.method === "POST") {
         return await handleChat(request, env);
       }
+      if (pathname === "/api/session" && request.method === "POST") {
+        return await handleSession(request, env);
+      }
       if (pathname === "/api/admin/login" && request.method === "POST") {
         return await handleLogin(request, env);
       }
       if (pathname === "/api/admin/logout" && request.method === "POST") {
         return handleLogout();
+      }
+      if (pathname === "/api/admin/delete" && request.method === "POST") {
+        return await requireAdmin(request, env, () => handleDelete(request, env));
       }
       if (pathname === "/api/admin/leads" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleListLeads(env));
@@ -95,6 +101,7 @@ async function handleSubmit(request, env) {
   const meta = {
     id,
     ts,
+    type: "lead",
     product: form.get("product") || "",
     productName: form.get("productName") || "",
     prescreenLabel: form.get("prescreenLabel") || "",
@@ -119,6 +126,53 @@ async function handleSubmit(request, env) {
   return json({ ok: true, id, email: meta.email.status });
 }
 
+/* --- Session log (every conversation, even if not submitted) ---------------- */
+
+async function handleSession(request, env) {
+  const b = await request.json().catch(() => ({}));
+  const id = typeof b.sessionId === "string" && /^[a-f0-9-]{8,40}$/i.test(b.sessionId)
+    ? b.sessionId
+    : crypto.randomUUID();
+  const prefix = `sessions/${id}/`;
+  if (b.chatlog) {
+    await env.BUCKET.put(prefix + "chatlog.txt", String(b.chatlog), {
+      httpMetadata: { contentType: "text/plain; charset=utf-8" },
+    });
+  }
+  const meta = {
+    id,
+    ts: new Date().toISOString(),
+    type: "session",
+    product: b.product || "",
+    productName: b.productName || "",
+    prescreenLabel: b.prescreenLabel || "",
+    prescreenStatus: b.prescreenStatus || "",
+    nikVerdict: b.nikVerdict || "",
+    files: { chatlog: "chatlog.txt" },
+    email: { status: "n/a" },
+  };
+  await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
+    httpMetadata: { contentType: "application/json" },
+  });
+  return json({ ok: true, id });
+}
+
+/* --- Admin: delete a record (lead or session) ------------------------------ */
+
+async function handleDelete(request, env) {
+  const { id } = await request.json().catch(() => ({}));
+  if (!id || /[^a-zA-Z0-9-]/.test(String(id))) return json({ ok: false, error: "ID tidak valid." }, 400);
+  let deleted = 0;
+  for (const prefix of [`leads/${id}/`, `sessions/${id}/`]) {
+    const listed = await env.BUCKET.list({ prefix });
+    for (const o of listed.objects) {
+      await env.BUCKET.delete(o.key);
+      deleted++;
+    }
+  }
+  return json({ ok: true, deleted });
+}
+
 /* --- Chat (Workers AI, grounded on the knowledge base) --------------------- */
 
 const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
@@ -127,12 +181,15 @@ const SYSTEM_PROMPT =
   "Jawab HANYA berdasarkan FAKTA dari knowledge base di bawah. Gunakan Bahasa " +
   "Indonesia yang ramah, jelas, dan ringkas. JANGAN mengarang angka, suku bunga, " +
   "biaya, atau syarat yang tidak ada di FAKTA. Jika informasinya tidak tersedia, " +
-  "katakan dengan jujur bahwa Anda belum memiliki datanya dan arahkan nasabah ke " +
-  "Mortgage Relations Unit (mortgagerelations@uob.co.id). Untuk pertanyaan soal " +
+  "katakan dengan jujur lalu ajak nasabah melanjutkan ke proses pengajuan agar tim " +
+  "UOB dapat membantu lebih lanjut (JANGAN menyuruh menghubungi email atau nomor " +
+  "telepon Mortgage Relations). Untuk pertanyaan soal " +
   "uang (bunga, biaya, cashback, denda), sertakan pengingat singkat bahwa angka " +
   "bersifat estimasi dan dapat berubah. Pemeriksaan ini bukan keputusan kredit. " +
-  "Jawab langsung dan ringkas (maksimal sekitar 6 kalimat) dan selalu selesaikan " +
-  "kalimat terakhir. Jangan mengulang salam pembuka di setiap jawaban.";
+  "Rapikan jawaban: gunakan poin-poin diawali '- ' bila menyebut beberapa hal, dan " +
+  "**tebal** untuk istilah penting. Jawab langsung dan ringkas (maksimal sekitar 6 " +
+  "kalimat atau 6 poin) dan selalu selesaikan kalimat terakhir. Jangan mengulang " +
+  "salam pembuka di setiap jawaban.";
 
 let KB_CONTEXT = null;
 
@@ -357,16 +414,17 @@ async function requireAdmin(request, env, handler) {
 /* --- Admin: data ----------------------------------------------------------- */
 
 async function handleListLeads(env) {
-  const listed = await env.BUCKET.list({ prefix: "leads/" });
-  const metaKeys = listed.objects.filter((o) => o.key.endsWith("/meta.json"));
   const leads = [];
-  for (const obj of metaKeys) {
-    const got = await env.BUCKET.get(obj.key);
-    if (!got) continue;
-    try {
-      leads.push(JSON.parse(await got.text()));
-    } catch {
-      /* skip malformed */
+  for (const prefix of ["leads/", "sessions/"]) {
+    const listed = await env.BUCKET.list({ prefix });
+    for (const obj of listed.objects.filter((o) => o.key.endsWith("/meta.json"))) {
+      const got = await env.BUCKET.get(obj.key);
+      if (!got) continue;
+      try {
+        leads.push(JSON.parse(await got.text()));
+      } catch {
+        /* skip malformed */
+      }
     }
   }
   leads.sort((a, b) => (a.ts < b.ts ? 1 : -1));
@@ -375,7 +433,7 @@ async function handleListLeads(env) {
 
 async function handleFile(url, env) {
   const key = url.searchParams.get("key") || "";
-  if (!key.startsWith("leads/") || key.includes("..")) {
+  if (!(key.startsWith("leads/") || key.startsWith("sessions/")) || key.includes("..")) {
     return json({ ok: false, error: "Key tidak valid." }, 400);
   }
   const obj = await env.BUCKET.get(key);

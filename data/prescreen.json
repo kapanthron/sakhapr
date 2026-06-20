@@ -93,6 +93,20 @@
             "depends_on": "beli_developer_atau_second",
             "equals": "Second"
           }
+        },
+        {
+          "no": 0,
+          "id": "alamat_jaminan",
+          "text": "Alamat lengkap properti / jaminan?",
+          "type": "text",
+          "flag_hint": "jaminan"
+        },
+        {
+          "no": 0,
+          "id": "kode_pos",
+          "text": "Kode pos properti / jaminan?",
+          "type": "text",
+          "flag_hint": "jaminan"
         }
       ]
     },
@@ -181,6 +195,20 @@
             "depends_on": "beli_developer_atau_second",
             "equals": "Second"
           }
+        },
+        {
+          "no": 0,
+          "id": "alamat_jaminan",
+          "text": "Alamat lengkap properti / jaminan?",
+          "type": "text",
+          "flag_hint": "jaminan"
+        },
+        {
+          "no": 0,
+          "id": "kode_pos",
+          "text": "Kode pos properti / jaminan?",
+          "type": "text",
+          "flag_hint": "jaminan"
         }
       ]
     },
@@ -276,6 +304,20 @@
             "Tidak"
           ],
           "flag_hint": "upsell"
+        },
+        {
+          "no": 0,
+          "id": "alamat_jaminan",
+          "text": "Alamat lengkap properti / jaminan?",
+          "type": "text",
+          "flag_hint": "jaminan"
+        },
+        {
+          "no": 0,
+          "id": "kode_pos",
+          "text": "Kode pos properti / jaminan?",
+          "type": "text",
+          "flag_hint": "jaminan"
         }
       ]
     }

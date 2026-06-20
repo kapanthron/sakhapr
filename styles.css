@@ -157,6 +157,12 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
   background: var(--teal-tint);
   border-bottom-left-radius: 3px;
 }
+.msg--bot p { margin: 0 0 6px; }
+.msg--bot p:last-child { margin-bottom: 0; }
+.msg--bot ul, .msg--bot ol { margin: 4px 0 6px; padding-left: 20px; }
+.msg--bot li { margin: 2px 0; }
+.msg--bot code { font-family: var(--font-mono); font-size: 0.92em; background: rgba(0,0,0,.05); padding: 0 3px; border-radius: 3px; }
+.msg--bot strong { font-weight: 700; }
 .msg--user {
   align-self: flex-end;
   background: var(--cream-2);
@@ -384,6 +390,9 @@ table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-s
 .status--warn { color: var(--warn); }
 .status--fail { color: var(--danger); }
 .lead-card .chips a.chip { text-decoration: none; }
+.badge { font-size: 10.5px; font-weight: 600; color: var(--warn); background: #fff4e0; border: 1px solid #e8c98a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
+.chip--danger { color: var(--danger); border-color: var(--danger); }
+.chip--danger:hover { background: var(--danger); color: var(--white); }
 
 /* --- Temporary NIK debug panel (Phase 4) ---------------------------------- */
 .debug {

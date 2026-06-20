@@ -59,11 +59,6 @@ function promoWarning(kb, programIds, todayISO) {
   return null;
 }
 
-function supportLine(kb) {
-  const s = kb.support || {};
-  return `Untuk kepastian, hubungi Mortgage Relations Unit (${s.mortgage_relations_email || "mortgagerelations@uob.co.id"}, ${s.mortgage_relations_unit || ""}) atau UOB Contact Centre ${s.uob_contact_centre || "14008"}.`;
-}
-
 /* --- Intent handlers ------------------------------------------------------- */
 
 function routeProduct(kb, cls) {
@@ -167,7 +162,7 @@ function informationAnswer(kb, cls) {
     });
     const text = items.length
       ? `Promo/program KPR UOB yang tersedia:\n${items.join("\n")}\n\nIngin detail salah satunya, misalnya cashback atau bebas biaya appraisal?`
-      : "Saat ini belum ada program yang tercatat. " + supportLine(kb);
+      : "Saat ini belum ada program yang tercatat. Anda bisa memulai proses pengajuan kapan saja.";
     return { text, disclaimer: disclaimerText(kb, "general"), product: null, program: null };
   }
 
@@ -182,11 +177,12 @@ function informationAnswer(kb, cls) {
     }
   }
 
-  // Nothing matched: be honest and route to a human.
+  // Nothing matched: be honest and invite the customer into the application flow.
   return {
     text:
-      "Maaf, saya belum menemukan jawaban pasti untuk pertanyaan itu di basis " +
-      `pengetahuan saya. ${supportLine(kb)}`,
+      "Maaf, saya belum menemukan jawaban pasti untuk pertanyaan itu. " +
+      "Anda bisa langsung memulai proses pengajuan agar tim UOB membantu lebih lanjut, " +
+      "atau ajukan pertanyaan lain seputar KPR.",
     disclaimer: disclaimerText(kb, "general"),
     product: null,
     program: null,
