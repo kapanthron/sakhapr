@@ -18,21 +18,24 @@
           "id": "nama_lengkap",
           "text": "Nama lengkap sesuai KTP?",
           "type": "text",
-          "flag_hint": "identitas"
+          "flag_hint": "identitas",
+          "text_en": "Full name as on your ID card (KTP)?"
         },
         {
           "no": 0,
           "id": "nomor_handphone",
           "text": "Nomor handphone aktif (WhatsApp)?",
           "type": "tel",
-          "flag_hint": "kontak"
+          "flag_hint": "kontak",
+          "text_en": "Active mobile number (WhatsApp)?"
         },
         {
           "no": 0,
           "id": "email_aktif",
           "text": "Email aktif?",
           "type": "email",
-          "flag_hint": "kontak"
+          "flag_hint": "kontak",
+          "text_en": "Active email address?"
         },
         {
           "no": 1,
@@ -43,14 +46,20 @@
             "Developer",
             "Second"
           ],
-          "flag_hint": "readiness"
+          "flag_hint": "readiness",
+          "text_en": "Buying from a developer or a secondary property? Have you paid a booking fee / deposit (UTJ)?",
+          "options_en": [
+            "Developer",
+            "Secondary"
+          ]
         },
         {
           "no": 2,
           "id": "profesi_dan_lama_kerja",
           "text": "Kerja atau usaha di bidang apa? Sudah berapa lama?",
           "type": "text",
-          "flag_hint": "capacity"
+          "flag_hint": "capacity",
+          "text_en": "What is your job or business field, and for how long?"
         },
         {
           "no": 3,
@@ -61,7 +70,12 @@
             "Tidak pernah",
             "Pernah"
           ],
-          "flag_hint": "risk"
+          "flag_hint": "risk",
+          "text_en": "Any history of late payments or restructuring in the last 12 months?",
+          "options_en": [
+            "Never",
+            "Yes, once"
+          ]
         },
         {
           "no": 4,
@@ -71,6 +85,11 @@
           "options": [
             "Dihuni sendiri",
             "Disewakan"
+          ],
+          "text_en": "Will it be owner-occupied or rented out?",
+          "options_en": [
+            "Owner-occupied",
+            "Rented out"
           ]
         },
         {
@@ -78,7 +97,8 @@
           "id": "harga_transaksi",
           "text": "Harga transaksi berapa?",
           "type": "number",
-          "flag_hint": "plafon_basis"
+          "flag_hint": "plafon_basis",
+          "text_en": "What is the transaction price?"
         },
         {
           "no": 6,
@@ -92,23 +112,32 @@
           "conditional": {
             "depends_on": "beli_developer_atau_second",
             "equals": "Second"
-          }
+          },
+          "text_en": "If buying a secondary house, is the collateral already certified or still under PPJB?",
+          "options_en": [
+            "Certified",
+            "Still PPJB"
+          ]
         },
         {
           "no": 0,
           "id": "alamat_jaminan",
           "text": "Alamat lengkap properti / jaminan?",
           "type": "text",
-          "flag_hint": "jaminan"
+          "flag_hint": "jaminan",
+          "text_en": "Full address of the property / collateral?"
         },
         {
           "no": 0,
           "id": "kode_pos",
           "text": "Kode pos properti / jaminan?",
           "type": "text",
-          "flag_hint": "jaminan"
+          "flag_hint": "jaminan",
+          "text_en": "Postal code of the property / collateral?"
         }
-      ]
+      ],
+      "intro_en": "Thank you for confirming. Before we forward this to the marketing team, may we run a short initial interview?",
+      "label_en": "KPR Primary Application"
     },
     "secondary": {
       "label": "Pengajuan KPR Secondary",
@@ -120,21 +149,24 @@
           "id": "nama_lengkap",
           "text": "Nama lengkap sesuai KTP?",
           "type": "text",
-          "flag_hint": "identitas"
+          "flag_hint": "identitas",
+          "text_en": "Full name as on your ID card (KTP)?"
         },
         {
           "no": 0,
           "id": "nomor_handphone",
           "text": "Nomor handphone aktif (WhatsApp)?",
           "type": "tel",
-          "flag_hint": "kontak"
+          "flag_hint": "kontak",
+          "text_en": "Active mobile number (WhatsApp)?"
         },
         {
           "no": 0,
           "id": "email_aktif",
           "text": "Email aktif?",
           "type": "email",
-          "flag_hint": "kontak"
+          "flag_hint": "kontak",
+          "text_en": "Active email address?"
         },
         {
           "no": 1,
@@ -145,14 +177,20 @@
             "Developer",
             "Second"
           ],
-          "flag_hint": "readiness"
+          "flag_hint": "readiness",
+          "text_en": "Buying from a developer or a secondary property? Have you paid a booking fee / deposit (UTJ)?",
+          "options_en": [
+            "Developer",
+            "Secondary"
+          ]
         },
         {
           "no": 2,
           "id": "profesi_dan_lama_kerja",
           "text": "Kerja atau usaha di bidang apa? Sudah berapa lama?",
           "type": "text",
-          "flag_hint": "capacity"
+          "flag_hint": "capacity",
+          "text_en": "What is your job or business field, and for how long?"
         },
         {
           "no": 3,
@@ -163,7 +201,12 @@
             "Tidak pernah",
             "Pernah"
           ],
-          "flag_hint": "risk"
+          "flag_hint": "risk",
+          "text_en": "Any history of late payments or restructuring in the last 12 months?",
+          "options_en": [
+            "Never",
+            "Yes, once"
+          ]
         },
         {
           "no": 4,
@@ -173,6 +216,11 @@
           "options": [
             "Dihuni sendiri",
             "Disewakan"
+          ],
+          "text_en": "Will it be owner-occupied or rented out?",
+          "options_en": [
+            "Owner-occupied",
+            "Rented out"
           ]
         },
         {
@@ -180,7 +228,8 @@
           "id": "harga_transaksi",
           "text": "Harga transaksi berapa?",
           "type": "number",
-          "flag_hint": "plafon_basis"
+          "flag_hint": "plafon_basis",
+          "text_en": "What is the transaction price?"
         },
         {
           "no": 6,
@@ -194,23 +243,32 @@
           "conditional": {
             "depends_on": "beli_developer_atau_second",
             "equals": "Second"
-          }
+          },
+          "text_en": "If buying a secondary house, is the collateral already certified or still under PPJB?",
+          "options_en": [
+            "Certified",
+            "Still PPJB"
+          ]
         },
         {
           "no": 0,
           "id": "alamat_jaminan",
           "text": "Alamat lengkap properti / jaminan?",
           "type": "text",
-          "flag_hint": "jaminan"
+          "flag_hint": "jaminan",
+          "text_en": "Full address of the property / collateral?"
         },
         {
           "no": 0,
           "id": "kode_pos",
           "text": "Kode pos properti / jaminan?",
           "type": "text",
-          "flag_hint": "jaminan"
+          "flag_hint": "jaminan",
+          "text_en": "Postal code of the property / collateral?"
         }
-      ]
+      ],
+      "intro_en": "Thank you for confirming. Before we forward this to the marketing team, may we run a short initial interview?",
+      "label_en": "KPR Secondary Application"
     },
     "take_over": {
       "label": "Pengajuan KPR Take Over",
@@ -222,21 +280,24 @@
           "id": "nama_lengkap",
           "text": "Nama lengkap sesuai KTP?",
           "type": "text",
-          "flag_hint": "identitas"
+          "flag_hint": "identitas",
+          "text_en": "Full name as on your ID card (KTP)?"
         },
         {
           "no": 0,
           "id": "nomor_handphone",
           "text": "Nomor handphone aktif (WhatsApp)?",
           "type": "tel",
-          "flag_hint": "kontak"
+          "flag_hint": "kontak",
+          "text_en": "Active mobile number (WhatsApp)?"
         },
         {
           "no": 0,
           "id": "email_aktif",
           "text": "Email aktif?",
           "type": "email",
-          "flag_hint": "kontak"
+          "flag_hint": "kontak",
+          "text_en": "Active email address?"
         },
         {
           "no": 1,
@@ -246,6 +307,11 @@
           "options": [
             "Sudah sertifikat",
             "Masih PPJB"
+          ],
+          "text_en": "Is it already certified or still under PPJB?",
+          "options_en": [
+            "Certified",
+            "Still PPJB"
           ]
         },
         {
@@ -253,7 +319,8 @@
           "id": "profesi_dan_lama_kerja",
           "text": "Kerja atau usaha di bidang apa? Sudah berapa lama?",
           "type": "text",
-          "flag_hint": "capacity"
+          "flag_hint": "capacity",
+          "text_en": "What is your job or business field, and for how long?"
         },
         {
           "no": 3,
@@ -264,7 +331,12 @@
             "Tidak pernah",
             "Pernah"
           ],
-          "flag_hint": "risk"
+          "flag_hint": "risk",
+          "text_en": "Any restructuring or history of late payments in the last 12 months?",
+          "options_en": [
+            "Never",
+            "Yes, once"
+          ]
         },
         {
           "no": 4,
@@ -275,6 +347,12 @@
             "Kosong",
             "Dihuni",
             "Disewakan"
+          ],
+          "text_en": "Is the collateral vacant, occupied, or rented out?",
+          "options_en": [
+            "Vacant",
+            "Occupied",
+            "Rented out"
           ]
         },
         {
@@ -286,13 +364,19 @@
             "KPR",
             "Multiguna"
           ],
-          "flag_hint": "routing"
+          "flag_hint": "routing",
+          "text_en": "Is the facility at the current bank a mortgage (KPR) or a multipurpose loan?",
+          "options_en": [
+            "Mortgage (KPR)",
+            "Multipurpose"
+          ]
         },
         {
           "no": 6,
           "id": "bank_asal",
           "text": "Take over dari bank mana?",
-          "type": "text"
+          "type": "text",
+          "text_en": "Which bank are you taking over from?"
         },
         {
           "no": 7,
@@ -303,23 +387,32 @@
             "Ya",
             "Tidak"
           ],
-          "flag_hint": "upsell"
+          "flag_hint": "upsell",
+          "text_en": "Do you plan to top up?",
+          "options_en": [
+            "Yes",
+            "No"
+          ]
         },
         {
           "no": 0,
           "id": "alamat_jaminan",
           "text": "Alamat lengkap properti / jaminan?",
           "type": "text",
-          "flag_hint": "jaminan"
+          "flag_hint": "jaminan",
+          "text_en": "Full address of the property / collateral?"
         },
         {
           "no": 0,
           "id": "kode_pos",
           "text": "Kode pos properti / jaminan?",
           "type": "text",
-          "flag_hint": "jaminan"
+          "flag_hint": "jaminan",
+          "text_en": "Postal code of the property / collateral?"
         }
-      ]
+      ],
+      "intro_en": "For a short initial interview before we forward this to marketing, may we proceed?",
+      "label_en": "KPR Take Over Application"
     }
   }
 }

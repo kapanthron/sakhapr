@@ -20,6 +20,7 @@ import {
 import { classifyIntent, INTENTS } from "./modules/intentRouter.js";
 import { answer } from "./modules/knowledgeAnswer.js";
 import { streamLlm } from "./modules/chat.js";
+import { t, getLang, setLang, applyStatic } from "./modules/i18n.js";
 import {
   schemesForFacility,
   computeInstallment,
@@ -160,36 +161,35 @@ function addChips(options, onPick) {
 /** Reflect whether memory currently holds any data, in the footer pill. */
 function updateDataStatus() {
   const active = hasStoredData();
-  dataStatus.textContent = active
-    ? `Data tersimpan di memori (${store.messages.length} pesan).`
-    : "Tidak ada data tersimpan.";
+  dataStatus.textContent = active ? t("data_some", { n: store.messages.length }) : t("data_none");
   dataStatus.classList.toggle("is-active", active);
 }
 
 /* --- Greeting -------------------------------------------------------------- */
 
 // Context-appropriate starter ("umpan") questions shown at the opening.
-const SUGGESTIONS = [
-  { label: "Take over KPR", q: "Saya mau take over KPR dari bank lain ke UOB. Bagaimana caranya dan apa syaratnya?" },
-  { label: "Syarat penghasilan", q: "Berapa minimum gaji untuk mengajukan KPR UOB?" },
-  { label: "Hitung cicilan", q: "Tolong hitung cicilan KPR. Harga rumah Rp800 juta, DP 20%, tenor 20 tahun." },
-  { label: "Cashback promo", q: "Berapa cashback maksimal Kategori A dan apa syaratnya?" },
-  { label: "Dokumen", q: "Saya karyawan swasta. Dokumen apa saja yang perlu disiapkan untuk KPR?" },
-  { label: "Proses KPR", q: "Berapa lama proses KPR UOB dari pengajuan sampai akad?" },
+const SUGGESTION_KEYS = [
+  ["sug_takeover_l", "sug_takeover_q"],
+  ["sug_income_l", "sug_income_q"],
+  ["sug_install_l", "sug_install_q"],
+  ["sug_cashback_l", "sug_cashback_q"],
+  ["sug_docs_l", "sug_docs_q"],
+  ["sug_process_l", "sug_process_q"],
 ];
 
 function addSuggestions() {
   const row = document.createElement("div");
   row.className = "chips";
-  for (const s of SUGGESTIONS) {
+  for (const [labelKey, qKey] of SUGGESTION_KEYS) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "chip";
-    btn.textContent = s.label;
+    btn.textContent = t(labelKey);
     btn.addEventListener("click", () => {
+      const q = t(qKey);
       row.remove();
-      addMessage("user", s.q);
-      handleKbMessage(s.q).catch((e) => console.error("[SakhaPR] suggestion failed:", e));
+      addMessage("user", q);
+      handleKbMessage(q).catch((e) => console.error("[SakhaPR] suggestion failed:", e));
     });
     row.appendChild(btn);
   }
@@ -198,13 +198,7 @@ function addSuggestions() {
 }
 
 function greet() {
-  addMessage(
-    "bot",
-    "Halo! Saya SakhaPR, asisten KPR UOB Indonesia. " +
-      "Saya bisa menjawab pertanyaan seputar KPR, membantu memilih produk yang tepat, " +
-      "dan menjalankan prescreen awal. Silakan tanya apa saja, atau pilih salah satu di bawah.",
-    { persist: false }
-  );
+  addMessage("bot", t("greeting"), { persist: false });
   addSuggestions();
 }
 
@@ -218,11 +212,33 @@ function renderAnswer(res) {
 
 /* --- Prescreen flow -------------------------------------------------------- */
 
-const SET_PROMPTS = {
-  primary: "KPR Primary (beli baru di developer)",
-  secondary: "KPR Secondary (beli properti bekas)",
-  take_over: "KPR Take Over (pindah dari bank lain)",
-};
+/** Render chips whose visible label may differ from the recorded value. */
+function addChoiceChips(labels, values, onPick) {
+  const row = document.createElement("div");
+  row.className = "chips";
+  labels.forEach((label, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip";
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      row.remove();
+      addMessage("user", label);
+      onPick(values[i]);
+    });
+    row.appendChild(btn);
+  });
+  chatLog.appendChild(row);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+/** Localised display for a question (text + choice option labels). */
+function localizedQuestion(q) {
+  const en = getLang() === "en";
+  const text = en && q.text_en ? q.text_en : q.text;
+  const options = en && q.options_en && q.options_en.length === (q.options || []).length ? q.options_en : q.options;
+  return { text, options };
+}
 
 /** Begin choosing/starting a prescreen. If the set is known, jump straight in. */
 async function offerPrescreen(setId) {
@@ -230,7 +246,7 @@ async function offerPrescreen(setId) {
     await loadPrescreen();
   } catch (err) {
     console.error("[SakhaPR] prescreen load failed:", err);
-    addMessage("bot", "Maaf, set pertanyaan prescreen belum bisa dimuat. Jalankan lewat server lokal atau versi ter-deploy.");
+    addMessage("bot", t("prescreen_load_fail"));
     return;
   }
   if (setId) {
@@ -238,13 +254,11 @@ async function offerPrescreen(setId) {
     return;
   }
   flow.mode = "choose_set";
-  addMessage("bot", "Untuk prescreen awal, situasi Anda yang mana?");
-  addChips(
-    [SET_PROMPTS.primary, SET_PROMPTS.secondary, SET_PROMPTS.take_over],
-    (label) => {
-      const picked = Object.keys(SET_PROMPTS).find((k) => SET_PROMPTS[k] === label);
-      startPrescreen(picked);
-    }
+  addMessage("bot", t("choose_situation"));
+  addChoiceChips(
+    [t("set_primary"), t("set_secondary"), t("set_take_over")],
+    ["primary", "secondary", "take_over"],
+    (picked) => startPrescreen(picked)
   );
 }
 
@@ -264,15 +278,14 @@ function askNextQuestion() {
   const q = session.next();
   if (!q) return finishPrescreen();
 
-  // Number questions by position asked (the static "no" is ignored), so adding
-  // questions to a set never requires renumbering.
-  const prefix = `Pertanyaan ${Object.keys(session.answers).length + 1}. `;
+  const prefix = t("q_prefix", { n: Object.keys(session.answers).length + 1 });
+  const loc = localizedQuestion(q);
   if (q.type === "choice") {
-    addMessage("bot", prefix + q.text);
-    addChips(q.options, submitPrescreenAnswer);
+    addMessage("bot", prefix + loc.text);
+    addChoiceChips(loc.options, q.options, submitPrescreenAnswer);
   } else {
-    const hint = q.type === "number" ? " (masukkan angka)" : "";
-    addMessage("bot", prefix + q.text + hint);
+    const hint = q.type === "number" ? t("num_hint") : "";
+    addMessage("bot", prefix + loc.text + hint);
   }
 }
 
@@ -285,7 +298,7 @@ function submitPrescreenAnswer(raw) {
   const result = validateAnswer(q, raw);
   if (!result.ok) {
     addMessage("bot", result.error);
-    if (q.type === "choice") addChips(q.options, submitPrescreenAnswer);
+    if (q.type === "choice") addChoiceChips(localizedQuestion(q).options, q.options, submitPrescreenAnswer);
     return;
   }
   session.record(result.value);
@@ -302,11 +315,7 @@ function finishPrescreen() {
   store.files.fileA = new Blob([text], { type: "text/plain;charset=utf-8" });
   updateDataStatus();
 
-  addMessage(
-    "bot",
-    `Terima kasih, prescreen ${session.label} selesai. Langkah terakhir: unggah foto eKTP Anda ` +
-      `dan setujui pemrosesan data. Identifikasi dilakukan otomatis — Anda tidak perlu mengisi apa pun.`
-  );
+  addMessage("bot", t("finish_prescreen", { label: session.label }));
 
   // Reveal the eKTP upload step.
   if (ektp.section) {
@@ -324,8 +333,8 @@ function recentHistory() {
     .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
 }
 
-const SIM_RE = /simulasi|angsuran|cicilan|hitung.*(bunga|angsuran|cashback)|estimasi.*angsuran/i;
-const RATE_RE = /\bbunga\b|suku bunga|floating|berjenjang|\brate\b|tingkat suku|fix \d/i;
+const SIM_RE = /simulasi|angsuran|cicilan|installment|simulat|hitung.*(bunga|angsuran|cashback)|calculat.*(installment|payment)|estimasi.*angsuran/i;
+const RATE_RE = /\bbunga\b|suku bunga|floating|berjenjang|\brate\b|tingkat suku|fix \d|interest rate/i;
 
 /** Indonesian percent format (comma decimal). */
 const pid = (n) => String(n).replace(".", ",");
@@ -339,7 +348,8 @@ function renderRateTable(kb) {
     if (s.tiered_fixed_rate_percent) {
       const parts = Object.entries(s.tiered_fixed_rate_percent).map(([k, v]) => {
         const m = k.match(/year_(\d+)(?:_to_(\d+))?/);
-        const lbl = m ? (m[2] ? `Th ${m[1]}-${m[2]}` : `Th ${m[1]}`) : k;
+        const yr = t("rate_year");
+        const lbl = m ? (m[2] ? `${yr} ${m[1]}-${m[2]}` : `${yr} ${m[1]}`) : k;
         return `${lbl}: ${pid(v)}%`;
       });
       return `${s.scheme} — ${parts.join("; ")}`;
@@ -355,14 +365,14 @@ function renderRateTable(kb) {
   table.className = "rate";
 
   const head = document.createElement("tr");
-  ["Jenis", "Suku Bunga Fix (eff. p.a)", "Floating setelah fix", "Min. Tenor"].forEach((h) => {
+  [t("rate_h_jenis"), t("rate_h_fix"), t("rate_h_float"), t("rate_h_tenor")].forEach((h) => {
     const th = document.createElement("th");
     th.textContent = h;
     head.appendChild(th);
   });
   table.appendChild(head);
 
-  for (const [jenis, list] of [["Primary", io.primary || []], ["Secondary / Take Over", io.secondary || []]]) {
+  for (const [jenis, list] of [[t("rate_jenis_primary"), io.primary || []], [t("rate_jenis_secondary"), io.secondary || []]]) {
     list.forEach((s, idx) => {
       const tr = document.createElement("tr");
       if (idx === 0) {
@@ -372,7 +382,7 @@ function renderRateTable(kb) {
         td.className = "rate-jenis";
         tr.appendChild(td);
       }
-      [fixText(s), s.floating_after || "-", `${s.min_tenor_years || "-"} Tahun`].forEach((val) => {
+      [fixText(s), s.floating_after || "-", `${s.min_tenor_years || "-"} ${t("rate_tenor_unit")}`].forEach((val) => {
         const td = document.createElement("td");
         td.textContent = val;
         tr.appendChild(td);
@@ -390,7 +400,7 @@ function renderRateTable(kb) {
   for (const [k, v] of Object.entries(rr.floating_tiers_percent || {})) lines.push(`${k}: ${pid(v)}%`);
   const flexi = (kb.products || []).find((p) => p.id === "kpr_flexi_primary");
   if (flexi && flexi.interest && flexi.interest.current_estimate_percent) {
-    lines.push(`KPR Flexi Primary: SRBI + 2,50% (≈ ${pid(flexi.interest.current_estimate_percent)}%), floating sejak awal.`);
+    lines.push(t("rate_flexi", { pct: pid(flexi.interest.current_estimate_percent) }));
   }
   lines.push(kb.disclaimers && kb.disclaimers.rate_movement);
   for (const l of lines) {
@@ -408,11 +418,7 @@ function renderRateTable(kb) {
 async function handleKbMessage(text) {
   // Numeric questions go to the deterministic simulator, not the LLM.
   if (SIM_RE.test(text)) {
-    addMessage(
-      "bot",
-      "Untuk menghitung angsuran bulanan dan potensi cashback secara akurat, silakan isi panel " +
-        "\"Simulasi Angsuran & Cashback\" di bawah (pilih fasilitas, skema bunga, plafon, dan tenor)."
-    );
+    addMessage("bot", t("sim_nudge"));
     const panel = document.getElementById("simPanel");
     if (panel) { panel.open = true; panel.scrollIntoView({ behavior: "smooth", block: "center" }); }
     addContinuationChips();
@@ -425,7 +431,7 @@ async function handleKbMessage(text) {
   // Rate questions render a neat deterministic table (more reliable than an LLM).
   if (RATE_RE.test(text) || classification.faqIntent === "suku_bunga") {
     store.intent = classification.intent;
-    addMessage("bot", "Berikut tabel suku bunga KPR UOB:");
+    addMessage("bot", t("rate_intro"));
     renderRateTable(kb);
     addContinuationChips();
     return;
@@ -450,7 +456,7 @@ async function handleKbMessage(text) {
       full = partial;
       bubble.innerHTML = mdToHtml(partial);
       chatLog.scrollTop = chatLog.scrollHeight;
-    });
+    }, getLang());
   } catch (err) {
     console.warn("[SakhaPR] LLM stream failed:", err.message);
   }
@@ -477,11 +483,12 @@ function addStreamingBubble() {
 
 /** After an answer, offer to start the application or keep asking. */
 function addContinuationChips() {
-  addChips(["Ya, lanjut ke pengajuan", "Tidak, ada pertanyaan lain"], (label) => {
-    if (label.startsWith("Ya")) {
+  const yes = t("cont_yes");
+  addChips([yes, t("cont_no")], (label) => {
+    if (label === yes) {
       offerPrescreen(productToSet(store.product));
     } else {
-      addMessage("bot", "Baik. Silakan ajukan pertanyaan lain yang ingin Anda ketahui.");
+      addMessage("bot", t("cont_no_reply"));
     }
   });
 }
@@ -498,18 +505,13 @@ composer.addEventListener("submit", async (e) => {
     if (flow.mode === "prescreen") {
       submitPrescreenAnswer(text);
     } else if (flow.mode === "choose_set") {
-      addMessage("bot", "Silakan pilih salah satu opsi di atas.");
+      addMessage("bot", t("pick_option"));
     } else {
       await handleKbMessage(text);
     }
   } catch (err) {
     console.error("[SakhaPR] message handling failed:", err);
-    addMessage(
-      "bot",
-      "Maaf, data belum bisa dimuat. Jika Anda membuka file ini langsung " +
-        "(file://), jalankan lewat server lokal (mis. `npx serve`) atau buka " +
-        "versi yang sudah ter-deploy."
-    );
+    addMessage("bot", t("data_load_fail"));
   }
 });
 
@@ -525,11 +527,7 @@ clearAllBtn.addEventListener("click", () => {
   chatLog.innerHTML = "";
   updateDataStatus();
 
-  addMessage(
-    "system",
-    had ? "Seluruh data telah dihapus dari memori." : "Tidak ada data untuk dihapus.",
-    { persist: false }
-  );
+  addMessage("system", had ? t("cleared_all") : t("nothing_clear"), { persist: false });
   // Re-greet so the app is immediately usable again.
   greet();
 });
@@ -556,7 +554,7 @@ function resetEktpUi() {
   ektp.file.value = "";
   ektp.file.disabled = true;
   ektp.nik.disabled = false;
-  ektp.hint.textContent = "Centang persetujuan untuk memilih foto eKTP.";
+  ektp.hint.textContent = t("ektp_hint_off");
   ektp.status.textContent = "";
   ektp.preview.hidden = true;
   ektp.preview.removeAttribute("src");
@@ -575,9 +573,7 @@ function setupEktp() {
     const ok = ektp.consent.checked;
     ektp.file.disabled = !ok;
     if (!ok) ektp.send.disabled = true;
-    ektp.hint.textContent = ok
-      ? "Pilih foto eKTP (jelas, < 3 MB). Sistem membaca NIK otomatis."
-      : "Centang persetujuan untuk memilih foto eKTP.";
+    ektp.hint.textContent = ok ? t("ektp_hint_on") : t("ektp_hint_off");
   });
 
   // Pick a file -> OCR the NIK only; show it for verification. Send stays
@@ -591,30 +587,27 @@ function setupEktp() {
     ektp.nikWrap.hidden = true;
 
     if (file.size > MAX_EKTP_BYTES) {
-      const mb = (file.size / (1024 * 1024)).toFixed(1);
-      ektp.status.textContent = `Ukuran foto ${mb} MB melebihi 3 MB. Mohon gunakan foto yang lebih kecil.`;
+      ektp.status.textContent = t("ektp_too_big", { mb: (file.size / (1024 * 1024)).toFixed(1) });
       return;
     }
     store.ektp = store.ektp || {};
     store.ektp.image = file;
     updateDataStatus();
 
-    ektp.status.textContent = "Membaca NIK dari eKTP…";
+    ektp.status.textContent = t("ektp_reading");
     try {
       const { fields } = await runOcr(file, (m) => {
-        ektp.status.textContent = `Membaca NIK: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
+        ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
       });
       ektp.nik.value = fields.nik || "";
       ektp.nikWrap.hidden = false;
-      ektp.status.textContent = fields.nik
-        ? "NIK terbaca. Mohon periksa & koreksi bila perlu, lalu Kirim."
-        : "NIK tidak terbaca otomatis. Mohon ketik NIK (16 digit) secara manual.";
+      ektp.status.textContent = fields.nik ? t("ektp_read_ok") : t("ektp_read_manual");
       validateNikField();
     } catch (err) {
       console.error("[SakhaPR] NIK OCR failed:", err);
       ektp.nik.value = "";
       ektp.nikWrap.hidden = false;
-      ektp.status.textContent = "OCR gagal. Mohon ketik NIK (16 digit) secara manual.";
+      ektp.status.textContent = t("ektp_ocr_fail");
       validateNikField();
     }
   });
@@ -630,8 +623,7 @@ function validateNikField() {
   if (ektp.nik.value !== nik) ektp.nik.value = nik;
   store.ektp = store.ektp || {};
   store.ektp.nik = nik;
-  ektp.nikStatus.textContent =
-    nik.length === 16 ? "Periksa kembali nomor NIK bila perlu, lalu klik Kirim." : `Nomor NIK ${nik.length}/16 digit.`;
+  ektp.nikStatus.textContent = nik.length === 16 ? t("nik_ready") : t("nik_count", { n: nik.length });
   ektp.nikStatus.className = "ektp__nikstatus";
   ektp.send.disabled = nik.length !== 16;
 }
@@ -656,7 +648,7 @@ async function submitEktp() {
   const file = ektp.file.files && ektp.file.files[0];
   if (!file || ektp.send.disabled) return;
   if (!store.files.fileA) {
-    ektp.status.textContent = "Mohon selesaikan prescreen di atas terlebih dahulu sebelum mengirim.";
+    ektp.status.textContent = t("ektp_need_prescreen");
     return;
   }
   ektp.send.disabled = true;
@@ -670,11 +662,11 @@ async function submitEktp() {
     const verdict = validateNik(store.ektp.nik || "", {}, dataset);
     store.ektp.verdict = verdict;
 
-    ektp.status.textContent = "Menyusun laporan skrining NIK…";
+    ektp.status.textContent = t("ektp_building");
     const { blob: reportBlob } = buildNikReportPdf(verdict, { timestamp: nowWIB(), printed: {} });
     store.files.fileC = reportBlob;
 
-    ektp.status.textContent = "Meneruskan berkas ke UOB…";
+    ektp.status.textContent = t("ektp_forwarding");
     const session = flow.session || store.prescreen;
     const result = await submitLead({
       prescreen: store.files.fileA,
@@ -691,17 +683,15 @@ async function submitEktp() {
     });
 
     store.ektp.submitted = result.id;
-    ektp.status.textContent =
-      "Terima kasih. Data Anda telah diteruskan ke tim UOB Mortgage Relations untuk " +
-      `ditindaklanjuti. (No. Ref: ${result.ref || result.id.slice(0, 8)}).`;
+    ektp.status.textContent = t("ektp_done", { ref: result.ref || result.id.slice(0, 8) });
     addMessage(
       "bot",
-      "Pengajuan Anda sudah kami terima dan teruskan ke tim UOB. Tim akan menghubungi Anda. Terima kasih!",
+      t("ektp_done_chat"),
       { persist: false }
     );
   } catch (err) {
     console.error("[SakhaPR] submit failed:", err);
-    ektp.status.textContent = "Maaf, terjadi kendala saat meneruskan data. Mohon coba lagi.";
+    ektp.status.textContent = t("ektp_fail");
     ektp.send.disabled = false;
     ektp.file.disabled = false;
     ektp.nik.disabled = false;
@@ -711,6 +701,7 @@ async function submitEktp() {
 /* --- Simulation (deterministic installment + cashback) --------------------- */
 
 let simSchemes = [];
+let simPopulate = null;
 
 function setupSimulation() {
   const el = {
@@ -735,14 +726,17 @@ function setupSimulation() {
       el.scheme.appendChild(o);
     });
   }
+  simPopulate = populate;
 
   el.facility.addEventListener("change", () => { populate().catch(() => {}); });
   el.run.addEventListener("click", () => runSimulation(el).catch((e) => {
     console.error("[SakhaPR] sim failed:", e);
-    el.result.textContent = "Gagal menghitung. Pastikan halaman termuat penuh.";
+    el.result.textContent = t("sim_fail");
   }));
-  populate().catch(() => { el.result.textContent = "Gagal memuat data. Jalankan lewat server/deploy."; });
+  populate().catch(() => { el.result.textContent = t("sim_load_fail"); });
 }
+
+function repopulateSimSchemes() { if (simPopulate) simPopulate().catch(() => {}); }
 
 async function runSimulation(el) {
   const kb = await loadKnowledgeBase();
@@ -753,14 +747,14 @@ async function runSimulation(el) {
 
   const product = (kb.products || []).find((p) => p.id === FACILITY_TO_PRODUCT[facility]);
   const errs = [];
-  if (!plafon) errs.push("Isi plafon kredit (angka).");
-  if (!tenor) errs.push("Isi tenor (tahun).");
+  if (!plafon) errs.push(t("sim_err_plafon"));
+  if (!tenor) errs.push(t("sim_err_tenor"));
   if (plafon && product && (plafon < product.credit_limit.min || plafon > product.credit_limit.max))
-    errs.push(`Plafon untuk ${product.name} antara ${formatRp(product.credit_limit.min)} dan ${formatRp(product.credit_limit.max)}.`);
+    errs.push(t("sim_err_plafon_range", { name: product.name, min: formatRp(product.credit_limit.min), max: formatRp(product.credit_limit.max) }));
   if (tenor && product && (tenor < product.tenor_years.min || tenor > product.tenor_years.max))
-    errs.push(`Tenor untuk ${product.name} antara ${product.tenor_years.min}–${product.tenor_years.max} tahun.`);
+    errs.push(t("sim_err_tenor_range", { name: product.name, min: product.tenor_years.min, max: product.tenor_years.max }));
   if (scheme && scheme.minTenor && tenor && tenor < scheme.minTenor)
-    errs.push(`Skema "${scheme.label}" minimal tenor ${scheme.minTenor} tahun.`);
+    errs.push(t("sim_err_scheme_min", { label: scheme.label, n: scheme.minTenor }));
   if (errs.length) { el.result.textContent = errs.join(" "); return; }
 
   const sched = computeInstallment(plafon, tenor, scheme);
@@ -783,30 +777,32 @@ function renderSimulation(container, r) {
   };
 
   add("sim__h", `${r.product ? r.product.name : ""} · ${r.scheme.label}`);
-  add("", `Plafon ${formatRp(r.plafon)} · Tenor ${r.tenor} tahun`);
+  add("", `${formatRp(r.plafon)} · ${r.tenor} ${t("rate_tenor_unit")}`);
 
-  add("sim__h", "Estimasi angsuran per bulan");
+  add("sim__h", t("sim_h_install"));
   r.sched.forEach((p, i) => {
-    const span = i === 0 ? `${r.sched.length > 1 ? p.months + " bln pertama" : "seluruh tenor"}` : `${p.months} bln berikutnya`;
-    add("sim__row", `• Bunga ${p.rate}% (${span}): ${formatRp(p.installment)} / bln`);
+    const span = i === 0
+      ? (r.sched.length > 1 ? t("sim_phase_first", { m: p.months }) : t("sim_phase_all"))
+      : t("sim_phase_next", { m: p.months });
+    add("sim__row", t("sim_phase_row", { rate: p.rate, span, amount: formatRp(p.installment) }));
   });
-  add("sim__note", "Provisi & administrasi (1.1%): " + formatRp(r.provisi));
+  add("sim__note", t("sim_provisi", { amount: formatRp(r.provisi) }));
 
   if (r.cb) {
-    add("sim__h", "Potensi cashback");
-    add("sim__row", `Kategori ${r.cb.category} · cashback diterima: ${formatRp(r.cb.received)}`);
-    add("sim__note", `(1% = ${formatRp(r.cb.gross)}, maksimum ${formatRp(r.cb.cap)} → ${formatRp(r.cb.capped)}, dipotong PPh 5% ${formatRp(r.cb.pph)})`);
-    add("sim__note", "Syarat: wajib membeli unit trust/reksa dana via SSUT di UOB TMRW.");
+    add("sim__h", t("sim_cashback_h"));
+    add("sim__row", t("sim_cashback_row", { cat: r.cb.category, amount: formatRp(r.cb.received) }));
+    add("sim__note", t("sim_cashback_detail", { gross: formatRp(r.cb.gross), cap: formatRp(r.cb.cap), capped: formatRp(r.cb.capped), pph: formatRp(r.cb.pph) }));
+    add("sim__note", t("sim_ssut"));
     if (r.prog && r.prog.program_period && TODAY_ISO > r.prog.program_period.end) {
-      add("sim__warn", `Catatan: periode program "${r.prog.name}" tercatat berakhir ${r.prog.program_period.end}.`);
+      add("sim__warn", t("sim_program_ended", { name: r.prog.name, end: r.prog.program_period.end }));
     }
-  } else if (cashbackProgramForLabel(r)) {
-    add("sim__note", "Plafon di bawah Rp500 juta belum memenuhi kategori cashback.");
+  } else if (r.prog != null) {
+    add("sim__note", t("sim_cashback_low"));
   }
 
   const disc = document.createElement("div");
   disc.className = "sim__disc";
-  disc.textContent = "— Semua perhitungan bersifat estimasi. Angka final mengikuti analisa kredit dan Perjanjian Kredit.";
+  disc.textContent = t("sim_disc");
   container.appendChild(disc);
 }
 
@@ -849,6 +845,7 @@ document.addEventListener("visibilitychange", () => {
 function init() {
   cspSelfCheck();
   assertNoPersistentStorage();
+  applyStatic();
   updateDataStatus();
   greet();
   setupEktp();
@@ -856,8 +853,17 @@ function init() {
   const applyBtn = document.getElementById("applyNowBtn");
   if (applyBtn) {
     applyBtn.addEventListener("click", () => {
-      addMessage("user", "Saya mau mengajukan KPR.");
+      addMessage("user", t("apply_user_msg"));
       offerPrescreen(productToSet(store.product)).catch((e) => console.error(e));
+    });
+  }
+  const langBtn = document.getElementById("langToggle");
+  if (langBtn) {
+    langBtn.addEventListener("click", () => {
+      setLang(getLang() === "en" ? "id" : "en");
+      applyStatic();
+      updateDataStatus();
+      repopulateSimSchemes();
     });
   }
   composerInput.focus();

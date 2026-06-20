@@ -254,13 +254,16 @@ async function handleChat(request, env) {
   if (!rateLimit("chat:" + clientIp(request), 40, 60000)) {
     return json({ ok: false, error: "Terlalu banyak permintaan. Coba lagi sebentar." }, 429);
   }
-  const { message, history } = await request.json().catch(() => ({}));
+  const { message, history, lang } = await request.json().catch(() => ({}));
   if (!message || typeof message !== "string") {
     return json({ ok: false, error: "Pesan kosong." }, 400);
   }
 
   const ctx = await kbContext(env, url);
-  const sys = `${SYSTEM_PROMPT}\n\nFAKTA (knowledge base):\n${ctx}`;
+  const langDir = lang === "en"
+    ? "PENTING: Jawab HANYA dalam Bahasa Inggris (English)."
+    : "PENTING: Jawab dalam Bahasa Indonesia.";
+  const sys = `${SYSTEM_PROMPT}\n\n${langDir}\n\nFAKTA (knowledge base):\n${ctx}`;
   const hist = Array.isArray(history) ? history.slice(-6) : [];
 
   // Streamed response (customer chat) — only via Gemini.

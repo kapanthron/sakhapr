@@ -26,11 +26,11 @@ export async function askLlm(message, history) {
  * Streamed chat. Calls onChunk(partialFullText) as text arrives; returns the
  * final text. Falls back transparently if the server returns JSON (non-stream).
  */
-export async function streamLlm(message, history, onChunk) {
+export async function streamLlm(message, history, onChunk, lang) {
   const res = await fetch("/api/chat?stream=1", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, history: history || [] }),
+    body: JSON.stringify({ message, history: history || [], lang: lang || "id" }),
   });
   if (!res.ok) throw new Error(`chat HTTP ${res.status}`);
 
