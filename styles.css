@@ -352,6 +352,7 @@ table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-s
 /* --- Super Admin: lead log ------------------------------------------------- */
 .ektp__title--flush { margin: 0; }
 .admin-nav { display: flex; gap: 8px; margin-bottom: 4px; }
+.ai-diag { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; }
 .admin-nav .btn.is-active { background: var(--teal); color: var(--white); border-color: var(--teal); }
 .lead-card {
   background: var(--white);

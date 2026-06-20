@@ -209,8 +209,12 @@ async function callGemini(env, sys, history, message) {
   const models = [...new Set([env.GEMINI_MODEL, "gemini-2.0-flash", "gemini-1.5-flash"].filter(Boolean))];
   let lastErr = "";
   for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body,
+    });
     if (res.ok) {
       const data = await res.json();
       const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;

@@ -243,6 +243,23 @@ function setupPariksa() {
   });
 }
 
+async function testAi() {
+  const out = $("aiTestResult");
+  out.textContent = "Menguji…";
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Tes singkat: sebutkan satu produk KPR UOB." }),
+    });
+    const j = await r.json();
+    out.textContent = j.ok ? `AI OK ✓ — ${String(j.answer).slice(0, 90)}` : `AI ERROR (${r.status}) — ${j.error || "tidak diketahui"}`;
+  } catch (e) {
+    out.textContent = "Gagal memanggil /api/chat: " + e.message;
+  }
+}
+
+$("aiTestBtn").addEventListener("click", testAi);
 $("loginBtn").addEventListener("click", login);
 $("loginForm").addEventListener("submit", (e) => { e.preventDefault(); login(); });
 $("refreshBtn").addEventListener("click", loadLeads);
