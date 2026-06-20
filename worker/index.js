@@ -165,29 +165,66 @@ function buildContext(kb) {
 }
 
 async function handleChat(request, env) {
-  if (!env.AI) return json({ ok: false, error: "AI tidak tersedia." }, 503);
   const { message, history } = await request.json().catch(() => ({}));
   if (!message || typeof message !== "string") {
     return json({ ok: false, error: "Pesan kosong." }, 400);
   }
 
   const ctx = await kbContext(env, new URL(request.url));
-  const messages = [{ role: "system", content: `${SYSTEM_PROMPT}\n\nFAKTA (knowledge base):\n${ctx}` }];
-  for (const h of Array.isArray(history) ? history.slice(-6) : []) {
-    if (h && h.content) {
-      messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: String(h.content).slice(0, 1200) });
-    }
-  }
-  messages.push({ role: "user", content: message.slice(0, 1200) });
+  const sys = `${SYSTEM_PROMPT}\n\nFAKTA (knowledge base):\n${ctx}`;
+  const hist = Array.isArray(history) ? history.slice(-6) : [];
 
   try {
-    const out = await env.AI.run(CHAT_MODEL, { messages, max_tokens: 512 });
-    const answer = (out && (out.response || out.result || "")).trim();
+    let answer = "";
+    if (env.GEMINI_API_KEY) {
+      answer = await callGemini(env, sys, hist, message);
+    } else if (env.AI) {
+      answer = await callWorkersAi(env, sys, hist, message);
+    } else {
+      return json({ ok: false, error: "AI belum dikonfigurasi." }, 503);
+    }
     if (!answer) return json({ ok: false, error: "Jawaban kosong." }, 502);
     return json({ ok: true, answer });
   } catch (err) {
     return json({ ok: false, error: String(err && err.message || err) }, 502);
   }
+}
+
+/** Google Gemini (free tier, no card). Set GEMINI_API_KEY as a secret. */
+async function callGemini(env, sys, history, message) {
+  const model = env.GEMINI_MODEL || "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
+  const contents = [];
+  for (const h of history) {
+    if (h && h.content) contents.push({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: String(h.content).slice(0, 1200) }] });
+  }
+  while (contents.length && contents[0].role === "model") contents.shift(); // Gemini must start with 'user'
+  contents.push({ role: "user", parts: [{ text: message.slice(0, 1200) }] });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: sys }] },
+      contents,
+      generationConfig: { maxOutputTokens: 600, temperature: 0.3 },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  return (parts ? parts.map((p) => p.text || "").join("") : "").trim();
+}
+
+/** Cloudflare Workers AI (free daily allocation; the [ai] binding). */
+async function callWorkersAi(env, sys, history, message) {
+  const messages = [{ role: "system", content: sys }];
+  for (const h of history) {
+    if (h && h.content) messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: String(h.content).slice(0, 1200) });
+  }
+  messages.push({ role: "user", content: message.slice(0, 1200) });
+  const out = await env.AI.run(CHAT_MODEL, { messages, max_tokens: 512 });
+  return (out && (out.response || out.result || "")).trim();
 }
 
 /* --- Email (Resend) -------------------------------------------------------- */

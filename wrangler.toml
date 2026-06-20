@@ -34,3 +34,5 @@ MAIL_TO = "hendrik.panthron@gmail.com"
 #   SESSION_SECRET   - HMAC key for admin session cookies (required)
 #   RESEND_API_KEY   - enables real email; if unset, sends are logged as "not_configured"
 #   MAIL_FROM        - verified sender, e.g. "SakhaPR <noreply@yourdomain.com>"
+#   GEMINI_API_KEY   - free Google AI Studio key; if set, /api/chat uses Gemini
+#                      instead of Workers AI (GEMINI_MODEL optional, default gemini-2.0-flash)
