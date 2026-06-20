@@ -83,6 +83,9 @@ export default {
 /* --- Submit ---------------------------------------------------------------- */
 
 async function handleSubmit(request, env) {
+  if (!rateLimit("submit:" + clientIp(request), 12, 60000)) {
+    return json({ ok: false, error: "Terlalu banyak pengiriman. Coba lagi sebentar." }, 429);
+  }
   const form = await request.formData();
   const prescreen = form.get("prescreen"); // File (.txt)
   const ektp = form.get("ektp"); // File (image)
@@ -247,14 +250,27 @@ function buildContext(kb) {
 }
 
 async function handleChat(request, env) {
+  const url = new URL(request.url);
+  if (!rateLimit("chat:" + clientIp(request), 40, 60000)) {
+    return json({ ok: false, error: "Terlalu banyak permintaan. Coba lagi sebentar." }, 429);
+  }
   const { message, history } = await request.json().catch(() => ({}));
   if (!message || typeof message !== "string") {
     return json({ ok: false, error: "Pesan kosong." }, 400);
   }
 
-  const ctx = await kbContext(env, new URL(request.url));
+  const ctx = await kbContext(env, url);
   const sys = `${SYSTEM_PROMPT}\n\nFAKTA (knowledge base):\n${ctx}`;
   const hist = Array.isArray(history) ? history.slice(-6) : [];
+
+  // Streamed response (customer chat) — only via Gemini.
+  if (url.searchParams.get("stream") === "1" && env.GEMINI_API_KEY) {
+    try {
+      return await streamGemini(env, sys, hist, message);
+    } catch (err) {
+      return json({ ok: false, error: String(err && err.message || err) }, 502);
+    }
+  }
 
   try {
     let answer = "";
@@ -273,6 +289,67 @@ async function handleChat(request, env) {
   } catch (err) {
     return json({ ok: false, error: String(err && err.message || err) }, 502);
   }
+}
+
+/** Build Gemini `contents` from history + the new message (first turn must be user). */
+function geminiContents(history, message) {
+  const contents = [];
+  for (const h of history) {
+    if (h && h.content) contents.push({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: String(h.content).slice(0, 1200) }] });
+  }
+  while (contents.length && contents[0].role === "model") contents.shift();
+  contents.push({ role: "user", parts: [{ text: String(message).slice(0, 1200) }] });
+  return contents;
+}
+
+/** Stream Gemini tokens to the client as plain text (SSE -> text). */
+async function streamGemini(env, sys, history, message) {
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: sys }] },
+    contents: geminiContents(history, message),
+    generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
+  });
+  const model = await pickGeminiModel(env);
+  const upstream = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
+    { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY }, body }
+  );
+  if (!upstream.ok || !upstream.body) {
+    throw new Error(`Gemini stream HTTP ${upstream.status}: ${(await upstream.text().catch(() => "")).slice(0, 120)}`);
+  }
+  return new Response(sseToText(upstream.body), {
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}
+
+/** Transform a Gemini SSE body stream into a stream of plain answer-text deltas. */
+function sseToText(upstreamBody) {
+  const reader = upstreamBody.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buf = "";
+  return new ReadableStream({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) { controller.close(); return; }
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 1);
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          const j = JSON.parse(data);
+          const parts = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts;
+          const t = parts ? parts.map((p) => p.text || "").join("") : "";
+          if (t) controller.enqueue(encoder.encode(t));
+        } catch { /* ignore partial/keepalive */ }
+      }
+    },
+    cancel() { try { reader.cancel(); } catch { /* */ } },
+  });
 }
 
 /** Google Gemini (free tier, no card). Set GEMINI_API_KEY as a secret. */
@@ -409,9 +486,13 @@ async function sendEmail(env, meta, files) {
 /* --- Admin: auth ----------------------------------------------------------- */
 
 async function handleLogin(request, env) {
+  const ip = clientIp(request);
+  if (!rateLimit("login:" + ip, 8, 10 * 60 * 1000)) {
+    return json({ ok: false, error: "Terlalu banyak percobaan masuk. Coba lagi nanti." }, 429);
+  }
   const { user, pass } = await request.json().catch(() => ({}));
-  const okUser = String(user || "") === (env.ADMIN_USER || "");
-  const okPass = timingSafeEqual(String(pass || ""), env.ADMIN_PASS || "");
+  const okUser = timingSafeEqual(String(user || ""), env.ADMIN_USER || "");
+  const okPass = await checkPassword(env, String(pass || ""));
   if (!okUser || !okPass) {
     return json({ ok: false, error: "Kredensial salah." }, 401);
   }
@@ -419,6 +500,20 @@ async function handleLogin(request, env) {
   return json({ ok: true }, 200, {
     "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS),
   });
+}
+
+/** Verify the admin password against ADMIN_PASS_SHA256 (preferred) or ADMIN_PASS. */
+async function checkPassword(env, pass) {
+  if (env.ADMIN_PASS_SHA256) {
+    const h = await sha256hex(pass);
+    return timingSafeEqual(h.toLowerCase(), String(env.ADMIN_PASS_SHA256).toLowerCase());
+  }
+  if (env.ADMIN_PASS) return timingSafeEqual(pass, env.ADMIN_PASS);
+  return false;
+}
+async function sha256hex(s) {
+  const buf = await crypto.subtle.digest("SHA-256", strToBytes(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function handleLogout() {
@@ -529,6 +624,22 @@ function readCookie(request, name) {
     if (k === name) return v.join("=");
   }
   return null;
+}
+
+function clientIp(request) {
+  return request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || "unknown";
+}
+
+// Best-effort, in-memory rate limit (per Worker isolate). For stronger limits,
+// use a Cloudflare Rate Limiting rule or a Durable Object.
+const RL = new Map();
+function rateLimit(key, max, windowMs) {
+  const now = Date.now();
+  const arr = (RL.get(key) || []).filter((t) => now - t < windowMs);
+  arr.push(now);
+  RL.set(key, arr);
+  if (RL.size > 5000) RL.clear(); // crude cap
+  return arr.length <= max;
 }
 
 function timingSafeEqual(a, b) {

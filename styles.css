@@ -88,7 +88,7 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
 
 /* --- PDPA banner (persistent) --------------------------------------------- */
 .pdpa-banner {
-  background: var(--teal);
+  background: var(--teal-dark);
   color: var(--white);
   display: flex;
   gap: 10px;
@@ -96,7 +96,7 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
   padding: 10px 16px;
   font-size: 13px;
   line-height: 1.45;
-  border-bottom: 2px solid var(--teal-dark);
+  border-bottom: 3px solid var(--teal);
 }
 .pdpa-banner__icon { font-size: 15px; line-height: 1.4; }
 .pdpa-banner__text { margin: 0; max-width: var(--maxw); }
@@ -119,6 +119,13 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 16px;
+}
+.app__topbar-actions { display: flex; align-items: center; gap: 8px; }
 }
 .brand { display: flex; flex-direction: column; line-height: 1.2; }
 .brand__name {

@@ -19,7 +19,7 @@ import {
 } from "./modules/privacy.js";
 import { classifyIntent, INTENTS } from "./modules/intentRouter.js";
 import { answer } from "./modules/knowledgeAnswer.js";
-import { askLlm } from "./modules/chat.js";
+import { streamLlm } from "./modules/chat.js";
 import {
   schemesForFacility,
   computeInstallment,
@@ -442,25 +442,34 @@ async function handleKbMessage(text) {
     return;
   }
 
-  // Otherwise answer with Workers AI (grounded), falling back to the KB answer.
-  const typing = addTyping();
+  // Otherwise answer with the LLM (streamed), falling back to the KB answer.
+  const bubble = addStreamingBubble();
+  let full = "";
   try {
-    const reply = await askLlm(text, recentHistory());
-    typing.remove();
-    addMessage("bot", reply);
+    full = await streamLlm(text, recentHistory(), (partial) => {
+      full = partial;
+      bubble.innerHTML = mdToHtml(partial);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    });
   } catch (err) {
-    typing.remove();
-    console.warn("[SakhaPR] LLM unavailable, using offline answer:", err.message);
+    console.warn("[SakhaPR] LLM stream failed:", err.message);
+  }
+  if (full.trim()) {
+    bubble.innerHTML = mdToHtml(full);
+    store.messages.push({ role: "bot", text: full, ts: Date.now() });
+    updateDataStatus();
+  } else {
+    bubble.remove();
     renderAnswer(detRes);
   }
   addContinuationChips();
 }
 
-/** A "typing…" bubble shown while the assistant is composing a reply. */
-function addTyping() {
+/** An empty bot bubble showing "typing…" dots, to be filled as the reply streams. */
+function addStreamingBubble() {
   const el = document.createElement("div");
-  el.className = "msg msg--bot typing";
-  el.innerHTML = '<span class="typing__dot"></span><span class="typing__dot"></span><span class="typing__dot"></span>';
+  el.className = "msg msg--bot";
+  el.innerHTML = '<span class="typing"><span class="typing__dot"></span><span class="typing__dot"></span><span class="typing__dot"></span></span>';
   chatLog.appendChild(el);
   chatLog.scrollTop = chatLog.scrollHeight;
   return el;
@@ -844,6 +853,13 @@ function init() {
   greet();
   setupEktp();
   setupSimulation();
+  const applyBtn = document.getElementById("applyNowBtn");
+  if (applyBtn) {
+    applyBtn.addEventListener("click", () => {
+      addMessage("user", "Saya mau mengajukan KPR.");
+      offerPrescreen(productToSet(store.product)).catch((e) => console.error(e));
+    });
+  }
   composerInput.focus();
 }
 

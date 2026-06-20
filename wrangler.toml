@@ -35,4 +35,8 @@ MAIL_TO = "hendrik.panthron@gmail.com"
 #   RESEND_API_KEY   - enables real email; if unset, sends are logged as "not_configured"
 #   MAIL_FROM        - verified sender, e.g. "SakhaPR <noreply@yourdomain.com>"
 #   GEMINI_API_KEY   - free Google AI Studio key; if set, /api/chat uses Gemini
-#                      instead of Workers AI (GEMINI_MODEL optional, default gemini-2.0-flash)
+#                      instead of Workers AI (GEMINI_MODEL optional)
+#   ADMIN_PASS_SHA256- (hardening) SHA-256 hex of the admin password. If set, it
+#                      is used instead of ADMIN_PASS; then delete ADMIN_PASS from
+#                      [vars] below so no plaintext password lives in the repo.
+#                      Generate: printf 'poc2026#' | shasum -a 256
