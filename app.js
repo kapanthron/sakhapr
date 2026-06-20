@@ -600,49 +600,31 @@ function setupEktp() {
       ektp.status.textContent = fields.nik
         ? "NIK terbaca. Mohon periksa & koreksi bila perlu, lalu Kirim."
         : "NIK tidak terbaca otomatis. Mohon ketik NIK (16 digit) secara manual.";
-      await validateNikField();
+      validateNikField();
     } catch (err) {
       console.error("[SakhaPR] NIK OCR failed:", err);
       ektp.nik.value = "";
       ektp.nikWrap.hidden = false;
       ektp.status.textContent = "OCR gagal. Mohon ketik NIK (16 digit) secara manual.";
-      await validateNikField();
+      validateNikField();
     }
   });
 
-  ektp.nik.addEventListener("input", () => { validateNikField().catch(() => {}); });
+  ektp.nik.addEventListener("input", validateNikField);
   ektp.send.addEventListener("click", () => { submitEktp().catch((e) => console.error(e)); });
 }
 
-/** Validate the NIK field; enable Kirim only when structurally acceptable. */
-async function validateNikField() {
+/** Read & tidy the NIK field; enable Kirim once it has 16 digits. No structural
+ *  verdict is shown to the customer — validation happens behind the scenes on send. */
+function validateNikField() {
   const nik = (ektp.nik.value || "").replace(/\D/g, "").slice(0, 16);
   if (ektp.nik.value !== nik) ektp.nik.value = nik;
-  if (nik.length !== 16) {
-    ektp.nikStatus.textContent = `NIK harus 16 digit (saat ini ${nik.length}).`;
-    ektp.nikStatus.className = "ektp__nikstatus is-bad";
-    ektp.send.disabled = true;
-    return;
-  }
-  try { if (!ektpDataset) ektpDataset = await loadRegionData(); } catch { /* allow on format+date */ }
-  const dataset = ektpDataset || { provinsi: {}, kabupaten_kota: {}, kecamatan: {} };
-  const verdict = validateNik(nik, {}, dataset);
   store.ektp = store.ektp || {};
   store.ektp.nik = nik;
-  store.ektp.verdict = verdict;
-
-  const ok = verdict.verdict !== "Inconsistent"; // i.e. format + birth-date are valid
-  if (ok) {
-    ektp.nikStatus.textContent = "NIK valid secara struktur. Anda dapat menekan Kirim.";
-    ektp.nikStatus.className = "ektp__nikstatus is-good";
-  } else {
-    const dateCheck = (verdict.checks || []).find((c) => c.id === "date");
-    ektp.nikStatus.textContent =
-      "NIK belum valid: " +
-      (dateCheck && dateCheck.status === "FAIL" ? "tanggal lahir pada NIK tidak masuk akal." : "periksa kembali angkanya.");
-    ektp.nikStatus.className = "ektp__nikstatus is-bad";
-  }
-  ektp.send.disabled = !ok;
+  ektp.nikStatus.textContent =
+    nik.length === 16 ? "Periksa kembali nomor NIK bila perlu, lalu klik Kirim." : `Nomor NIK ${nik.length}/16 digit.`;
+  ektp.nikStatus.className = "ektp__nikstatus";
+  ektp.send.disabled = nik.length !== 16;
 }
 
 /** Build the chat conversation log text from the in-memory messages. */
@@ -673,7 +655,12 @@ async function submitEktp() {
   ektp.nik.disabled = true;
 
   try {
-    const verdict = store.ektp.verdict; // set by validateNikField()
+    // Validate the NIK behind the scenes (not shown to the customer).
+    let dataset = { provinsi: {}, kabupaten_kota: {}, kecamatan: {} };
+    try { ektpDataset = ektpDataset || (await loadRegionData()); dataset = ektpDataset; } catch { /* allow */ }
+    const verdict = validateNik(store.ektp.nik || "", {}, dataset);
+    store.ektp.verdict = verdict;
+
     ektp.status.textContent = "Menyusun laporan skrining NIK…";
     const { blob: reportBlob } = buildNikReportPdf(verdict, { timestamp: nowWIB(), printed: {} });
     store.files.fileC = reportBlob;
