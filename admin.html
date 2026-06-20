@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SakhaPR — Super Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="pdpa-banner" role="region" aria-label="Area admin">
+    <span class="pdpa-banner__icon" aria-hidden="true">&#128274;</span>
+    <p class="pdpa-banner__text">
+      Area Super Admin SakhaPR. Berisi data pribadi (eKTP &amp; hasil skrining)
+      yang diproses sesuai <strong>UU No. 27 Tahun 2022</strong>. Akses terbatas
+      dan tercatat. Jangan bagikan data di luar keperluan yang sah.
+    </p>
+  </header>
+
+  <main class="app">
+    <div class="app__topbar">
+      <div class="brand">
+        <span class="brand__name">SakhaPR</span>
+        <span class="brand__sub">Super Admin &middot; Log Lead</span>
+      </div>
+      <button id="logoutBtn" type="button" class="btn btn--ghost" hidden>Keluar</button>
+    </div>
+
+    <!-- Login -->
+    <section class="ektp" id="loginView" hidden>
+      <h2 class="ektp__title">Masuk Super Admin</h2>
+      <form id="loginForm" class="debug__grid" autocomplete="off">
+        <label>ID
+          <input id="loginUser" type="text" autocomplete="username" />
+        </label>
+        <label>Kata sandi
+          <input id="loginPass" type="password" autocomplete="current-password" />
+        </label>
+      </form>
+      <button type="button" id="loginBtn" class="btn btn--primary">Masuk</button>
+      <div id="loginStatus" class="ektp__status" aria-live="polite"></div>
+    </section>
+
+    <!-- Leads -->
+    <section id="leadsView" hidden>
+      <div class="app__topbar">
+        <h2 class="ektp__title ektp__title--flush">Log Lead Tersimpan</h2>
+        <button id="refreshBtn" type="button" class="btn btn--ghost">Muat ulang</button>
+      </div>
+      <div id="leadsStatus" class="ektp__status" aria-live="polite"></div>
+      <div id="leadsList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

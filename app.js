@@ -29,8 +29,13 @@ import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
 import { runOcr, terminateOcr } from "./modules/ocr.js";
 import { buildNikReportPdf } from "./modules/pdfReport.js";
-import { buildBundle, formatBytes } from "./modules/bundle.js";
-import { openMailDraft } from "./modules/sendDraft.js";
+import { submitLead } from "./modules/submit.js";
+
+const PRODUCT_NAMES = {
+  kpr_flexi_primary: "KPR Flexi Primary",
+  kpr_secondary: "KPR Secondary",
+  kpr_take_over: "KPR Take Over",
+};
 
 /* --- Reference data (loaded once, public, not personal) -------------------- */
 let knowledgeBase = null;
@@ -242,17 +247,23 @@ function finishPrescreen() {
   const session = flow.session;
   flow.mode = "idle";
 
+  // Build the prescreen transcript (file a) silently and keep it in memory.
+  // The customer never sees or downloads it; it is forwarded behind the scenes.
+  const { text } = buildTranscript(session, new Date().toLocaleString("id-ID"));
+  store.files.fileA = new Blob([text], { type: "text/plain;charset=utf-8" });
+  updateDataStatus();
+
   addMessage(
     "bot",
-    `Terima kasih. Prescreen ${session.label} selesai. Anda dapat mengunduh transkrip (file a) di bawah ini.`
+    `Terima kasih, prescreen ${session.label} selesai. Langkah terakhir: unggah foto eKTP Anda ` +
+      `dan setujui pemrosesan data. Identifikasi dilakukan otomatis — Anda tidak perlu mengisi apa pun.`
   );
-  addActionButton("Unduh transkrip prescreen (.txt)", () => {
-    const { filename, text } = buildTranscript(session, new Date().toLocaleString("id-ID"));
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    store.files.fileA = blob; // kept in memory for the Phase 6 bundle
-    downloadBlob(blob, filename);
-    updateDataStatus();
-  });
+
+  // Reveal the eKTP upload step.
+  if (ektp.section) {
+    ektp.section.hidden = false;
+    ektp.section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 /* --- Input dispatch -------------------------------------------------------- */
@@ -324,105 +335,15 @@ clearAllBtn.addEventListener("click", () => {
   greet();
 });
 
-/* --- Temporary NIK debug panel (Phase 4) ----------------------------------- */
-
-// Sample printed fields for the three "known good" fixtures.
-const NIK_FIXTURES = {
-  G1: { nik: "3175061708950001", sex: "LAKI-LAKI", dob: "17-08-1995", prov: "DKI JAKARTA", kab: "KOTA ADMINISTRASI JAKARTA TIMUR", kec: "CAKUNG" },
-  G2: { nik: "3203016503880002", sex: "PEREMPUAN", dob: "25-03-1988", prov: "JAWA BARAT", kab: "KABUPATEN CIANJUR", kec: "CIANJUR" },
-  G3: { nik: "3402010102000003", sex: "LAKI-LAKI", dob: "01-02-2000", prov: "DAERAH ISTIMEWA YOGYAKARTA", kab: "KABUPATEN BANTUL", kec: "SRANDAKAN" },
-};
-
-function setupNikDebugPanel() {
-  const $ = (id) => document.getElementById(id);
-  const els = {
-    nik: $("dbgNik"), sex: $("dbgSex"), dob: $("dbgDob"),
-    prov: $("dbgProv"), kab: $("dbgKab"), kec: $("dbgKec"),
-    run: $("dbgRun"), result: $("dbgResult"), panel: $("nikDebug"),
-  };
-  if (!els.run) return;
-
-  els.panel.querySelectorAll("[data-fixture]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const f = NIK_FIXTURES[btn.dataset.fixture];
-      if (!f) return;
-      els.nik.value = f.nik; els.sex.value = f.sex; els.dob.value = f.dob;
-      els.prov.value = f.prov; els.kab.value = f.kab; els.kec.value = f.kec;
-    });
-  });
-
-  els.run.addEventListener("click", async () => {
-    els.result.textContent = "Memuat tabel wilayah…";
-    let dataset;
-    try {
-      dataset = await loadRegionData();
-    } catch (err) {
-      console.error("[SakhaPR] region data load failed:", err);
-      els.result.textContent = "Gagal memuat data wilayah. Jalankan lewat server lokal (mis. `npx serve`).";
-      return;
-    }
-    const printed = {
-      jenis_kelamin: els.sex.value,
-      tanggal_lahir: els.dob.value.trim(),
-      provinsi: els.prov.value.trim(),
-      kabupaten_kota: els.kab.value.trim(),
-      kecamatan: els.kec.value.trim(),
-    };
-    const res = validateNik(els.nik.value.trim(), printed, dataset);
-    renderNikResult(els.result, res);
-  });
-}
-
-const VERDICT_CLASS = {
-  "Consistent": "ok",
-  "Consistent with warnings": "warn",
-  "Inconsistent": "fail",
-};
-
-function renderNikResult(container, res) {
-  container.textContent = "";
-
-  const verdict = document.createElement("div");
-  verdict.className = `verdict verdict--${VERDICT_CLASS[res.verdict] || "warn"}`;
-  verdict.textContent = `Verdict: ${res.verdict}`;
-  container.appendChild(verdict);
-
-  const table = document.createElement("table");
-  table.className = "checks";
-  const head = document.createElement("tr");
-  ["Check", "Status", "Reason"].forEach((h) => {
-    const th = document.createElement("th");
-    th.textContent = h;
-    head.appendChild(th);
-  });
-  table.appendChild(head);
-
-  for (const c of res.checks) {
-    const tr = document.createElement("tr");
-    const label = document.createElement("td");
-    label.textContent = c.label;
-    const status = document.createElement("td");
-    status.textContent = c.status;
-    status.className = `status status--${c.status}`;
-    const reason = document.createElement("td");
-    reason.textContent = c.reason;
-    tr.append(label, status, reason);
-    table.appendChild(tr);
-  }
-  container.appendChild(table);
-}
-
-/* --- eKTP upload + OCR + NIK screening (Phase 5a) -------------------------- */
+/* --- eKTP upload + automatic identification (ML OCR) + forward -------------- */
 
 const ektp = {};
 function cacheEktpEls() {
   const $ = (id) => document.getElementById(id);
   Object.assign(ektp, {
+    section: $("ektpSection"),
     consent: $("ektpConsent"), file: $("ektpFile"), hint: $("ektpHint"),
-    status: $("ektpStatus"), preview: $("ektpPreview"), fields: $("ektpFields"),
-    check: $("ektpCheck"), result: $("ektpResult"),
-    nik: $("ekNik"), sex: $("ekSex"), dob: $("ekDob"),
-    prov: $("ekProv"), kab: $("ekKab"), kec: $("ekKec"),
+    status: $("ektpStatus"), preview: $("ektpPreview"),
   });
 }
 
@@ -435,182 +356,110 @@ function resetEktpUi() {
   ektp.status.textContent = "";
   ektp.preview.hidden = true;
   ektp.preview.removeAttribute("src");
-  ektp.fields.hidden = true;
-  ektp.check.hidden = true;
-  ektp.result.textContent = "";
-  [ektp.nik, ektp.dob, ektp.prov, ektp.kab, ektp.kec].forEach((el) => (el.value = ""));
-  ektp.sex.value = "";
+  if (ektp.section) ektp.section.hidden = true;
 }
 
 function setupEktp() {
   cacheEktpEls();
   if (!ektp.consent) return;
 
-  // Consent gate: the file picker is disabled until consent is ticked.
+  // Consent gate: the file picker stays disabled until consent is ticked.
   ektp.consent.addEventListener("change", () => {
     const ok = ektp.consent.checked;
     ektp.file.disabled = !ok;
     ektp.hint.textContent = ok
-      ? "Unggah foto eKTP (gambar diproses di perangkat Anda)."
+      ? "Unggah foto eKTP. Identifikasi berjalan otomatis."
       : "Centang persetujuan untuk mengaktifkan unggah eKTP.";
   });
 
   ektp.file.addEventListener("change", async () => {
     const file = ektp.file.files && ektp.file.files[0];
     if (!file) return;
-
-    // In-memory preview via a tracked (revocable) object URL.
-    ektp.preview.src = trackedObjectURL(file);
-    ektp.preview.hidden = false;
-    store.ektp = store.ektp || {};
-    store.ektp.image = file; // kept in memory for the Phase 6 bundle (file b)
-    updateDataStatus();
-
-    ektp.fields.hidden = false;
-    ektp.check.hidden = false;
-    ektp.status.textContent = "Memuat mesin OCR (sekali di awal) lalu membaca eKTP…";
-
-    try {
-      const { fields } = await runOcr(file, (m) => {
-        ektp.status.textContent = `OCR: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
-      });
-      ektp.nik.value = fields.nik || "";
-      ektp.dob.value = fields.tanggal_lahir || "";
-      ektp.sex.value = fields.jenis_kelamin || "";
-      ektp.prov.value = fields.provinsi || "";
-      ektp.kab.value = fields.kabupaten_kota || "";
-      ektp.kec.value = fields.kecamatan || "";
-      ektp.status.textContent = "OCR selesai. Periksa & koreksi field bila perlu, lalu klik Periksa NIK.";
-    } catch (err) {
-      console.error("[SakhaPR] OCR failed:", err);
-      ektp.status.textContent =
-        "Mesin OCR gagal dimuat/berjalan. Anda tetap bisa mengisi field eKTP secara manual, lalu klik Periksa NIK.";
-    }
+    await processEktp(file);
   });
+}
 
-  ektp.check.addEventListener("click", async () => {
-    let dataset;
-    try {
-      dataset = await loadRegionData();
-    } catch (err) {
-      console.error("[SakhaPR] region data load failed:", err);
-      ektp.result.textContent = "Gagal memuat data wilayah. Jalankan lewat server lokal atau versi ter-deploy.";
-      return;
-    }
+/**
+ * The whole eKTP step, automatic and behind the scenes:
+ * on-device ML OCR -> NIK structure check -> build report PDF ->
+ * forward all three files to the backend (which stores + emails them).
+ * The customer only sees progress and a final confirmation.
+ */
+async function processEktp(file) {
+  // In-memory preview via a tracked (revocable) object URL.
+  ektp.preview.src = trackedObjectURL(file);
+  ektp.preview.hidden = false;
+  ektp.file.disabled = true;
+  store.ektp = store.ektp || {};
+  store.ektp.image = file;
+  updateDataStatus();
+
+  if (!store.files.fileA) {
+    ektp.status.textContent =
+      "Mohon selesaikan prescreen di atas terlebih dahulu sebelum mengunggah eKTP.";
+    ektp.file.disabled = false;
+    return;
+  }
+
+  try {
+    // 1) On-device OCR (machine learning) + deterministic NIK check.
+    ektp.status.textContent = "Mengidentifikasi eKTP di perangkat Anda (OCR mesin learning)…";
+    const [{ fields }, dataset] = await Promise.all([
+      runOcr(file, (m) => {
+        ektp.status.textContent = `Identifikasi eKTP: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
+      }),
+      loadRegionData(),
+    ]);
     const printed = {
-      jenis_kelamin: ektp.sex.value,
-      tanggal_lahir: ektp.dob.value.trim(),
-      provinsi: ektp.prov.value.trim(),
-      kabupaten_kota: ektp.kab.value.trim(),
-      kecamatan: ektp.kec.value.trim(),
+      jenis_kelamin: fields.jenis_kelamin || "",
+      tanggal_lahir: fields.tanggal_lahir || "",
+      provinsi: fields.provinsi || "",
+      kabupaten_kota: fields.kabupaten_kota || "",
+      kecamatan: fields.kecamatan || "",
     };
-    const res = validateNik(ektp.nik.value.trim(), printed, dataset);
-    renderNikResult(ektp.result, res);
-    store.ektp = store.ektp || {};
+    const verdict = validateNik(fields.nik || "", printed, dataset);
     store.ektp.fields = printed;
-    store.ektp.verdict = res;
-    updateDataStatus();
+    store.ektp.verdict = verdict;
 
-    // Offer the PDF report (file c).
-    const actions = document.createElement("div");
-    actions.className = "ektp__actions";
-    const pdfBtn = document.createElement("button");
-    pdfBtn.type = "button";
-    pdfBtn.className = "btn btn--primary";
-    pdfBtn.textContent = "Unduh laporan NIK (.pdf)";
-    pdfBtn.addEventListener("click", () => {
-      try {
-        const { filename, blob } = buildNikReportPdf(res, {
-          timestamp: new Date().toLocaleString("id-ID"),
-          printed,
-        });
-        store.files.fileC = blob; // kept in memory for the Phase 6 bundle
-        downloadBlob(blob, filename);
-        updateDataStatus();
-      } catch (err) {
-        console.error("[SakhaPR] PDF generation failed:", err);
-        ektp.status.textContent = "Gagal membuat PDF. Pastikan halaman termuat penuh, lalu coba lagi.";
-      }
+    // 2) Build the NIK report PDF (file c) behind the scenes.
+    ektp.status.textContent = "Menyusun laporan skrining…";
+    const { blob: reportBlob } = buildNikReportPdf(verdict, {
+      timestamp: new Date().toLocaleString("id-ID"),
+      printed,
     });
-    actions.appendChild(pdfBtn);
-    ektp.result.appendChild(actions);
-  });
-}
+    store.files.fileC = reportBlob;
 
-/* --- Bundle + send (Path A, Phase 6) --------------------------------------- */
-
-const PRODUCT_NAMES = {
-  kpr_flexi_primary: "KPR Flexi Primary",
-  kpr_secondary: "KPR Secondary",
-  kpr_take_over: "KPR Take Over",
-};
-
-/** Which of the three files are ready? */
-function missingParts() {
-  const missing = [];
-  if (!store.files.fileA) missing.push("transkrip prescreen (file a)");
-  if (!(store.ektp && store.ektp.image)) missing.push("gambar eKTP (file b)");
-  if (!store.files.fileC) missing.push("laporan NIK (file c)");
-  return missing;
-}
-
-function setupSend() {
-  const statusEl = document.getElementById("sendStatus");
-  const buildBtn = document.getElementById("sendBuild");
-  const afterEl = document.getElementById("sendAfter");
-  if (!buildBtn) return;
-
-  buildBtn.addEventListener("click", async () => {
-    afterEl.textContent = "";
-    const missing = missingParts();
-    if (missing.length) {
-      statusEl.textContent = `Belum lengkap. Masih kurang: ${missing.join(", ")}.`;
-      return;
-    }
-
-    statusEl.textContent = "Menyusun paket (memperkecil gambar bila perlu)…";
-    buildBtn.disabled = true;
-    try {
-      const result = await buildBundle({
-        fileA: store.files.fileA,
-        fileB: store.ektp.image,
-        fileC: store.files.fileC,
-        baseName: "sakhapr_lead",
-      });
-
-      store.files.bundle = result.blob; // in memory
-      downloadBlob(result.blob, result.filename);
-
-      statusEl.textContent =
-        `Paket dibuat: ${result.filename} (${formatBytes(result.sizeBytes)})` +
-        (result.imageDownscaled ? ` — gambar diperkecil menjadi ${formatBytes(result.finalImageBytes)}.` : ".") +
-        (result.fits ? " Di bawah 5MB." : " PERINGATAN: masih di atas 5MB.");
-
-      const verdict = store.ektp.verdict && store.ektp.verdict.verdict;
-      const session = flow.session || store.prescreen;
-      openMailDraft({
+    // 3) Forward the three files to the backend (store + email).
+    ektp.status.textContent = "Meneruskan berkas ke UOB…";
+    const session = flow.session || store.prescreen;
+    const result = await submitLead({
+      prescreen: store.files.fileA,
+      ektp: file,
+      report: reportBlob,
+      meta: {
+        product: store.product || "",
         productName: PRODUCT_NAMES[store.product] || store.product || "",
         prescreenLabel: session ? session.label : "",
-        prescreenDone: session ? session.isComplete() : false,
-        nikVerdict: verdict || "",
-        bundleName: result.filename,
-        bundleSize: formatBytes(result.sizeBytes),
-      });
+        prescreenStatus: session && session.isComplete() ? "selesai" : "",
+        nikVerdict: verdict.verdict || "",
+      },
+    });
 
-      // Prompt Clear all data after sending.
-      const clearBtn = document.createElement("button");
-      clearBtn.type = "button";
-      clearBtn.className = "btn btn--primary";
-      clearBtn.textContent = "Selesai — hapus semua data";
-      clearBtn.addEventListener("click", () => clearAllBtn.click());
-      afterEl.appendChild(clearBtn);
-    } catch (err) {
-      console.error("[SakhaPR] bundle/send failed:", err);
-      statusEl.textContent = `Gagal menyiapkan paket: ${err.message}`;
-    } finally {
-      buildBtn.disabled = false;
-    }
-  });
+    store.ektp.submitted = result.id;
+    ektp.status.textContent =
+      "Terima kasih. Data Anda telah diteruskan ke tim UOB Mortgage Relations untuk " +
+      `ditindaklanjuti. (Ref: ${result.id.slice(0, 8)}). Anda dapat menutup halaman ini.`;
+    addMessage(
+      "bot",
+      "Pengajuan Anda sudah kami terima dan teruskan ke tim UOB. Tim akan menghubungi Anda. Terima kasih!",
+      { persist: false }
+    );
+  } catch (err) {
+    console.error("[SakhaPR] eKTP processing/forward failed:", err);
+    ektp.status.textContent =
+      "Maaf, terjadi kendala saat memproses atau meneruskan data. Mohon coba lagi atau hubungi UOB.";
+    ektp.file.disabled = false;
+  }
 }
 
 /* --- Boot ------------------------------------------------------------------ */
@@ -620,9 +469,7 @@ function init() {
   assertNoPersistentStorage();
   updateDataStatus();
   greet();
-  setupNikDebugPanel();
   setupEktp();
-  setupSend();
   composerInput.focus();
 }
 

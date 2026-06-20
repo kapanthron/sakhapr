@@ -306,6 +306,39 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
 .ektp .debug__grid { margin-top: 12px; }
 .ektp__actions { margin-top: 12px; }
 
+/* --- Super Admin: lead log ------------------------------------------------- */
+.ektp__title--flush { margin: 0; }
+.lead-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.lead-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lead-card__id { display: block; font-size: 11px; color: var(--ink-soft); }
+.lead-card__time { font-size: 12px; color: var(--ink-soft); }
+.lead-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 10px 0;
+}
+.lead-card__err { color: var(--danger); font-size: 11.5px; }
+.status--ok { color: #1d6b34; }
+.status--warn { color: var(--warn); }
+.status--fail { color: var(--danger); }
+.lead-card .chips a.chip { text-decoration: none; }
+
 /* --- Temporary NIK debug panel (Phase 4) ---------------------------------- */
 .debug {
   border: 1px dashed var(--line);

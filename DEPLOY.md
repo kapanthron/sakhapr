@@ -4,6 +4,37 @@ SakhaPR is a **no-build static site** (plain HTML/CSS/ES modules). It serves the
 repo root as static assets; `_headers` carries the strict CSP. There are two
 Cloudflare flows — pick the one that matches how your project was created.
 
+## Backend provisioning (REQUIRED — do this before the next deploy)
+
+SakhaPR now has a backend (Worker + R2 + admin). The deploy will FAIL until the
+R2 bucket exists, because `wrangler.toml` binds it.
+
+1. **Create the R2 bucket** (must match `wrangler.toml` → `bucket_name`):
+   - Dashboard → R2 → Create bucket → name it **`sakhapr-leads`**.
+   - (or `npx wrangler r2 bucket create sakhapr-leads`)
+2. **Set the session secret** (signs admin cookies):
+   - `npx wrangler secret put SESSION_SECRET`  → enter any long random string.
+   - If skipped, a built-in default is used (works, but NOT secure — set it).
+3. **(Optional) Enable real email** via Resend:
+   - `npx wrangler secret put RESEND_API_KEY`  (from resend.com)
+   - `npx wrangler secret put MAIL_FROM`  → e.g. `SakhaPR <noreply@yourdomain.com>`
+     (the domain must be verified in Resend).
+   - Until both are set, sends are **logged** in the admin panel as
+     "dicatat (email belum dikonfigurasi)" and storage still works.
+4. **Build token permissions:** the Workers Builds token must allow *Workers
+   Scripts: Edit* and *Workers R2 Storage: Edit* so the deploy can bind R2.
+5. **Admin credentials** are in `wrangler.toml [vars]` (`pocuob` / `poc2026#`).
+   For real use, move `ADMIN_PASS` to a secret instead of vars.
+
+Admin panel: visit **`/admin`** on the deployed site and log in. Data lives in
+R2 under `leads/<id>/` (prescreen.txt, eKTP image, laporan_nik.pdf, meta.json).
+
+> **PDPA/DPIA note:** data now leaves the device and is **stored server-side and
+> emailed**. This is no longer "zero egress". The on-page consent text and the
+> PDPA banner were updated to say so; `PRIVACY.md`/`DPIA.md` must be revised to
+> record R2 storage, the email processor (Resend), retention, and lawful basis
+> before any pilot with real applicant data.
+
 ## Flow in use: Workers Builds (Deploy command `npx wrangler deploy`)
 
 If the project's **Deploy command** is `npx wrangler deploy` (Workers Builds),

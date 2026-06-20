@@ -1,23 +1,32 @@
-# Cloudflare Workers — static-assets config for SakhaPR.
+# Cloudflare Worker — SakhaPR backend (static assets + API + R2 storage).
 #
-# This project deploys via the Workers Builds flow (Deploy command:
-# `npx wrangler deploy`). SakhaPR has NO build step and no server-side code:
-# it is a static site served from the repo root as Worker Assets.
+# This is now a real Worker (not assets-only): worker/index.js handles /api/*
+# and /admin, and serves the static site via the ASSETS binding. Lead packages
+# (prescreen.txt + eKTP image + NIK report.pdf + send log) are stored in R2.
 #
-# `wrangler deploy` reads the [assets] block below and uploads the directory.
-# The _headers file in that directory (the strict CSP) is applied by Workers
-# Assets, exactly as it would be on Pages.
+# Provisioning required in your Cloudflare account (see DEPLOY.md):
+#   1. Create an R2 bucket named "sakhapr-leads".
+#   2. Set secrets: SESSION_SECRET, and (for real email) RESEND_API_KEY + MAIL_FROM.
+# The admin credentials and recipient are in [vars] below (POC). Move ADMIN_PASS
+# to a secret for anything beyond a prototype.
 
 name = "sakhapr"
+main = "worker/index.js"
 compatibility_date = "2026-06-20"
 
 [assets]
 directory = "./"
+binding = "ASSETS"
 
-# Notes:
-# - No `main` / Worker script: this is an assets-only deployment.
-# - Keep the Deploy command as `npx wrangler deploy` (the default for this flow).
-# - .assetsignore (next to this file) keeps docs/config out of the public site.
-# - Classic Pages alternative (different flow): a project whose Deploy command is
-#   `npx wrangler pages deploy . --project-name sakhapr` would instead use
-#   `pages_build_output_dir = "."` and ignore the [assets] block.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "sakhapr-leads"
+
+[vars]
+ADMIN_USER = "pocuob"
+ADMIN_PASS = "poc2026#"
+MAIL_TO = "hendrik.panthron@uob.co.id"
+# Set as secrets (wrangler secret put / dashboard), NOT here:
+#   SESSION_SECRET   - HMAC key for admin session cookies (required)
+#   RESEND_API_KEY   - enables real email; if unset, sends are logged as "not_configured"
+#   MAIL_FROM        - verified sender, e.g. "SakhaPR <noreply@yourdomain.com>"

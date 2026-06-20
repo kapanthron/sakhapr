@@ -21,9 +21,9 @@
     <span class="pdpa-banner__icon" aria-hidden="true">&#128274;</span>
     <p class="pdpa-banner__text">
       Aplikasi ini memproses data pribadi sesuai <strong>UU No. 27 Tahun 2022</strong>
-      (Pelindungan Data Pribadi). Data eKTP Anda diproses di perangkat Anda. File hanya
-      dikirim ke UOB setelah Anda menyetujui dan menekan kirim. Anda dapat menghapus
-      seluruh data kapan saja.
+      (Pelindungan Data Pribadi). Foto eKTP Anda diidentifikasi di perangkat Anda, lalu
+      berkas dan hasil skrining diteruskan serta disimpan oleh UOB setelah Anda menyetujui.
+      Anda dapat menghapus data sesi di perangkat ini kapan saja.
     </p>
   </header>
 
@@ -59,21 +59,23 @@
       <span class="app__footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
     </footer>
 
-    <!-- eKTP upload + on-device OCR + NIK screening (PARIKSA) -->
-    <section class="ektp" id="ektpSection">
-      <h2 class="ektp__title">Unggah eKTP — PARIKSA</h2>
+    <!-- eKTP upload + on-device ML identification (revealed after prescreen) -->
+    <section class="ektp" id="ektpSection" hidden>
+      <h2 class="ektp__title">Unggah eKTP</h2>
       <p class="ektp__disclaimer">
-        Pemeriksaan NIK ini hanya alat bantu skrining struktur dan konsistensi.
-        Ini bukan bukti keaslian dokumen dan bukan keputusan kredit. Verifikasi
-        akhir dilakukan oleh petugas. Gambar eKTP diproses di perangkat Anda.
+        Foto eKTP diidentifikasi otomatis di perangkat Anda (OCR berbasis mesin
+        learning). Hasil skrining struktur NIK dan berkas kemudian diteruskan ke
+        UOB. Skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan
+        kredit; verifikasi akhir dilakukan oleh petugas.
       </p>
 
       <label class="consent">
         <input type="checkbox" id="ektpConsent" />
         <span>
-          Saya menyetujui data eKTP saya diproses di perangkat ini untuk skrining
-          struktur NIK, dan dikirim ke <strong>hendrik.panthron@uob.co.id</strong>
-          hanya setelah saya menekan tombol kirim.
+          Saya menyetujui foto eKTP saya diidentifikasi otomatis di perangkat ini,
+          dan berkas (transkrip prescreen, gambar eKTP, hasil skrining NIK)
+          diteruskan serta disimpan oleh UOB (<strong>hendrik.panthron@uob.co.id</strong>)
+          sesuai UU No. 27 Tahun 2022 untuk menindaklanjuti pengajuan saya.
         </span>
       </label>
 
@@ -84,96 +86,7 @@
 
       <div id="ektpStatus" class="ektp__status" aria-live="polite"></div>
       <img id="ektpPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
-
-      <div class="debug__grid" id="ektpFields" hidden>
-        <label>NIK (16 digit)
-          <input id="ekNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
-        </label>
-        <label>Jenis kelamin
-          <select id="ekSex">
-            <option value="">(kosong)</option>
-            <option value="LAKI-LAKI">LAKI-LAKI</option>
-            <option value="PEREMPUAN">PEREMPUAN</option>
-          </select>
-        </label>
-        <label>Tanggal lahir (dd-mm-yyyy)
-          <input id="ekDob" class="mono" type="text" placeholder="17-08-1995" />
-        </label>
-        <label>Provinsi
-          <input id="ekProv" type="text" />
-        </label>
-        <label>Kabupaten / Kota
-          <input id="ekKab" type="text" />
-        </label>
-        <label>Kecamatan
-          <input id="ekKec" type="text" />
-        </label>
-      </div>
-
-      <button type="button" id="ektpCheck" class="btn btn--primary" hidden>Periksa NIK</button>
-      <div id="ektpResult" class="debug__result" aria-live="polite"></div>
     </section>
-
-    <!-- Bundle + send (Path A) -->
-    <section class="send" id="sendSection">
-      <h2 class="ektp__title">Kirim paket ke UOB</h2>
-      <p class="ektp__disclaimer">
-        Paket berisi transkrip prescreen (file a), gambar eKTP (file b), dan
-        laporan skrining NIK (file c), dijaga di bawah 5MB. Penerima:
-        <strong>hendrik.panthron@uob.co.id</strong>. Browser tidak dapat
-        melampirkan file secara otomatis: aplikasi mengunduh paket, lalu membuka
-        draf email; Anda melampirkan paket yang terunduh dan menekan kirim.
-      </p>
-      <div id="sendStatus" class="ektp__status" aria-live="polite">Lengkapi prescreen dan pemeriksaan eKTP untuk menyiapkan paket.</div>
-      <div class="ektp__actions">
-        <button type="button" id="sendBuild" class="btn btn--primary">Buat paket &amp; buka draf email</button>
-      </div>
-      <div id="sendAfter" class="ektp__actions"></div>
-    </section>
-
-    <!-- TEMPORARY debug panel (Phase 4). Lets you type a NIK and inspect every
-         check before OCR is wired in Phase 5. Remove before production. -->
-    <details class="debug" id="nikDebug">
-      <summary>Panel debug NIK (sementara &middot; Phase 4)</summary>
-      <div class="debug__body">
-        <p class="debug__note">
-          Pemeriksaan struktur NIK. Ini hanya alat bantu skrining, bukan bukti
-          keaslian dokumen dan bukan keputusan kredit.
-        </p>
-        <div class="debug__samples">
-          <span>Muat contoh:</span>
-          <button type="button" class="chip" data-fixture="G1">G1</button>
-          <button type="button" class="chip" data-fixture="G2">G2</button>
-          <button type="button" class="chip" data-fixture="G3">G3</button>
-        </div>
-        <div class="debug__grid">
-          <label>NIK (16 digit)
-            <input id="dbgNik" class="mono" type="text" inputmode="numeric" maxlength="16" placeholder="3175061708950001" />
-          </label>
-          <label>Jenis kelamin
-            <select id="dbgSex">
-              <option value="">(kosong)</option>
-              <option value="LAKI-LAKI">LAKI-LAKI</option>
-              <option value="PEREMPUAN">PEREMPUAN</option>
-            </select>
-          </label>
-          <label>Tanggal lahir (dd-mm-yyyy)
-            <input id="dbgDob" class="mono" type="text" placeholder="17-08-1995" />
-          </label>
-          <label>Provinsi
-            <input id="dbgProv" type="text" placeholder="DKI JAKARTA" />
-          </label>
-          <label>Kabupaten / Kota
-            <input id="dbgKab" type="text" placeholder="KOTA ADMINISTRASI JAKARTA TIMUR" />
-          </label>
-          <label>Kecamatan
-            <input id="dbgKec" type="text" placeholder="CAKUNG" />
-          </label>
-        </div>
-        <button type="button" id="dbgRun" class="btn btn--primary">Periksa NIK</button>
-        <div id="dbgResult" class="debug__result" aria-live="polite"></div>
-      </div>
-    </details>
   </main>
 
   <script type="module" src="app.js"></script>
