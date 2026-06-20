@@ -191,6 +191,27 @@ async function handleChat(request, env) {
 }
 
 /** Google Gemini (free tier, no card). Set GEMINI_API_KEY as a secret. */
+let CACHED_GEMINI_MODEL = null;
+
+/** Discover a chat-capable model for THIS key (model names change over time). */
+async function pickGeminiModel(env) {
+  if (env.GEMINI_MODEL) return env.GEMINI_MODEL;
+  if (CACHED_GEMINI_MODEL) return CACHED_GEMINI_MODEL;
+
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+    headers: { "x-goog-api-key": env.GEMINI_API_KEY },
+  });
+  if (!res.ok) throw new Error(`ListModels HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
+  const data = await res.json();
+  const usable = (data.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"));
+  // Prefer a lightweight "flash" model; avoid pro/vision/tts/embedding/experimental.
+  const flash = usable.find((m) => /flash/i.test(m.name) && !/(vision|tts|image|embedding|thinking|exp)/i.test(m.name));
+  const pick = flash || usable.find((m) => !/(vision|tts|image|embedding)/i.test(m.name)) || usable[0];
+  if (!pick) throw new Error("Tidak ada model yang mendukung generateContent untuk API key ini.");
+  CACHED_GEMINI_MODEL = pick.name.replace(/^models\//, "");
+  return CACHED_GEMINI_MODEL;
+}
+
 async function callGemini(env, sys, history, message) {
   const contents = [];
   for (const h of history) {
@@ -205,28 +226,25 @@ async function callGemini(env, sys, history, message) {
     generationConfig: { maxOutputTokens: 600, temperature: 0.3 },
   });
 
-  // Try the configured model, then fall back across known free models.
-  const models = [...new Set([env.GEMINI_MODEL, "gemini-2.0-flash", "gemini-1.5-flash"].filter(Boolean))];
-  let lastErr = "";
-  for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-    const res = await fetch(url, {
+  const call = async (model) =>
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
       body,
     });
-    if (res.ok) {
-      const data = await res.json();
-      const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-      const text = (parts ? parts.map((p) => p.text || "").join("") : "").trim();
-      if (text) return text;
-      lastErr = `${model}: jawaban kosong`;
-      continue;
-    }
-    lastErr = `${model} HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`;
-    if (res.status === 400 || res.status === 401 || res.status === 403) break; // key/auth error: stop retrying
+
+  let model = await pickGeminiModel(env);
+  let res = await call(model);
+  if (res.status === 404) {
+    CACHED_GEMINI_MODEL = null; // cached model went stale -> re-discover once
+    model = await pickGeminiModel(env);
+    res = await call(model);
   }
-  throw new Error(`Gemini gagal — ${lastErr}`);
+  if (!res.ok) throw new Error(`Gemini gagal — ${model} HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
+
+  const data = await res.json();
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  return (parts ? parts.map((p) => p.text || "").join("") : "").trim();
 }
 
 /** Cloudflare Workers AI (free daily allocation; the [ai] binding). */
