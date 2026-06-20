@@ -268,6 +268,85 @@ function recentHistory() {
 }
 
 const SIM_RE = /simulasi|angsuran|cicilan|hitung.*(bunga|angsuran|cashback)|estimasi.*angsuran/i;
+const RATE_RE = /\bbunga\b|suku bunga|floating|berjenjang|\brate\b|tingkat suku|fix \d/i;
+
+/** Indonesian percent format (comma decimal). */
+const pid = (n) => String(n).replace(".", ",");
+
+/** Render the KPR interest-rate table (deterministic, from the KB). */
+function renderRateTable(kb) {
+  const io = kb.interest_rate_options || {};
+  const rr = kb.reference_rates || {};
+
+  const fixText = (s) => {
+    if (s.tiered_fixed_rate_percent) {
+      const parts = Object.entries(s.tiered_fixed_rate_percent).map(([k, v]) => {
+        const m = k.match(/year_(\d+)(?:_to_(\d+))?/);
+        const lbl = m ? (m[2] ? `Th ${m[1]}-${m[2]}` : `Th ${m[1]}`) : k;
+        return `${lbl}: ${pid(v)}%`;
+      });
+      return `${s.scheme} — ${parts.join("; ")}`;
+    }
+    return `${pid(s.fixed_rate_percent)}% ${s.scheme}`;
+  };
+
+  const card = document.createElement("div");
+  card.className = "rate-card";
+  const scroll = document.createElement("div");
+  scroll.className = "rate-scroll";
+  const table = document.createElement("table");
+  table.className = "rate";
+
+  const head = document.createElement("tr");
+  ["Jenis", "Suku Bunga Fix (eff. p.a)", "Floating setelah fix", "Min. Tenor"].forEach((h) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    head.appendChild(th);
+  });
+  table.appendChild(head);
+
+  for (const [jenis, list] of [["Primary", io.primary || []], ["Secondary / Take Over", io.secondary || []]]) {
+    list.forEach((s, idx) => {
+      const tr = document.createElement("tr");
+      if (idx === 0) {
+        const td = document.createElement("td");
+        td.textContent = jenis;
+        td.rowSpan = list.length;
+        td.className = "rate-jenis";
+        tr.appendChild(td);
+      }
+      [fixText(s), s.floating_after || "-", `${s.min_tenor_years || "-"} Tahun`].forEach((val) => {
+        const td = document.createElement("td");
+        td.textContent = val;
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+  }
+  scroll.appendChild(table);
+  card.appendChild(scroll);
+
+  const foot = document.createElement("div");
+  foot.className = "rate-foot";
+  const lines = [];
+  if (rr.benchmark) lines.push(`${rr.benchmark.name}: ${pid(rr.benchmark.current_value_percent)}% (per ${rr.benchmark.value_as_of}).`);
+  for (const [k, v] of Object.entries(rr.floating_tiers_percent || {})) lines.push(`${k}: ${pid(v)}%`);
+  const flexi = (kb.products || []).find((p) => p.id === "kpr_flexi_primary");
+  if (flexi && flexi.interest && flexi.interest.current_estimate_percent) {
+    lines.push(`KPR Flexi Primary: SRBI + 2,50% (≈ ${pid(flexi.interest.current_estimate_percent)}%), floating sejak awal.`);
+  }
+  lines.push(kb.disclaimers && kb.disclaimers.rate_movement);
+  for (const l of lines) {
+    if (!l) continue;
+    const d = document.createElement("div");
+    d.textContent = "• " + l;
+    foot.appendChild(d);
+  }
+  card.appendChild(foot);
+
+  chatLog.appendChild(card);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
 
 async function handleKbMessage(text) {
   // Numeric questions go to the deterministic simulator, not the LLM.
@@ -285,6 +364,15 @@ async function handleKbMessage(text) {
 
   const kb = await loadKnowledgeBase();
   const classification = classifyIntent(text);
+
+  // Rate questions render a neat deterministic table (more reliable than an LLM).
+  if (RATE_RE.test(text) || classification.faqIntent === "suku_bunga") {
+    store.intent = classification.intent;
+    addMessage("bot", "Berikut tabel suku bunga KPR UOB:");
+    renderRateTable(kb);
+    addContinuationChips();
+    return;
+  }
   const detRes = answer(kb, classification, TODAY_ISO); // deterministic: product routing + fallback
 
   store.intent = classification.intent;

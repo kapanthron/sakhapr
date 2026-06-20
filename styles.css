@@ -264,6 +264,32 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
   color: var(--warn);
 }
 
+/* --- Rate table (chat) ----------------------------------------------------- */
+.rate-card {
+  align-self: stretch;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+.rate-scroll { overflow-x: auto; }
+table.rate { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.rate th {
+  background: var(--teal);
+  color: var(--white);
+  font-weight: 600;
+  text-align: left;
+  padding: 7px 8px;
+  vertical-align: top;
+}
+table.rate td {
+  border: 1px solid var(--line);
+  padding: 7px 8px;
+  vertical-align: top;
+}
+table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-space: nowrap; }
+.rate-foot { margin-top: 8px; font-size: 11px; color: var(--ink-soft); line-height: 1.5; }
+
 /* --- Simulation panel ------------------------------------------------------ */
 .sim {
   background: var(--white);
