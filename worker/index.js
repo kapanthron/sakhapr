@@ -176,15 +176,18 @@ async function handleChat(request, env) {
 
   try {
     let answer = "";
+    let model = "";
     if (env.GEMINI_API_KEY) {
       answer = await callGemini(env, sys, hist, message);
+      model = CACHED_GEMINI_MODEL || env.GEMINI_MODEL || "gemini";
     } else if (env.AI) {
       answer = await callWorkersAi(env, sys, hist, message);
+      model = CHAT_MODEL;
     } else {
       return json({ ok: false, error: "AI belum dikonfigurasi." }, 503);
     }
     if (!answer) return json({ ok: false, error: "Jawaban kosong." }, 502);
-    return json({ ok: true, answer });
+    return json({ ok: true, answer, model });
   } catch (err) {
     return json({ ok: false, error: String(err && err.message || err) }, 502);
   }
@@ -203,10 +206,24 @@ async function pickGeminiModel(env) {
   });
   if (!res.ok) throw new Error(`ListModels HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
   const data = await res.json();
+
+  const NON_CHAT = /(tts|image|vision|embedding|robotics|imagen|lyria|nano|thinking|\bexp\b|preview)/i;
   const usable = (data.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"));
-  // Prefer a lightweight "flash" model; avoid pro/vision/tts/embedding/experimental.
-  const flash = usable.find((m) => /flash/i.test(m.name) && !/(vision|tts|image|embedding|thinking|exp)/i.test(m.name));
-  const pick = flash || usable.find((m) => !/(vision|tts|image|embedding)/i.test(m.name)) || usable[0];
+  const chat = usable.filter((m) => !NON_CHAT.test(m.name));
+
+  // Prefer the newest "Flash" Gemini (fast + cheap), penalise "lite".
+  const score = (name) => {
+    const n = name.toLowerCase();
+    let s = 0;
+    if (n.includes("gemini")) s += 50;
+    if (n.includes("flash")) s += 30;
+    if (n.includes("lite")) s -= 12;
+    const v = n.match(/(\d+(?:\.\d+)?)/);
+    if (v) s += parseFloat(v[1]); // version number as tiebreaker
+    return s;
+  };
+  const pool = chat.length ? chat : usable;
+  const pick = pool.slice().sort((a, b) => score(b.name) - score(a.name))[0];
   if (!pick) throw new Error("Tidak ada model yang mendukung generateContent untuk API key ini.");
   CACHED_GEMINI_MODEL = pick.name.replace(/^models\//, "");
   return CACHED_GEMINI_MODEL;

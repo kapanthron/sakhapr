@@ -253,7 +253,9 @@ async function testAi() {
       body: JSON.stringify({ message: "Tes singkat: sebutkan satu produk KPR UOB." }),
     });
     const j = await r.json();
-    out.textContent = j.ok ? `AI OK ✓ — ${String(j.answer).slice(0, 90)}` : `AI ERROR (${r.status}) — ${j.error || "tidak diketahui"}`;
+    out.textContent = j.ok
+      ? `AI OK ✓ [${j.model || "?"}] — ${String(j.answer).slice(0, 80)}`
+      : `AI ERROR (${r.status}) — ${j.error || "tidak diketahui"}`;
   } catch (e) {
     out.textContent = "Gagal memanggil /api/chat: " + e.message;
   }
