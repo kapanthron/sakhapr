@@ -19,6 +19,7 @@ import {
 } from "./modules/privacy.js";
 import { classifyIntent, INTENTS } from "./modules/intentRouter.js";
 import { answer } from "./modules/knowledgeAnswer.js";
+import { askLlm } from "./modules/chat.js";
 import {
   PrescreenSession,
   productToSet,
@@ -245,23 +246,37 @@ function finishPrescreen() {
 
 /* --- Input dispatch -------------------------------------------------------- */
 
+/** Recent conversation for the LLM (mapped to chat roles), excluding the current msg. */
+function recentHistory() {
+  return store.messages
+    .slice(-7, -1)
+    .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
+}
+
 async function handleKbMessage(text) {
   const kb = await loadKnowledgeBase();
   const classification = classifyIntent(text);
-  const res = answer(kb, classification, TODAY_ISO);
+  const detRes = answer(kb, classification, TODAY_ISO); // deterministic: product routing + fallback
 
   store.intent = classification.intent;
-  if (res.product) store.product = res.product;
+  if (detRes.product) store.product = detRes.product;
 
-  renderAnswer(res);
-
-  // Hand off to the prescreen when the customer is ready; otherwise, after every
-  // answer, offer to continue to the application or keep asking.
+  // Ready to apply -> go straight to the prescreen (deterministic, reliable).
   if (classification.intent === INTENTS.READY_TO_APPLY) {
-    await offerPrescreen(productToSet(res.product));
-  } else {
-    addContinuationChips();
+    renderAnswer(detRes);
+    await offerPrescreen(productToSet(detRes.product));
+    return;
   }
+
+  // Otherwise answer with Workers AI (grounded), falling back to the KB answer.
+  try {
+    const reply = await askLlm(text, recentHistory());
+    addMessage("bot", reply);
+  } catch (err) {
+    console.warn("[SakhaPR] LLM unavailable, using offline answer:", err.message);
+    renderAnswer(detRes);
+  }
+  addContinuationChips();
 }
 
 /** After an answer, offer to start the application or keep asking. */

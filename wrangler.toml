@@ -22,6 +22,10 @@ binding = "ASSETS"
 binding = "BUCKET"
 bucket_name = "sakhapr-leads"
 
+# Workers AI — free, integrated, no API key. Powers the /api/chat RAG endpoint.
+[ai]
+binding = "AI"
+
 [vars]
 ADMIN_USER = "pocuob"
 ADMIN_PASS = "poc2026#"

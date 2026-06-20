@@ -31,6 +31,9 @@ export default {
       if (pathname === "/api/submit" && request.method === "POST") {
         return await handleSubmit(request, env);
       }
+      if (pathname === "/api/chat" && request.method === "POST") {
+        return await handleChat(request, env);
+      }
       if (pathname === "/api/admin/login" && request.method === "POST") {
         return await handleLogin(request, env);
       }
@@ -114,6 +117,77 @@ async function handleSubmit(request, env) {
   });
 
   return json({ ok: true, id, email: meta.email.status });
+}
+
+/* --- Chat (Workers AI, grounded on the knowledge base) --------------------- */
+
+const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const SYSTEM_PROMPT =
+  "Anda adalah SakhaPR, asisten KPR (Kredit Pemilikan Rumah) UOB Indonesia. " +
+  "Jawab HANYA berdasarkan FAKTA dari knowledge base di bawah. Gunakan Bahasa " +
+  "Indonesia yang ramah, jelas, dan ringkas. JANGAN mengarang angka, suku bunga, " +
+  "biaya, atau syarat yang tidak ada di FAKTA. Jika informasinya tidak tersedia, " +
+  "katakan dengan jujur bahwa Anda belum memiliki datanya dan arahkan nasabah ke " +
+  "Mortgage Relations Unit (mortgagerelations@uob.co.id). Untuk pertanyaan soal " +
+  "uang (bunga, biaya, cashback, denda), sertakan pengingat singkat bahwa angka " +
+  "bersifat estimasi dan dapat berubah. Pemeriksaan ini bukan keputusan kredit.";
+
+let KB_CONTEXT = null;
+
+async function kbContext(env, url) {
+  if (KB_CONTEXT) return KB_CONTEXT;
+  const res = await env.ASSETS.fetch(new Request(new URL("/data/knowledge_base.json", url)));
+  const kb = await res.json();
+  KB_CONTEXT = buildContext(kb).slice(0, 14000);
+  return KB_CONTEXT;
+}
+
+function buildContext(kb) {
+  const L = [];
+  L.push("DISCLAIMER:");
+  for (const [k, v] of Object.entries(kb.disclaimers || {})) L.push(`- ${k}: ${v}`);
+  L.push("\nPRODUK:");
+  for (const p of kb.products || []) {
+    const rate = p.interest ? p.interest.formula || `${p.interest.starting_rate_percent || ""}%` : "";
+    L.push(`- ${p.name} (${p.id}): ${p.use_case} Bunga: ${rate}. Tenor ${p.tenor_years?.min}-${p.tenor_years?.max} th. Plafon Rp${p.credit_limit?.min}-${p.credit_limit?.max}.`);
+  }
+  L.push("\nSUKU BUNGA: " + JSON.stringify(kb.interest_rate_options || {}));
+  L.push("\nPROGRAM/PROMO:");
+  for (const pr of kb.programs || []) {
+    L.push(`- ${pr.name}: ${pr.benefit} Periode ${pr.program_period?.start} s/d ${pr.program_period?.end}. Produk: ${(pr.applies_to_products || []).join(", ")}.`);
+  }
+  L.push("\nSYARAT UMUM:");
+  for (const e of kb.eligibility?.general_requirements || []) L.push(`- ${e}`);
+  L.push("\nFAQ:");
+  for (const f of kb.faq || []) L.push(`T: ${(f.question_examples || [])[0] || f.intent}\nJ: ${f.answer}`);
+  L.push("\nKONTAK: " + JSON.stringify(kb.support || {}));
+  return L.join("\n");
+}
+
+async function handleChat(request, env) {
+  if (!env.AI) return json({ ok: false, error: "AI tidak tersedia." }, 503);
+  const { message, history } = await request.json().catch(() => ({}));
+  if (!message || typeof message !== "string") {
+    return json({ ok: false, error: "Pesan kosong." }, 400);
+  }
+
+  const ctx = await kbContext(env, new URL(request.url));
+  const messages = [{ role: "system", content: `${SYSTEM_PROMPT}\n\nFAKTA (knowledge base):\n${ctx}` }];
+  for (const h of Array.isArray(history) ? history.slice(-6) : []) {
+    if (h && h.content) {
+      messages.push({ role: h.role === "assistant" ? "assistant" : "user", content: String(h.content).slice(0, 1200) });
+    }
+  }
+  messages.push({ role: "user", content: message.slice(0, 1200) });
+
+  try {
+    const out = await env.AI.run(CHAT_MODEL, { messages, max_tokens: 512 });
+    const answer = (out && (out.response || out.result || "")).trim();
+    if (!answer) return json({ ok: false, error: "Jawaban kosong." }, 502);
+    return json({ ok: true, answer });
+  } catch (err) {
+    return json({ ok: false, error: String(err && err.message || err) }, 502);
+  }
 }
 
 /* --- Email (Resend) -------------------------------------------------------- */
