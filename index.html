@@ -19,7 +19,7 @@
   <!-- Persistent PDPA / UU PDP notice. Must stay visible at all times. -->
   <header class="pdpa-banner" role="region" aria-label="Pemberitahuan perlindungan data pribadi">
     <span class="pdpa-banner__icon" aria-hidden="true">&#128274;</span>
-    <p class="pdpa-banner__text">
+    <p class="pdpa-banner__text" data-i18n-html="pdpa">
       Aplikasi ini memproses data pribadi sesuai <strong>UU No. 27 Tahun 2022</strong>
       (Pelindungan Data Pribadi). Foto eKTP Anda diidentifikasi di perangkat Anda, lalu
       berkas dan hasil skrining diteruskan serta disimpan oleh UOB setelah Anda menyetujui.
@@ -31,13 +31,12 @@
     <div class="app__topbar">
       <div class="brand">
         <span class="brand__name">SakhaPR</span>
-        <span class="brand__sub">PARIKSA &middot; Asisten KPR UOB</span>
+        <span class="brand__sub" data-i18n="brand_sub">PARIKSA &middot; Asisten KPR UOB</span>
       </div>
       <div class="app__topbar-actions">
-        <button id="applyNowBtn" type="button" class="btn btn--primary">Ajukan Sekarang</button>
-        <button id="clearAllBtn" type="button" class="btn btn--ghost" title="Hapus seluruh data dari memori">
-          Hapus data
-        </button>
+        <button id="langToggle" type="button" class="btn btn--ghost" data-i18n="lang_toggle" title="English / Bahasa Indonesia">EN</button>
+        <button id="applyNowBtn" type="button" class="btn btn--primary" data-i18n="apply_now">Ajukan Sekarang</button>
+        <button id="clearAllBtn" type="button" class="btn btn--ghost" data-i18n="clear_data" title="Hapus seluruh data dari memori">Hapus data</button>
       </div>
     </div>
 
@@ -51,87 +50,86 @@
         id="composerInput"
         class="composer__input"
         type="text"
+        data-i18n-ph="composer_ph"
         placeholder="Tanya apa saja tentang KPR UOB&hellip;"
         inputmode="text"
       />
-      <button type="submit" class="btn btn--primary">Kirim</button>
+      <button type="submit" class="btn btn--primary" data-i18n="send">Kirim</button>
     </form>
 
     <footer class="app__footer">
-      <span class="data-status" id="dataStatus" aria-live="polite">Tidak ada data tersimpan.</span>
-      <span class="app__footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
+      <span class="data-status" id="dataStatus" aria-live="polite" data-i18n="data_none">Tidak ada data tersimpan.</span>
+      <span class="app__footnote" data-i18n="footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
     </footer>
 
     <!-- Simulation: monthly installment + potential cashback (deterministic) -->
     <details class="sim" id="simPanel">
-      <summary>Simulasi Angsuran &amp; Cashback</summary>
+      <summary data-i18n="sim_title">Simulasi Angsuran &amp; Cashback</summary>
       <div class="sim__body">
-        <p class="ektp__disclaimer">
+        <p class="ektp__disclaimer" data-i18n="sim_disclaimer">
           Estimasi memakai suku bunga dari knowledge base UOB. Angka final mengikuti
           analisa kredit dan Perjanjian Kredit.
         </p>
         <div class="debug__grid">
-          <label>Jenis fasilitas
+          <label><span data-i18n="sim_facility">Jenis fasilitas</span>
             <select id="simFacility">
-              <option value="primary">KPR Primary</option>
-              <option value="secondary">KPR Secondary</option>
-              <option value="take_over">KPR Take Over</option>
+              <option value="primary" data-i18n="fac_primary">KPR Primary</option>
+              <option value="secondary" data-i18n="fac_secondary">KPR Secondary</option>
+              <option value="take_over" data-i18n="fac_take_over">KPR Take Over</option>
             </select>
           </label>
-          <label>Skema bunga
+          <label><span data-i18n="sim_scheme">Skema bunga</span>
             <select id="simScheme"></select>
           </label>
-          <label>Plafon kredit (Rp)
-            <input id="simPlafon" class="mono" type="text" inputmode="numeric" placeholder="900000000" />
+          <label><span data-i18n="sim_plafon">Plafon kredit (Rp)</span>
+            <input id="simPlafon" class="mono" type="text" inputmode="numeric" data-i18n-ph="plafon_ph" placeholder="900000000" />
           </label>
-          <label>Tenor (tahun)
-            <input id="simTenor" class="mono" type="number" min="1" max="30" placeholder="10" />
+          <label><span data-i18n="sim_tenor">Tenor (tahun)</span>
+            <input id="simTenor" class="mono" type="number" min="1" max="30" data-i18n-ph="tenor_ph" placeholder="10" />
           </label>
-          <label>Segmen (untuk cashback)
+          <label><span data-i18n="sim_segment">Segmen (untuk cashback)</span>
             <select id="simSegment">
-              <option value="">New to Bank / lainnya</option>
-              <option value="PV">UOB Privilege (PV)</option>
-              <option value="WB">UOB Wealth (WB)</option>
+              <option value="" data-i18n="seg_new">New to Bank / lainnya</option>
+              <option value="PV" data-i18n="seg_pv">UOB Privilege (PV)</option>
+              <option value="WB" data-i18n="seg_wb">UOB Wealth (WB)</option>
             </select>
           </label>
         </div>
-        <button type="button" id="simRun" class="btn btn--primary">Hitung</button>
+        <button type="button" id="simRun" class="btn btn--primary" data-i18n="sim_run">Hitung</button>
         <div id="simResult" class="debug__result" aria-live="polite"></div>
       </div>
     </details>
 
     <!-- eKTP upload + on-device ML identification (revealed after prescreen) -->
     <section class="ektp" id="ektpSection" hidden>
-      <h2 class="ektp__title">Unggah eKTP</h2>
-      <p class="ektp__disclaimer">
-        Pastikan foto eKTP <strong>jelas (tidak blur)</strong>, datanya benar, dan
-        ukuran file <strong>maksimal 3 MB</strong>.
+      <h2 class="ektp__title" data-i18n="ektp_title">Unggah eKTP</h2>
+      <p class="ektp__disclaimer" data-i18n="ektp_disclaimer">
+        Pastikan foto eKTP jelas (tidak blur), datanya benar, dan ukuran file maksimal 3 MB.
       </p>
 
       <label class="consent">
         <input type="checkbox" id="ektpConsent" />
-        <span>
-          Saya menyetujui pemrosesan data pribadi saya sesuai
-          <strong>UU No. 27 Tahun 2022</strong> tentang Pelindungan Data Pribadi.
+        <span data-i18n="consent">
+          Saya menyetujui pemrosesan data pribadi saya sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.
         </span>
       </label>
 
       <div class="ektp__upload">
         <input type="file" id="ektpFile" accept="image/*" disabled />
-        <span class="ektp__hint" id="ektpHint">Centang persetujuan untuk memilih foto eKTP.</span>
+        <span class="ektp__hint" id="ektpHint" data-i18n="ektp_hint_off">Centang persetujuan untuk memilih foto eKTP.</span>
       </div>
 
       <img id="ektpPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
 
       <div id="ektpNikWrap" class="ektp__nik" hidden>
-        <label>NIK (16 digit) — pastikan sudah benar sebelum mengirim
+        <label><span data-i18n="nik_label">NIK (16 digit) — pastikan sudah benar sebelum mengirim</span>
           <input id="ektpNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
         </label>
         <div id="ektpNikStatus" class="ektp__nikstatus" aria-live="polite"></div>
       </div>
 
       <div class="ektp__actions">
-        <button type="button" id="ektpSend" class="btn btn--primary" disabled>Kirim</button>
+        <button type="button" id="ektpSend" class="btn btn--primary" data-i18n="send" disabled>Kirim</button>
       </div>
       <div id="ektpStatus" class="ektp__status" aria-live="polite"></div>
     </section>

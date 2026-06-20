@@ -91,7 +91,11 @@ export function hasStoredData() {
  */
 export function assertNoPersistentStorage() {
   const problems = [];
-  try { if (window.localStorage.length > 0) problems.push("localStorage"); } catch { /* blocked = fine */ }
+  // The language preference (sakhapr_lang) is a non-personal UI setting and is allowed.
+  try {
+    const keys = Object.keys(window.localStorage).filter((k) => k !== "sakhapr_lang");
+    if (keys.length > 0) problems.push("localStorage");
+  } catch { /* blocked = fine */ }
   try { if (window.sessionStorage.length > 0) problems.push("sessionStorage"); } catch { /* blocked = fine */ }
   try { if (document.cookie && document.cookie.trim().length > 0) problems.push("cookies"); } catch { /* */ }
   if (problems.length) {

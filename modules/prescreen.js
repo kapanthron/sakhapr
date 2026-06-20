@@ -33,9 +33,17 @@ export class PrescreenSession {
     this.index = -1;   // before the first question
   }
 
-  get label() { return this.set?.label || this.setId; }
+  /** Resolve a field with optional English override based on getLang(). */
+  _loc(base, suffix) {
+    let lang = "id";
+    try { lang = (window.localStorage.getItem("sakhapr_lang") || "id"); } catch (_) {}
+    if (lang === "en" && this.set && this.set[base + suffix]) return this.set[base + suffix];
+    return (this.set && this.set[base]) || "";
+  }
+
+  get label() { return this._loc("label", "_en") || this.setId; }
   get productId() { return this.set?.product_id || null; }
-  get intro() { return this.set?.intro || ""; }
+  get intro() { return this._loc("intro", "_en"); }
 
   /** Should this question be asked given the answers so far? */
   _shouldAsk(q) {
