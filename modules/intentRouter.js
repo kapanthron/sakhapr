@@ -80,6 +80,9 @@ const FAQ_TERMS = {
   risiko: ["risiko", "resiko", "bahaya", "konsekuensi", "kerugian"],
   tenor: ["tenor", "jangka waktu", "lama cicilan", "berapa tahun", "30 tahun", "20 tahun"],
   cara_pengajuan: ["cara ajukan", "cara pengajuan", "langkah pengajuan", "bagaimana mengajukan", "gimana ajukan", "cara mengajukan"],
+  // General "what promos are there" — kept LAST so specific promo terms (cashback,
+  // appraisal) win on ties.
+  promo_umum: ["promo", "promosi", "penawaran", "ada promo", "program apa", "lagi ada apa", "benefit apa"],
 };
 
 const GREET_WORDS = new Set([

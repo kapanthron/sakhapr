@@ -25,7 +25,7 @@ bucket_name = "sakhapr-leads"
 [vars]
 ADMIN_USER = "pocuob"
 ADMIN_PASS = "poc2026#"
-MAIL_TO = "hendrik.panthron@uob.co.id"
+MAIL_TO = "hendrik.panthron@gmail.com"
 # Set as secrets (wrangler secret put / dashboard), NOT here:
 #   SESSION_SECRET   - HMAC key for admin session cookies (required)
 #   RESEND_API_KEY   - enables real email; if unset, sends are logged as "not_configured"

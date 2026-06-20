@@ -154,6 +154,23 @@ function informationAnswer(kb, cls) {
     }
   }
 
+  // General "what promos/programs are available?"
+  if (cls.faqIntent === "promo_umum") {
+    const progs = kb.programs || [];
+    const items = progs.map((p) => {
+      const end = p.program_period && p.program_period.end;
+      const expired = end && cls._todayISO > end;
+      return (
+        `• ${p.name}${p.tagline ? ` — ${p.tagline}` : ""}` +
+        (end ? ` (berlaku s/d ${end}${expired ? ", mungkin sudah berakhir" : ""})` : "")
+      );
+    });
+    const text = items.length
+      ? `Promo/program KPR UOB yang tersedia:\n${items.join("\n")}\n\nIngin detail salah satunya, misalnya cashback atau bebas biaya appraisal?`
+      : "Saat ini belum ada program yang tercatat. " + supportLine(kb);
+    return { text, disclaimer: disclaimerText(kb, "general"), product: null, program: null };
+  }
+
   // Matched a knowledge_base FAQ.
   if (cls.faqIntent) {
     const faq = findFaq(kb, cls.faqIntent);

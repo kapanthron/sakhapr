@@ -115,31 +115,6 @@ function addChips(options, onPick) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-/** Offer a single action button (e.g. download, start prescreen). */
-function addActionButton(label, onClick) {
-  const row = document.createElement("div");
-  row.className = "chips";
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "chip chip--action";
-  btn.textContent = label;
-  btn.addEventListener("click", () => onClick(btn));
-  row.appendChild(btn);
-  chatLog.appendChild(row);
-  chatLog.scrollTop = chatLog.scrollHeight;
-}
-
-/** Trigger a download of a Blob via a tracked (revocable) object URL. */
-function downloadBlob(blob, filename) {
-  const url = trackedObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 /** Reflect whether memory currently holds any data, in the footer pill. */
 function updateDataStatus() {
   const active = hasStoredData();
@@ -278,13 +253,24 @@ async function handleKbMessage(text) {
 
   renderAnswer(res);
 
-  // Hand off to the prescreen when the customer is ready, or offer it after routing.
+  // Hand off to the prescreen when the customer is ready; otherwise, after every
+  // answer, offer to continue to the application or keep asking.
   if (classification.intent === INTENTS.READY_TO_APPLY) {
     await offerPrescreen(productToSet(res.product));
-  } else if (classification.intent === INTENTS.WHICH_PRODUCT && res.product) {
-    const setId = productToSet(res.product);
-    addActionButton("Mulai prescreen", () => offerPrescreen(setId));
+  } else {
+    addContinuationChips();
   }
+}
+
+/** After an answer, offer to start the application or keep asking. */
+function addContinuationChips() {
+  addChips(["Ya, lanjut ke pengajuan", "Tidak, ada pertanyaan lain"], (label) => {
+    if (label.startsWith("Ya")) {
+      offerPrescreen(productToSet(store.product));
+    } else {
+      addMessage("bot", "Baik. Silakan ajukan pertanyaan lain yang ingin Anda ketahui.");
+    }
+  });
 }
 
 composer.addEventListener("submit", async (e) => {
@@ -337,13 +323,15 @@ clearAllBtn.addEventListener("click", () => {
 
 /* --- eKTP upload + automatic identification (ML OCR) + forward -------------- */
 
+const MAX_EKTP_BYTES = 3 * 1024 * 1024; // 3 MB
+
 const ektp = {};
 function cacheEktpEls() {
   const $ = (id) => document.getElementById(id);
   Object.assign(ektp, {
     section: $("ektpSection"),
     consent: $("ektpConsent"), file: $("ektpFile"), hint: $("ektpHint"),
-    status: $("ektpStatus"), preview: $("ektpPreview"),
+    status: $("ektpStatus"), preview: $("ektpPreview"), send: $("ektpSend"),
   });
 }
 
@@ -352,10 +340,11 @@ function resetEktpUi() {
   ektp.consent.checked = false;
   ektp.file.value = "";
   ektp.file.disabled = true;
-  ektp.hint.textContent = "Centang persetujuan untuk mengaktifkan unggah eKTP.";
+  ektp.hint.textContent = "Centang persetujuan untuk memilih foto eKTP.";
   ektp.status.textContent = "";
   ektp.preview.hidden = true;
   ektp.preview.removeAttribute("src");
+  ektp.send.disabled = true;
   if (ektp.section) ektp.section.hidden = true;
 }
 
@@ -367,16 +356,42 @@ function setupEktp() {
   ektp.consent.addEventListener("change", () => {
     const ok = ektp.consent.checked;
     ektp.file.disabled = !ok;
+    if (!ok) ektp.send.disabled = true;
     ektp.hint.textContent = ok
-      ? "Unggah foto eKTP. Identifikasi berjalan otomatis."
-      : "Centang persetujuan untuk mengaktifkan unggah eKTP.";
+      ? "Pilih foto eKTP (jelas, < 3 MB), lalu klik Kirim."
+      : "Centang persetujuan untuk memilih foto eKTP.";
   });
 
-  ektp.file.addEventListener("change", async () => {
+  // Pick a file -> preview + size check. Sending happens on the Kirim button.
+  ektp.file.addEventListener("change", () => {
     const file = ektp.file.files && ektp.file.files[0];
     if (!file) return;
-    await processEktp(file);
+    ektp.preview.src = trackedObjectURL(file);
+    ektp.preview.hidden = false;
+
+    if (file.size > MAX_EKTP_BYTES) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      ektp.status.textContent = `Ukuran foto ${mb} MB melebihi 3 MB. Mohon gunakan foto yang lebih kecil.`;
+      ektp.send.disabled = true;
+      return;
+    }
+    ektp.status.textContent = "Foto siap. Klik Kirim untuk memproses dan mengirim.";
+    ektp.send.disabled = false;
   });
+
+  ektp.send.addEventListener("click", () => {
+    const file = ektp.file.files && ektp.file.files[0];
+    if (file) processEktp(file);
+  });
+}
+
+/** Build the chat conversation log (.txt) from the in-memory messages. */
+function buildChatLogBlob() {
+  const L = ["SakhaPR — Log Chat", "=".repeat(40), `Tanggal: ${new Date().toLocaleString("id-ID")}`, ""];
+  for (const m of store.messages) {
+    L.push(`[${m.role === "user" ? "Nasabah" : "SakhaPR"}] ${m.text}`);
+  }
+  return new Blob([L.join("\n")], { type: "text/plain;charset=utf-8" });
 }
 
 /**
@@ -386,9 +401,7 @@ function setupEktp() {
  * The customer only sees progress and a final confirmation.
  */
 async function processEktp(file) {
-  // In-memory preview via a tracked (revocable) object URL.
-  ektp.preview.src = trackedObjectURL(file);
-  ektp.preview.hidden = false;
+  ektp.send.disabled = true;
   ektp.file.disabled = true;
   store.ektp = store.ektp || {};
   store.ektp.image = file;
@@ -396,8 +409,9 @@ async function processEktp(file) {
 
   if (!store.files.fileA) {
     ektp.status.textContent =
-      "Mohon selesaikan prescreen di atas terlebih dahulu sebelum mengunggah eKTP.";
+      "Mohon selesaikan prescreen di atas terlebih dahulu sebelum mengirim eKTP.";
     ektp.file.disabled = false;
+    ektp.send.disabled = false;
     return;
   }
 
@@ -429,13 +443,14 @@ async function processEktp(file) {
     });
     store.files.fileC = reportBlob;
 
-    // 3) Forward the three files to the backend (store + email).
+    // 3) Forward the files to the backend (store + email).
     ektp.status.textContent = "Meneruskan berkas ke UOB…";
     const session = flow.session || store.prescreen;
     const result = await submitLead({
       prescreen: store.files.fileA,
       ektp: file,
       report: reportBlob,
+      chatlog: buildChatLogBlob(),
       meta: {
         product: store.product || "",
         productName: PRODUCT_NAMES[store.product] || store.product || "",
@@ -459,6 +474,7 @@ async function processEktp(file) {
     ektp.status.textContent =
       "Maaf, terjadi kendala saat memproses atau meneruskan data. Mohon coba lagi atau hubungi UOB.";
     ektp.file.disabled = false;
+    ektp.send.disabled = false;
   }
 }
 

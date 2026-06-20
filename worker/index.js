@@ -62,6 +62,7 @@ async function handleSubmit(request, env) {
   const prescreen = form.get("prescreen"); // File (.txt)
   const ektp = form.get("ektp"); // File (image)
   const report = form.get("report"); // File (.pdf)
+  const chatlog = form.get("chatlog"); // File (.txt), optional
 
   if (!(prescreen && ektp && report)) {
     return json({ ok: false, error: "Paket tidak lengkap (prescreen, ektp, report wajib)." }, 400);
@@ -82,6 +83,11 @@ async function handleSubmit(request, env) {
   await env.BUCKET.put(prefix + "laporan_nik.pdf", await report.arrayBuffer(), {
     httpMetadata: { contentType: "application/pdf" },
   });
+  if (chatlog) {
+    await env.BUCKET.put(prefix + "chatlog.txt", await chatlog.arrayBuffer(), {
+      httpMetadata: { contentType: "text/plain; charset=utf-8" },
+    });
+  }
 
   const meta = {
     id,
@@ -91,12 +97,17 @@ async function handleSubmit(request, env) {
     prescreenLabel: form.get("prescreenLabel") || "",
     prescreenStatus: form.get("prescreenStatus") || "",
     nikVerdict: form.get("nikVerdict") || "",
-    files: { prescreen: "prescreen.txt", ektp: ektpName, report: "laporan_nik.pdf" },
+    files: {
+      prescreen: "prescreen.txt",
+      ektp: ektpName,
+      report: "laporan_nik.pdf",
+      ...(chatlog ? { chatlog: "chatlog.txt" } : {}),
+    },
     email: { to: env.MAIL_TO || "", status: "pending", at: null, providerId: null, error: null },
   };
 
   // Email the package (best-effort; never blocks storage).
-  meta.email = await sendEmail(env, meta, { prescreen, ektp, report, ektpName });
+  meta.email = await sendEmail(env, meta, { prescreen, ektp, report, chatlog, ektpName });
 
   await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
     httpMetadata: { contentType: "application/json" },
@@ -121,6 +132,9 @@ async function sendEmail(env, meta, files) {
       { filename: files.ektpName, content: await abToBase64(await files.ektp.arrayBuffer()) },
       { filename: "laporan_nik.pdf", content: await abToBase64(await files.report.arrayBuffer()) },
     ];
+    if (files.chatlog) {
+      attachments.push({ filename: "chatlog.txt", content: await abToBase64(await files.chatlog.arrayBuffer()) });
+    }
     const body = {
       from: env.MAIL_FROM,
       to: [to],

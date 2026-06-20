@@ -63,29 +63,29 @@
     <section class="ektp" id="ektpSection" hidden>
       <h2 class="ektp__title">Unggah eKTP</h2>
       <p class="ektp__disclaimer">
-        Foto eKTP diidentifikasi otomatis di perangkat Anda (OCR berbasis mesin
-        learning). Hasil skrining struktur NIK dan berkas kemudian diteruskan ke
-        UOB. Skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan
-        kredit; verifikasi akhir dilakukan oleh petugas.
+        Pastikan foto eKTP <strong>jelas (tidak blur)</strong>, datanya benar, dan
+        ukuran file <strong>maksimal 3 MB</strong>.
       </p>
 
       <label class="consent">
         <input type="checkbox" id="ektpConsent" />
         <span>
-          Saya menyetujui foto eKTP saya diidentifikasi otomatis di perangkat ini,
-          dan berkas (transkrip prescreen, gambar eKTP, hasil skrining NIK)
-          diteruskan serta disimpan oleh UOB (<strong>hendrik.panthron@uob.co.id</strong>)
-          sesuai UU No. 27 Tahun 2022 untuk menindaklanjuti pengajuan saya.
+          Saya menyetujui pemrosesan data pribadi saya sesuai
+          <strong>UU No. 27 Tahun 2022</strong> tentang Pelindungan Data Pribadi.
         </span>
       </label>
 
       <div class="ektp__upload">
         <input type="file" id="ektpFile" accept="image/*" disabled />
-        <span class="ektp__hint" id="ektpHint">Centang persetujuan untuk mengaktifkan unggah eKTP.</span>
+        <span class="ektp__hint" id="ektpHint">Centang persetujuan untuk memilih foto eKTP.</span>
       </div>
 
-      <div id="ektpStatus" class="ektp__status" aria-live="polite"></div>
       <img id="ektpPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
+
+      <div class="ektp__actions">
+        <button type="button" id="ektpSend" class="btn btn--primary" disabled>Kirim</button>
+      </div>
+      <div id="ektpStatus" class="ektp__status" aria-live="polite"></div>
     </section>
   </main>
 

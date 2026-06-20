@@ -79,6 +79,7 @@ function renderLeads(leads) {
     dl.className = "chips";
     const links = [
       ["Prescreen (.txt)", files.prescreen],
+      ["Log chat (.txt)", files.chatlog],
       ["eKTP", files.ektp],
       ["Laporan NIK (.pdf)", files.report],
       ["meta.json", "meta.json"],
