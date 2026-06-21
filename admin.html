@@ -71,6 +71,12 @@
       <div id="pkStatus" class="ektp__status" aria-live="polite"></div>
       <img id="pkPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
 
+      <div id="pkPhotoWrap" class="pk-photo" hidden>
+        <p class="ektp__disclaimer">Pas foto (auto-crop dari eKTP) — periksa hasil potongan sebelum dipakai:</p>
+        <img id="pkPhoto" class="pk-photo__img" alt="Pas foto eKTP (auto-crop)" />
+        <a id="pkPhotoDl" class="btn btn--ghost" download="pasfoto_ektp.jpg">Unduh pas foto</a>
+      </div>
+
       <div class="debug__grid" id="pkFields" hidden>
         <label>NIK (16 digit)
           <input id="pkNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
