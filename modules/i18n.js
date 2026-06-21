@@ -11,10 +11,9 @@ const DICT = {
     clear_data: "Hapus data",
     lang_toggle: "EN",
     pdpa:
-      "Aplikasi ini memproses data pribadi sesuai <strong>UU No. 27 Tahun 2022</strong> " +
-      "(Pelindungan Data Pribadi). Foto eKTP Anda dibaca oleh layanan AI (Google Gemini) " +
-      "untuk mengenali NIK, lalu berkas dan hasil skrining diteruskan serta disimpan oleh UOB " +
-      "setelah Anda menyetujui. Anda dapat menghapus data sesi di perangkat ini kapan saja.",
+      "Aplikasi ini memproses data pribadi Anda sesuai <strong>UU No. 27 Tahun 2022</strong> " +
+      "(Pelindungan Data Pribadi) dan berdasarkan persetujuan Anda. Anda dapat menghapus seluruh " +
+      "data sesi kapan saja dengan menekan tombol “Hapus data”.",
     composer_ph: "Tanya apa saja tentang KPR UOB…",
     send: "Kirim",
     footnote: "Data hanya disimpan di memori perangkat · bukan keputusan kredit.",
@@ -63,12 +62,12 @@ const DICT = {
     /* eKTP */
     ektp_title: "Unggah eKTP",
     ektp_disclaimer: "Pastikan foto eKTP jelas (tidak blur), datanya benar, dan ukuran file maksimal 3 MB.",
-    consent: "Saya menyetujui pemrosesan data pribadi saya sesuai UU No. 27 Tahun 2022, termasuk pembacaan foto eKTP oleh layanan AI (Google Gemini) untuk mengenali NIK.",
+    consent: "Apakah Anda setuju dan telah membaca <a href=\"docs/pernyataan/persetujuan-nasabah.pdf\" target=\"_blank\" rel=\"noopener\">Lembar Pernyataan Persetujuan Nasabah</a> berikut?",
     ektp_hint_off: "Centang persetujuan untuk memilih foto eKTP.",
     ektp_hint_on: "Pilih foto eKTP (jelas, < 3 MB). Sistem membaca NIK otomatis.",
     nik_label: "NIK (16 digit) — pastikan sudah benar sebelum mengirim",
     ektp_too_big: "Ukuran foto {mb} MB melebihi 3 MB. Mohon gunakan foto yang lebih kecil.",
-    ektp_reading: "Membaca NIK dari eKTP…",
+    ektp_reading: "Sedang membaca NIK oleh sistem…",
     ektp_read_progress: "Membaca NIK: {status} {pct}%",
     ektp_read_ok: "NIK terbaca. Mohon periksa & koreksi bila perlu, lalu Kirim.",
     ektp_read_manual: "NIK tidak terbaca otomatis. Mohon ketik NIK (16 digit) secara manual.",
@@ -135,10 +134,9 @@ const DICT = {
     clear_data: "Clear data",
     lang_toggle: "ID",
     pdpa:
-      "This app processes personal data under <strong>Law No. 27 of 2022</strong> " +
-      "(Personal Data Protection). Your eKTP photo is read by an AI service (Google Gemini) " +
-      "to recognise the NIK; the files and screening result are then forwarded to and stored by " +
-      "UOB after you consent. You can clear this session's data on this device at any time.",
+      "This app processes your personal data under <strong>Law No. 27 of 2022</strong> " +
+      "(Personal Data Protection) and with your consent. You can clear all session data at any " +
+      "time using the “Clear data” button.",
     composer_ph: "Ask anything about UOB mortgages…",
     send: "Send",
     footnote: "Data is kept in device memory only · not a credit decision.",
@@ -185,12 +183,12 @@ const DICT = {
     nothing_clear: "There is no data to clear.",
     ektp_title: "Upload eKTP",
     ektp_disclaimer: "Make sure the eKTP photo is clear (not blurry), the data is correct, and the file is at most 3 MB.",
-    consent: "I consent to the processing of my personal data under Law No. 27 of 2022, including reading my eKTP photo by an AI service (Google Gemini) to recognise the NIK.",
+    consent: "Do you agree and have you read the following <a href=\"docs/pernyataan/persetujuan-nasabah.pdf\" target=\"_blank\" rel=\"noopener\">Customer Consent Statement</a>?",
     ektp_hint_off: "Tick the consent box to choose an eKTP photo.",
     ektp_hint_on: "Choose an eKTP photo (clear, < 3 MB). The system reads the NIK automatically.",
     nik_label: "NIK (16 digits) — make sure it's correct before sending",
     ektp_too_big: "The photo is {mb} MB, over the 3 MB limit. Please use a smaller photo.",
-    ektp_reading: "Reading the NIK from the eKTP…",
+    ektp_reading: "The system is reading the NIK…",
     ektp_read_progress: "Reading NIK: {status} {pct}%",
     ektp_read_ok: "NIK read. Please check and correct it if needed, then Send.",
     ektp_read_manual: "The NIK couldn't be read automatically. Please type the NIK (16 digits) manually.",

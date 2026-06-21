@@ -256,8 +256,8 @@ function setupPariksa() {
     const setEngine = (kind, detail) => {
       if (!els.engine) return;
       const map = {
-        ai: { cls: "ok", label: `AI · Gemini${detail ? ` (${detail})` : ""}` },
-        device: { cls: "warn", label: "Offline · OCR perangkat (Tesseract)" },
+        ai: { cls: "ok", label: "Dibaca oleh sistem" },
+        device: { cls: "warn", label: "Dibaca oleh sistem (cadangan)" },
         none: { cls: "fail", label: "Gagal membaca" },
       };
       const e = map[kind] || map.none;
@@ -285,31 +285,31 @@ function setupPariksa() {
       els.photoWrap.hidden = false;
     };
 
-    // Primary: Gemini Vision (accurate). Fallback: on-device Tesseract.
-    els.status.textContent = "Membaca eKTP dengan AI (Gemini)…";
+    // Primary: server reader (accurate). Fallback: on-device reader.
+    els.status.textContent = "Sedang membaca eKTP oleh sistem…";
     try {
       const g = await geminiOcr(file);
       setFields(g.fields || {});
       let photo = null;
       try { photo = await cropByBox(file, g.photo_box); } catch { /* ignore */ }
       showPhoto(photo);
-      setEngine("ai", g.model || "gemini");
-      els.status.textContent = "OCR AI selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
+      setEngine("ai");
+      els.status.textContent = "Pembacaan selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
     } catch (errAi) {
-      console.warn("[admin] Gemini OCR failed, falling back to Tesseract:", errAi);
-      els.status.textContent = "AI tidak tersedia — memakai OCR perangkat…";
+      console.warn("[admin] primary reader failed, using fallback:", errAi);
+      els.status.textContent = "Mencoba pembacaan cadangan…";
       try {
         const { fields, photo } = await runOcr(file, (m) => {
-          els.status.textContent = `OCR perangkat: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
+          els.status.textContent = `Membaca: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
         });
         setFields(fields);
         showPhoto(photo);
         setEngine("device");
-        els.status.textContent = "OCR perangkat selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
+        els.status.textContent = "Pembacaan selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
       } catch (err) {
-        console.error("[admin] OCR failed:", err);
+        console.error("[admin] read failed:", err);
         setEngine("none");
-        els.status.textContent = "OCR gagal. Anda bisa mengisi field manual lalu Periksa NIK.";
+        els.status.textContent = "Gagal membaca. Anda bisa mengisi field manual lalu Periksa NIK.";
       }
     }
   });

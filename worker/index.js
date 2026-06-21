@@ -558,6 +558,119 @@ async function callWorkersAi(env, sys, history, message) {
   return (out && (out.response || out.result || "")).trim();
 }
 
+/* --- Password-protected ZIP (traditional PKWARE/ZipCrypto) ----------------- */
+// Bundles the lead files into one encrypted ZIP. ZipCrypto is widely supported
+// (Windows Explorer, 7-Zip, WinRAR, macOS Archive Utility with a password). It
+// is legacy encryption — adequate for transit on top of TLS email, not a
+// substitute for proper key management.
+const ZIP_PASSWORD = "uob2026#";
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function crc32Update(crc, b) {
+  return (CRC_TABLE[(crc ^ b) & 0xff] ^ (crc >>> 8)) >>> 0;
+}
+function makeKeys(password) {
+  let k0 = 0x12345678, k1 = 0x23456789, k2 = 0x34567890;
+  const upd = (b) => {
+    k0 = crc32Update(k0, b);
+    k1 = (k1 + (k0 & 0xff)) >>> 0;
+    k1 = (Math.imul(k1, 134775813) + 1) >>> 0;
+    k2 = crc32Update(k2, (k1 >>> 24) & 0xff);
+  };
+  for (let i = 0; i < password.length; i++) upd(password.charCodeAt(i) & 0xff);
+  return {
+    encrypt(b) {
+      const t = (k2 | 2) & 0xffff;
+      const c = b ^ (((t * (t ^ 1)) >>> 8) & 0xff);
+      upd(b);
+      return c;
+    },
+  };
+}
+
+function makeEncryptedZip(entries, password) {
+  const enc = new TextEncoder();
+  const prepared = entries.map((e) => {
+    const name = enc.encode(e.name);
+    const crc = crc32(e.data);
+    const keys = makeKeys(password);
+    const header = new Uint8Array(12);
+    crypto.getRandomValues(header.subarray(0, 11));
+    header[11] = (crc >>> 24) & 0xff; // password check byte (CRC high byte)
+    const encHeader = new Uint8Array(12);
+    for (let i = 0; i < 12; i++) encHeader[i] = keys.encrypt(header[i]);
+    const encData = new Uint8Array(e.data.length);
+    for (let i = 0; i < e.data.length; i++) encData[i] = keys.encrypt(e.data[i]);
+    return { name, crc, encHeader, encData, compSize: 12 + e.data.length, size: e.data.length };
+  });
+
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  for (const p of prepared) {
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);     // version needed
+    lh.setUint16(6, 0x0001, true); // flag: bit 0 = encrypted
+    lh.setUint16(8, 0, true);      // method: store
+    lh.setUint16(10, 0, true);     // mod time
+    lh.setUint16(12, 0x21, true);  // mod date (1980-01-01)
+    lh.setUint32(14, p.crc, true);
+    lh.setUint32(18, p.compSize, true);
+    lh.setUint32(22, p.size, true);
+    lh.setUint16(26, p.name.length, true);
+    lh.setUint16(28, 0, true);
+    chunks.push(new Uint8Array(lh.buffer), p.name, p.encHeader, p.encData);
+
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014b50, true);
+    cd.setUint16(4, 20, true);
+    cd.setUint16(6, 20, true);
+    cd.setUint16(8, 0x0001, true);
+    cd.setUint16(10, 0, true);
+    cd.setUint16(12, 0, true);
+    cd.setUint16(14, 0x21, true);
+    cd.setUint32(16, p.crc, true);
+    cd.setUint32(20, p.compSize, true);
+    cd.setUint32(24, p.size, true);
+    cd.setUint16(28, p.name.length, true);
+    cd.setUint32(42, offset, true); // local header offset
+    central.push(new Uint8Array(cd.buffer), p.name);
+
+    offset += 30 + p.name.length + p.compSize;
+  }
+  let centralSize = 0;
+  for (const c of central) centralSize += c.length;
+
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, prepared.length, true);
+  eocd.setUint16(10, prepared.length, true);
+  eocd.setUint32(12, centralSize, true);
+  eocd.setUint32(16, offset, true); // central dir start
+  const all = [...chunks, ...central, new Uint8Array(eocd.buffer)];
+
+  let total = 0;
+  for (const a of all) total += a.length;
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const a of all) { out.set(a, o); o += a.length; }
+  return out;
+}
+
 /* --- Email (Resend) -------------------------------------------------------- */
 
 async function sendEmail(env, meta, files) {
@@ -574,16 +687,19 @@ async function sendEmail(env, meta, files) {
 
   try {
     const attachments = [
-      { filename: "prescreen.txt", content: await abToBase64(await files.prescreen.arrayBuffer()) },
-      { filename: files.ektpName, content: await abToBase64(await files.ektp.arrayBuffer()) },
-      { filename: "laporan_nik.pdf", content: await abToBase64(await files.report.arrayBuffer()) },
+      { name: "prescreen.txt", data: new Uint8Array(await files.prescreen.arrayBuffer()) },
+      { name: files.ektpName, data: new Uint8Array(await files.ektp.arrayBuffer()) },
+      { name: "laporan_nik.pdf", data: new Uint8Array(await files.report.arrayBuffer()) },
     ];
     if (files.chatlog) {
-      attachments.push({ filename: "chatlog.txt", content: await abToBase64(await files.chatlog.arrayBuffer()) });
+      attachments.push({ name: "chatlog.txt", data: new Uint8Array(await files.chatlog.arrayBuffer()) });
     }
     if (files.pasfoto) {
-      attachments.push({ filename: "pasfoto.jpg", content: await abToBase64(await files.pasfoto.arrayBuffer()) });
+      attachments.push({ name: "pasfoto.jpg", data: new Uint8Array(await files.pasfoto.arrayBuffer()) });
     }
+    // Bundle every file into one password-protected ZIP for safer transit.
+    const zip = makeEncryptedZip(attachments, ZIP_PASSWORD);
+    const zipName = `SakhaPR_${meta.ref || meta.id}.zip`;
     const body = {
       from,
       to: [to],
@@ -594,10 +710,11 @@ async function sendEmail(env, meta, files) {
         `Prescreen   : ${meta.prescreenLabel || "-"} ${meta.prescreenStatus || ""}\n` +
         `Verdict NIK : ${meta.nikVerdict || "-"}\n` +
         `Lead ID     : ${meta.id}\n\n` +
-        `Lampiran: transkrip prescreen, gambar eKTP, laporan skrining NIK` +
-        `${files.pasfoto ? ", pas foto (auto-crop)" : ""}.\n` +
+        `Lampiran: ${zipName} (ZIP terproteksi kata sandi) berisi transkrip prescreen, ` +
+        `gambar eKTP, laporan skrining NIK${files.pasfoto ? ", pas foto" : ""}.\n` +
+        `Kata sandi ZIP sesuai kebijakan internal UOB.\n` +
         `Catatan: skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan kredit.`,
-      attachments,
+      attachments: [{ filename: zipName, content: abToBase64(zip) }],
     };
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
