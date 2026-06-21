@@ -63,6 +63,29 @@
         <button id="diagBtn" type="button" class="btn btn--ghost">Cek Konfigurasi</button>
         <span id="diagResult" class="ektp__status"></span>
       </div>
+      <!-- Overview dashboard -->
+      <div class="dash" id="dashView">
+        <div class="dash__head">
+          <h3 class="dash__title">Overview</h3>
+          <div class="dash__filter" id="dashFilter">
+            <button type="button" data-period="day" class="btn btn--ghost">Hari ini</button>
+            <button type="button" data-period="month" class="btn btn--ghost is-active">Bulan ini</button>
+            <button type="button" data-period="year" class="btn btn--ghost">Tahun ini</button>
+            <button type="button" data-period="all" class="btn btn--ghost">Semua</button>
+          </div>
+        </div>
+        <div class="dash__grid" id="dashGrid"></div>
+      </div>
+
+      <!-- Monthly recap downloads (XLSX) -->
+      <div class="recap" id="recapView">
+        <div class="dash__head">
+          <h3 class="dash__title">Rekap Bulanan (Excel)</h3>
+          <a class="btn btn--ghost" id="recapAll" href="/api/admin/recap?month=all" download>Unduh Semua (.xlsx)</a>
+        </div>
+        <div class="recap__months" id="recapMonths"></div>
+      </div>
+
       <div id="leadsStatus" class="ektp__status" aria-live="polite"></div>
       <div id="leadsList"></div>
     </section>

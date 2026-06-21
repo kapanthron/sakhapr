@@ -62,6 +62,32 @@
           "text_en": "What is your job or business field, and for how long?"
         },
         {
+          "no": 0,
+          "id": "penghasilan_bersih_bulanan",
+          "text": "Penghasilan bersih per bulan berapa? (minimal Rp10 juta)",
+          "text_en": "What is your net monthly income? (minimum IDR 10 million)",
+          "type": "number",
+          "flag_hint": "capacity"
+        },
+        {
+          "no": 0,
+          "id": "pekerjaan_saat_ini",
+          "text": "Pekerjaan saat ini apa?",
+          "text_en": "What is your current occupation?",
+          "type": "choice",
+          "options": [
+            "Karyawan",
+            "Pengusaha",
+            "Profesional"
+          ],
+          "options_en": [
+            "Employee",
+            "Entrepreneur",
+            "Professional"
+          ],
+          "flag_hint": "capacity"
+        },
+        {
           "no": 3,
           "id": "history_telat_restruktur_12bln",
           "text": "Apakah pernah ada history telat atau ikut restrukturisasi dalam 12 bulan terakhir?",
@@ -229,6 +255,32 @@
           "text_en": "What is your job or business field, and for how long?"
         },
         {
+          "no": 0,
+          "id": "penghasilan_bersih_bulanan",
+          "text": "Penghasilan bersih per bulan berapa? (minimal Rp10 juta)",
+          "text_en": "What is your net monthly income? (minimum IDR 10 million)",
+          "type": "number",
+          "flag_hint": "capacity"
+        },
+        {
+          "no": 0,
+          "id": "pekerjaan_saat_ini",
+          "text": "Pekerjaan saat ini apa?",
+          "text_en": "What is your current occupation?",
+          "type": "choice",
+          "options": [
+            "Karyawan",
+            "Pengusaha",
+            "Profesional"
+          ],
+          "options_en": [
+            "Employee",
+            "Entrepreneur",
+            "Professional"
+          ],
+          "flag_hint": "capacity"
+        },
+        {
           "no": 3,
           "id": "history_telat_restruktur_12bln",
           "text": "Apakah pernah ada history telat atau ikut restrukturisasi dalam 12 bulan terakhir?",
@@ -393,6 +445,32 @@
           "type": "text",
           "flag_hint": "capacity",
           "text_en": "What is your job or business field, and for how long?"
+        },
+        {
+          "no": 0,
+          "id": "penghasilan_bersih_bulanan",
+          "text": "Penghasilan bersih per bulan berapa? (minimal Rp10 juta)",
+          "text_en": "What is your net monthly income? (minimum IDR 10 million)",
+          "type": "number",
+          "flag_hint": "capacity"
+        },
+        {
+          "no": 0,
+          "id": "pekerjaan_saat_ini",
+          "text": "Pekerjaan saat ini apa?",
+          "text_en": "What is your current occupation?",
+          "type": "choice",
+          "options": [
+            "Karyawan",
+            "Pengusaha",
+            "Profesional"
+          ],
+          "options_en": [
+            "Employee",
+            "Entrepreneur",
+            "Professional"
+          ],
+          "flag_hint": "capacity"
         },
         {
           "no": 3,
