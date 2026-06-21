@@ -32,11 +32,16 @@ ADMIN_PASS = "poc2026#"
 MAIL_TO = "hendrik.panthron@gmail.com"
 # Set as secrets (wrangler secret put / dashboard), NOT here:
 #   SESSION_SECRET   - HMAC key for admin session cookies (required)
-#   RESEND_API_KEY   - enables real email; if unset, sends are logged as "not_configured"
-#   MAIL_FROM        - verified sender, e.g. "SakhaPR <noreply@yourdomain.com>"
-#   GEMINI_API_KEY   - free Google AI Studio key; if set, /api/chat uses Gemini
-#                      instead of Workers AI (GEMINI_MODEL optional)
+#   RESEND_API_KEY   - enables real email. With ONLY this set, email is sent
+#                      from onboarding@resend.dev to MAIL_TO. That test sender
+#                      can deliver only to the email that OWNS the Resend account,
+#                      so MAIL_TO must be your Resend signup email. No domain needed.
+#   MAIL_FROM        - (optional) a verified sender on your own domain, e.g.
+#                      "SakhaPR <noreply@yourdomain.com>". Needed only to send to
+#                      addresses other than your own / from your brand domain.
+#   GEMINI_API_KEY   - free Google AI Studio key; powers /api/chat AND the eKTP
+#                      OCR (/api/ocr). (GEMINI_MODEL optional)
 #   ADMIN_PASS_SHA256- (hardening) SHA-256 hex of the admin password. If set, it
 #                      is used instead of ADMIN_PASS; then delete ADMIN_PASS from
-#                      [vars] below so no plaintext password lives in the repo.
+#                      [vars] above so no plaintext password lives in the repo.
 #                      Generate: printf 'poc2026#' | shasum -a 256
