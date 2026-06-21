@@ -12,9 +12,9 @@ const DICT = {
     lang_toggle: "EN",
     pdpa:
       "Aplikasi ini memproses data pribadi sesuai <strong>UU No. 27 Tahun 2022</strong> " +
-      "(Pelindungan Data Pribadi). Foto eKTP Anda diidentifikasi di perangkat Anda, lalu " +
-      "berkas dan hasil skrining diteruskan serta disimpan oleh UOB setelah Anda menyetujui. " +
-      "Anda dapat menghapus data sesi di perangkat ini kapan saja.",
+      "(Pelindungan Data Pribadi). Foto eKTP Anda dibaca oleh layanan AI (Google Gemini) " +
+      "untuk mengenali NIK, lalu berkas dan hasil skrining diteruskan serta disimpan oleh UOB " +
+      "setelah Anda menyetujui. Anda dapat menghapus data sesi di perangkat ini kapan saja.",
     composer_ph: "Tanya apa saja tentang KPR UOB…",
     send: "Kirim",
     footnote: "Data hanya disimpan di memori perangkat · bukan keputusan kredit.",
@@ -63,7 +63,7 @@ const DICT = {
     /* eKTP */
     ektp_title: "Unggah eKTP",
     ektp_disclaimer: "Pastikan foto eKTP jelas (tidak blur), datanya benar, dan ukuran file maksimal 3 MB.",
-    consent: "Saya menyetujui pemrosesan data pribadi saya sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.",
+    consent: "Saya menyetujui pemrosesan data pribadi saya sesuai UU No. 27 Tahun 2022, termasuk pembacaan foto eKTP oleh layanan AI (Google Gemini) untuk mengenali NIK.",
     ektp_hint_off: "Centang persetujuan untuk memilih foto eKTP.",
     ektp_hint_on: "Pilih foto eKTP (jelas, < 3 MB). Sistem membaca NIK otomatis.",
     nik_label: "NIK (16 digit) — pastikan sudah benar sebelum mengirim",
@@ -136,9 +136,9 @@ const DICT = {
     lang_toggle: "ID",
     pdpa:
       "This app processes personal data under <strong>Law No. 27 of 2022</strong> " +
-      "(Personal Data Protection). Your eKTP photo is read on your device; the files and screening " +
-      "result are then forwarded to and stored by UOB after you consent. " +
-      "You can clear this session's data on this device at any time.",
+      "(Personal Data Protection). Your eKTP photo is read by an AI service (Google Gemini) " +
+      "to recognise the NIK; the files and screening result are then forwarded to and stored by " +
+      "UOB after you consent. You can clear this session's data on this device at any time.",
     composer_ph: "Ask anything about UOB mortgages…",
     send: "Send",
     footnote: "Data is kept in device memory only · not a credit decision.",
@@ -185,7 +185,7 @@ const DICT = {
     nothing_clear: "There is no data to clear.",
     ektp_title: "Upload eKTP",
     ektp_disclaimer: "Make sure the eKTP photo is clear (not blurry), the data is correct, and the file is at most 3 MB.",
-    consent: "I consent to the processing of my personal data under Law No. 27 of 2022 on Personal Data Protection.",
+    consent: "I consent to the processing of my personal data under Law No. 27 of 2022, including reading my eKTP photo by an AI service (Google Gemini) to recognise the NIK.",
     ektp_hint_off: "Tick the consent box to choose an eKTP photo.",
     ektp_hint_on: "Choose an eKTP photo (clear, < 3 MB). The system reads the NIK automatically.",
     nik_label: "NIK (16 digits) — make sure it's correct before sending",

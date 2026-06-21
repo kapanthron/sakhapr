@@ -49,14 +49,17 @@ data now leaves the device, is **stored centrally**, and is **transferred cross-
   repayment history, transaction price, collateral; eKTP image; extracted NIK fields; NIK result.
 - **Data subjects.** Prospective KPR applicants.
 - **Data flow (actual).**
-  1. Browser: chat, prescreen, on-device OCR + NIK check, file build.
+  1. Browser: chat, prescreen, file build; NIK structural check is deterministic/local.
   2. Chat text → **Google Gemini** (Generative Language API) to generate answers.
+  2b. **eKTP image → Google Gemini** (multimodal) to read the NIK + printed fields and the
+     face-photo box. On-device Tesseract is only a fallback when Gemini is unavailable.
   3. On "Kirim": `prescreen.txt` + `chatlog.txt` + eKTP image + `laporan_nik.pdf` → **Cloudflare
      Worker** → stored in **R2 (`sakhapr-leads`)** + `meta.json`.
   4. Worker emails the files via **Resend** (if configured) to `hendrik.panthron@gmail.com`.
   5. **Admin** (`/admin`, server-checked login) lists and downloads all stored leads.
 - **Parties.** Controller: PT Bank UOB Indonesia. Processors: **Cloudflare** (compute/storage/Workers
-  AI), **Google** (chat LLM), **Resend** (email). Recipient mailbox: `hendrik.panthron@gmail.com`.
+  AI), **Google** (chat LLM **and eKTP image OCR — receives the identity document**), **Resend**
+  (email). Recipient mailbox: `hendrik.panthron@gmail.com`.
 - **Retention.** Browser: nothing persistent. **R2: indefinite — no retention/auto-delete
   implemented.** Email inbox: per recipient/UOB policy. Gemini/Resend: per their policies.
 - **Technology.** Static site; Tesseract WASM OCR; deterministic NIK validator + bundled Kemendagri

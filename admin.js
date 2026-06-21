@@ -6,6 +6,7 @@
    ============================================================================ */
 
 import { runOcr } from "./modules/ocr.js";
+import { geminiOcr, cropByBox } from "./modules/geminiOcr.js";
 import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
 
@@ -249,32 +250,48 @@ function setupPariksa() {
     els.check.hidden = false;
     els.result.textContent = "";
     els.photoWrap.hidden = true;
-    els.status.textContent = "Memuat mesin OCR lalu membaca eKTP…";
-    try {
-      const { fields, photo } = await runOcr(file, (m) => {
-        els.status.textContent = `OCR: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
-      });
-      els.nik.value = fields.nik || "";
-      els.dob.value = fields.tanggal_lahir || "";
-      els.sex.value = fields.jenis_kelamin || "";
-      els.prov.value = fields.provinsi || "";
-      els.kab.value = fields.kabupaten_kota || "";
-      els.kec.value = fields.kecamatan || "";
 
-      // Auto-cropped pasfoto: preview + download.
+    const setFields = (f) => {
+      els.nik.value = f.nik || "";
+      els.dob.value = f.tanggal_lahir || "";
+      els.sex.value = f.jenis_kelamin || "";
+      els.prov.value = f.provinsi || "";
+      els.kab.value = f.kabupaten_kota || "";
+      els.kec.value = f.kecamatan || "";
+    };
+    const showPhoto = (blob) => {
       if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; }
-      if (photo) {
-        photoUrl = URL.createObjectURL(photo);
-        els.photo.src = photoUrl;
-        els.photoDl.href = photoUrl;
-        const stamp = new Date().toISOString().slice(0, 10);
-        els.photoDl.download = `pasfoto_ektp_${stamp}.jpg`;
-        els.photoWrap.hidden = false;
+      if (!blob) return;
+      photoUrl = URL.createObjectURL(blob);
+      els.photo.src = photoUrl;
+      els.photoDl.href = photoUrl;
+      els.photoDl.download = `pasfoto_ektp_${new Date().toISOString().slice(0, 10)}.jpg`;
+      els.photoWrap.hidden = false;
+    };
+
+    // Primary: Gemini Vision (accurate). Fallback: on-device Tesseract.
+    els.status.textContent = "Membaca eKTP dengan AI (Gemini)…";
+    try {
+      const g = await geminiOcr(file);
+      setFields(g.fields || {});
+      let photo = null;
+      try { photo = await cropByBox(file, g.photo_box); } catch { /* ignore */ }
+      showPhoto(photo);
+      els.status.textContent = `OCR AI selesai [${g.model || "gemini"}]. Koreksi bila perlu, lalu klik Periksa NIK.`;
+    } catch (errAi) {
+      console.warn("[admin] Gemini OCR failed, falling back to Tesseract:", errAi);
+      els.status.textContent = "AI tidak tersedia — memakai OCR perangkat…";
+      try {
+        const { fields, photo } = await runOcr(file, (m) => {
+          els.status.textContent = `OCR perangkat: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
+        });
+        setFields(fields);
+        showPhoto(photo);
+        els.status.textContent = "OCR perangkat selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
+      } catch (err) {
+        console.error("[admin] OCR failed:", err);
+        els.status.textContent = "OCR gagal. Anda bisa mengisi field manual lalu Periksa NIK.";
       }
-      els.status.textContent = "OCR selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
-    } catch (err) {
-      console.error("[admin] OCR failed:", err);
-      els.status.textContent = "OCR gagal. Anda bisa mengisi field manual lalu Periksa NIK.";
     }
   });
 
