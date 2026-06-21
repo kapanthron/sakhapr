@@ -847,15 +847,6 @@ function unb64url(s) {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
-async function abToBase64(buf) {
-  const bytes = new Uint8Array(buf);
-  let bin = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  }
-  return btoa(bin);
-}
 function extFromType(type) {
   if (/png/i.test(type)) return ".png";
   if (/jpe?g/i.test(type)) return ".jpg";
