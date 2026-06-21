@@ -65,6 +65,9 @@ export default {
       if (pathname === "/api/admin/delete" && request.method === "POST") {
         return await requireAdmin(request, env, () => handleDelete(request, env));
       }
+      if (pathname === "/api/admin/email-test" && request.method === "POST") {
+        return await requireAdmin(request, env, () => handleEmailTest(env));
+      }
       if (pathname === "/api/admin/leads" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleListLeads(env));
       }
@@ -604,6 +607,36 @@ async function sendEmail(env, meta, files) {
     return { to, status: "sent", at, providerId: data.id || null, error: null };
   } catch (err) {
     return { to, status: "failed", at, providerId: null, error: String(err && err.message || err) };
+  }
+}
+
+/** Admin diagnostic: verify the Resend key by sending a real test email. */
+async function handleEmailTest(env) {
+  const to = env.MAIL_TO || "hendrik.panthron@gmail.com";
+  const from = env.MAIL_FROM || "SakhaPR <onboarding@resend.dev>";
+  if (!env.RESEND_API_KEY) {
+    return json({ ok: false, configured: false, to, from, error: "RESEND_API_KEY belum diset." });
+  }
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: "SakhaPR — tes konfigurasi email",
+        text: "Ini email tes dari SakhaPR. Jika Anda menerima pesan ini, RESEND_API_KEY sudah benar dan pengiriman lead akan bekerja.",
+      }),
+    });
+    const txt = await res.text();
+    let data = {};
+    try { data = JSON.parse(txt); } catch { /* keep raw */ }
+    if (!res.ok) {
+      return json({ ok: false, configured: true, to, from, status: res.status, error: String(data.message || txt).slice(0, 220) });
+    }
+    return json({ ok: true, configured: true, to, from, providerId: data.id || null });
+  } catch (err) {
+    return json({ ok: false, configured: true, to, from, error: String((err && err.message) || err) });
   }
 }
 
