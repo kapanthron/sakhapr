@@ -369,6 +369,21 @@ table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-s
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
 }
+.pk-photo {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+}
+.pk-photo__img {
+  display: block;
+  max-width: 180px;
+  width: 100%;
+  margin: 8px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
 .ektp .debug__grid { margin-top: 12px; }
 .ektp__actions { margin-top: 12px; }
 .ektp__nik { margin-top: 12px; }

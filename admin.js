@@ -235,8 +235,10 @@ function setupPariksa() {
     fields: f("pkFields"), check: f("pkCheck"), result: f("pkResult"),
     nik: f("pkNik"), sex: f("pkSex"), dob: f("pkDob"),
     prov: f("pkProv"), kab: f("pkKab"), kec: f("pkKec"),
+    photoWrap: f("pkPhotoWrap"), photo: f("pkPhoto"), photoDl: f("pkPhotoDl"),
   };
   if (!els.file) return;
+  let photoUrl = null; // revoked between runs to avoid leaks
 
   els.file.addEventListener("change", async () => {
     const file = els.file.files && els.file.files[0];
@@ -246,9 +248,10 @@ function setupPariksa() {
     els.fields.hidden = false;
     els.check.hidden = false;
     els.result.textContent = "";
+    els.photoWrap.hidden = true;
     els.status.textContent = "Memuat mesin OCR lalu membaca eKTP…";
     try {
-      const { fields } = await runOcr(file, (m) => {
+      const { fields, photo } = await runOcr(file, (m) => {
         els.status.textContent = `OCR: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
       });
       els.nik.value = fields.nik || "";
@@ -257,6 +260,17 @@ function setupPariksa() {
       els.prov.value = fields.provinsi || "";
       els.kab.value = fields.kabupaten_kota || "";
       els.kec.value = fields.kecamatan || "";
+
+      // Auto-cropped pasfoto: preview + download.
+      if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; }
+      if (photo) {
+        photoUrl = URL.createObjectURL(photo);
+        els.photo.src = photoUrl;
+        els.photoDl.href = photoUrl;
+        const stamp = new Date().toISOString().slice(0, 10);
+        els.photoDl.download = `pasfoto_ektp_${stamp}.jpg`;
+        els.photoWrap.hidden = false;
+      }
       els.status.textContent = "OCR selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
     } catch (err) {
       console.error("[admin] OCR failed:", err);
