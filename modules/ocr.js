@@ -98,8 +98,10 @@ export async function runOcr(imageFile, onProgress) {
   // 16-digit window so a stray edge mark can't shift the number.
   try {
     const hintDob = (fields.tanggal_lahir || "").replace(/\D/g, ""); // ddmmyyyy
-    const nik = await readNikFocused(worker, canvas, data, hintDob);
-    if (nik) fields.nik = nik;
+    const focused = await readNikFocused(worker, canvas, data, hintDob);
+    // Only override the pass-1 NIK when the focused read is at least as
+    // internally consistent (valid date, matches the card's birth date, …).
+    if (focused.nik && focused.score >= scoreNik(fields.nik, hintDob)) fields.nik = focused.nik;
   } catch (err) {
     /* keep the pass-1 NIK */
   }
@@ -174,6 +176,74 @@ function cropCanvas(src, bbox, scale = 1) {
 }
 
 /**
+ * Otsu binarisation: pick the global threshold that best separates ink from
+ * paper, then render pure black-on-white. Tesseract is markedly more accurate on
+ * a clean bitonal image than on a grey phone photo.
+ */
+function otsuBinarize(src) {
+  const c = document.createElement("canvas");
+  c.width = src.width; c.height = src.height;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(src, 0, 0);
+  const id = ctx.getImageData(0, 0, c.width, c.height);
+  const d = id.data;
+  const hist = new Array(256).fill(0);
+  for (let i = 0; i < d.length; i += 4) {
+    const g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+    hist[g]++;
+  }
+  const total = c.width * c.height;
+  let sum = 0;
+  for (let t = 0; t < 256; t++) sum += t * hist[t];
+  let sumB = 0, wB = 0, max = 0, thr = 127;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > max) { max = between; thr = t; }
+  }
+  for (let i = 0; i < d.length; i += 4) {
+    const g = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    const v = g > thr ? 255 : 0;
+    d[i] = d[i + 1] = d[i + 2] = v;
+  }
+  ctx.putImageData(id, 0, 0);
+  return c;
+}
+
+/**
+ * Score a 16-digit NIK by internal consistency, so we can pick the best read
+ * among several OCR attempts. Higher = more likely correct.
+ * @param {string} nik
+ * @param {string} hintDob  ddmmyyyy from the card's printed birth date
+ */
+function scoreNik(nik, hintDob) {
+  if (!/^\d{16}$/.test(nik)) return -1;
+  let score = 0;
+  let dd = +nik.slice(6, 8);
+  const mm = +nik.slice(8, 10);
+  const yy = nik.slice(10, 12);
+  if (dd > 40) dd -= 40;            // females: day + 40
+  if (dd >= 1 && dd <= 31) score += 2;
+  if (mm >= 1 && mm <= 12) score += 2;
+  const pp = +nik.slice(0, 2);
+  if (pp >= 11 && pp <= 94) score += 1; // plausible province code
+  if (nik.slice(12) !== "0000") score += 1;
+  const dob = String(hintDob || "").replace(/\D/g, ""); // ddmmyyyy
+  if (dob.length === 8) {
+    const cardDD = +dob.slice(0, 2), cardMM = +dob.slice(2, 4), cardYY = dob.slice(6, 8);
+    if (mm === cardMM) score += 3;
+    if (yy === cardYY) score += 3;
+    if (dd === cardDD) score += 3;   // strongest single signal
+  }
+  return score;
+}
+
+/**
  * Pick the 16-digit NIK from a noisy digit string. Label/edge artifacts cling
  * to the LEFT, so on an overshoot the true number is right-aligned. The birth
  * date (positions 9–12 = MMYY) anchors the correct window when available.
@@ -189,31 +259,50 @@ function pickNik(text, hintDob) {
   if (digits.length === 16) return digits;
   const cands = [];
   for (let i = 0; i + 16 <= digits.length; i++) cands.push(digits.slice(i, i + 16));
-  const dob = String(hintDob || "").replace(/\D/g, ""); // ddmmyyyy
-  if (dob.length === 8) {
-    const mmyy = dob.slice(2, 4) + dob.slice(6, 8);     // MM + YY
-    const hit = cands.find((c) => c.slice(8, 12) === mmyy); // NIK positions 9–12
-    if (hit) return hit;
+  // Prefer the window that best matches the card's birth date, else right-aligned.
+  let best = cands[cands.length - 1], bestScore = -1;
+  for (const c of cands) {
+    const s = scoreNik(c, hintDob);
+    if (s > bestScore) { bestScore = s; best = c; }
   }
-  return cands[cands.length - 1]; // right-aligned: drop leading artifacts
+  return best;
 }
 
-/** Re-OCR the NIK region with a digits-only whitelist; returns 16 digits or "". */
+/**
+ * Re-OCR the NIK region across several binarisation + page-segmentation variants
+ * and keep the most internally-consistent 16-digit read. Returns {nik, score}.
+ */
 async function readNikFocused(worker, canvas, data, hintDob) {
   const bbox = findNikValueBbox(data) || findNikBbox(data);
   let region = canvas;
-  if (bbox && canvas && canvas.getContext) region = cropCanvas(canvas, bbox, 2); // upscale 2× for legibility
+  if (bbox && canvas && canvas.getContext) region = cropCanvas(canvas, bbox, 3); // upscale 3× for legibility
+  const variants = bbox ? [otsuBinarize(region), region] : [region];
+  const psms = bbox ? ["7", "13"] : ["6"]; // 7 = single line, 13 = raw line
+  const tally = new Map(); // nik -> { count, score }
   try {
-    await worker.setParameters({
-      tessedit_char_whitelist: "0123456789",
-      tessedit_pageseg_mode: bbox ? "7" : "6", // 7 = single line (cropped); else block
-    });
-    const { data: d2 } = await worker.recognize(region);
-    return pickNik(d2.text || "", hintDob);
+    await worker.setParameters({ tessedit_char_whitelist: "0123456789" });
+    for (const v of variants) {
+      for (const psm of psms) {
+        await worker.setParameters({ tessedit_pageseg_mode: psm });
+        const { data: d2 } = await worker.recognize(v);
+        const nik = pickNik(d2.text || "", hintDob);
+        if (/^\d{16}$/.test(nik)) {
+          const e = tally.get(nik) || { count: 0, score: scoreNik(nik, hintDob) };
+          e.count++;
+          tally.set(nik, e);
+        }
+      }
+    }
   } finally {
-    // Restore defaults for the next card.
     try { await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "6" }); } catch { /* ignore */ }
   }
+  // Best = highest structural score, tie-broken by how often it was read.
+  let best = "", bestScore = -1, bestKey = -2;
+  for (const [nik, e] of tally) {
+    const key = e.score * 10 + e.count;
+    if (key > bestKey) { bestKey = key; best = nik; bestScore = e.score; }
+  }
+  return { nik: best, score: bestScore };
 }
 
 /**
@@ -248,22 +337,93 @@ function findPhotoRegion(data, cw, ch) {
   return { x0, y0, x1, y1 };
 }
 
-/** Auto-crop the eKTP photo from the original (colour) image; returns a Blob. */
-async function cropEktpPhoto(imageFile, canvas, data) {
-  const region = findPhotoRegion(data, canvas.width, canvas.height);
-  if (!region) return null;
-  const img = await loadImage(imageFile);
-  const rx = img.width / canvas.width;
-  const ry = img.height / canvas.height;
-  const x = Math.round(region.x0 * rx);
-  const y = Math.round(region.y0 * ry);
-  const w = Math.round((region.x1 - region.x0) * rx);
-  const h = Math.round((region.y1 - region.y0) * ry);
-  if (w < 8 || h < 8) return null;
+/**
+ * Detect the printed photo by its SOLID coloured background. eKTP photos sit on
+ * a saturated red or blue panel, unlike the card's pale low-saturation
+ * watermark. We mark those pixels on a downscaled copy, take the largest
+ * connected blob, and return its bounding box in source-image coordinates.
+ */
+function detectPhotoBox(srcCanvas) {
+  const W = 200;
+  const scale = W / srcCanvas.width;
+  const H = Math.max(1, Math.round(srcCanvas.height * scale));
   const c = document.createElement("canvas");
-  c.width = w;
-  c.height = h;
-  c.getContext("2d").drawImage(img, x, y, w, h, 0, 0, w, h);
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(srcCanvas, 0, 0, W, H);
+  const d = ctx.getImageData(0, 0, W, H).data;
+
+  const mask = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    const isRed = r > 110 && r - g > 35 && r - b > 35;        // red/orange panel
+    const isBlue = b > 90 && b - r > 25 && b - g > -10 && max < 240; // blue panel
+    if (sat > 0.32 && (isRed || isBlue)) mask[i] = 1;
+  }
+
+  // Largest 4-connected component.
+  const seen = new Uint8Array(W * H);
+  const stack = [];
+  let best = { area: 0, x0: 0, y0: 0, x1: 0, y1: 0 };
+  for (let i = 0; i < W * H; i++) {
+    if (!mask[i] || seen[i]) continue;
+    seen[i] = 1; stack.length = 0; stack.push(i);
+    let area = 0, x0 = W, y0 = H, x1 = 0, y1 = 0;
+    while (stack.length) {
+      const p = stack.pop();
+      const px = p % W, py = (p / W) | 0;
+      area++;
+      if (px < x0) x0 = px; if (px > x1) x1 = px;
+      if (py < y0) y0 = py; if (py > y1) y1 = py;
+      if (px > 0 && mask[p - 1] && !seen[p - 1]) { seen[p - 1] = 1; stack.push(p - 1); }
+      if (px < W - 1 && mask[p + 1] && !seen[p + 1]) { seen[p + 1] = 1; stack.push(p + 1); }
+      if (py > 0 && mask[p - W] && !seen[p - W]) { seen[p - W] = 1; stack.push(p - W); }
+      if (py < H - 1 && mask[p + W] && !seen[p + W]) { seen[p + W] = 1; stack.push(p + W); }
+    }
+    if (area > best.area) best = { area, x0, y0, x1, y1 };
+  }
+  if (best.area < W * H * 0.008) return null; // no convincing colour panel
+  return {
+    x0: best.x0 / scale, y0: best.y0 / scale,
+    x1: (best.x1 + 1) / scale, y1: (best.y1 + 1) / scale,
+  };
+}
+
+/**
+ * Auto-crop the eKTP photo from the original (colour) image; returns a Blob.
+ * Primary method: detect the coloured photo panel. Fallback: OCR text layout.
+ */
+async function cropEktpPhoto(imageFile, canvas, data) {
+  const img = await loadImage(imageFile);
+  const full = document.createElement("canvas");
+  full.width = img.width; full.height = img.height;
+  full.getContext("2d").drawImage(img, 0, 0);
+
+  let box = detectPhotoBox(full);
+  if (box) {
+    const ar = (box.x1 - box.x0) / (box.y1 - box.y0); // eKTP photo ≈ 3:4 (0.75)
+    if (ar < 0.45 || ar > 1.25) box = null;           // implausible → fall back
+  }
+  if (!box) {
+    const region = findPhotoRegion(data, canvas.width, canvas.height);
+    if (!region) return null;
+    const rx = img.width / canvas.width, ry = img.height / canvas.height;
+    box = { x0: region.x0 * rx, y0: region.y0 * ry, x1: region.x1 * rx, y1: region.y1 * ry };
+  }
+
+  // Pad: small on sides/top, more at the bottom to include shoulders + caption.
+  const w = box.x1 - box.x0, h = box.y1 - box.y0;
+  const x = Math.max(0, Math.round(box.x0 - w * 0.08));
+  const y = Math.max(0, Math.round(box.y0 - h * 0.08));
+  const x1 = Math.min(img.width, Math.round(box.x1 + w * 0.08));
+  const y1 = Math.min(img.height, Math.round(box.y1 + h * 0.22));
+  const cw = x1 - x, ch = y1 - y;
+  if (cw < 8 || ch < 8) return null;
+  const c = document.createElement("canvas");
+  c.width = cw; c.height = ch;
+  c.getContext("2d").drawImage(img, x, y, cw, ch, 0, 0, cw, ch);
   return await new Promise((res) => c.toBlob((b) => res(b), "image/jpeg", 0.92));
 }
 
