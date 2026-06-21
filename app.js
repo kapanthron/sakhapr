@@ -422,6 +422,7 @@ async function handleKbMessage(text) {
     addMessage("bot", t("sim_nudge"));
     const panel = document.getElementById("simPanel");
     if (panel) { panel.open = true; panel.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    showPromoLinksIfRelevant(text);
     addContinuationChips();
     return;
   }
@@ -434,6 +435,7 @@ async function handleKbMessage(text) {
     store.intent = classification.intent;
     addMessage("bot", t("rate_intro"));
     renderRateTable(kb);
+    showPromoLinksIfRelevant(text);
     addContinuationChips();
     return;
   }
@@ -445,6 +447,7 @@ async function handleKbMessage(text) {
   // Ready to apply -> go straight to the prescreen (deterministic, reliable).
   if (classification.intent === INTENTS.READY_TO_APPLY) {
     renderAnswer(detRes);
+    showPromoLinksIfRelevant(text);
     await offerPrescreen(productToSet(detRes.product));
     return;
   }
@@ -469,8 +472,68 @@ async function handleKbMessage(text) {
     bubble.remove();
     renderAnswer(detRes);
   }
+  showPromoLinksIfRelevant(text);
   addContinuationChips();
 }
+
+/* --- Promo / program PDF links --------------------------------------------- */
+// When a customer asks about a promo/program, surface the official T&C PDF(s).
+const PROMO_DOCS = [
+  {
+    id: "take_over",
+    file: "docs/promo/take-over-cashback.pdf",
+    labelId: "Cashback Take Over — Syarat & Ketentuan",
+    labelEn: "Take Over Cashback — Terms & Conditions",
+    re: /take[\s-]*over|takeover|pindah(?:an)?\s*(?:kpr|bank|kredit)|alih\s*kredit/i,
+  },
+  {
+    id: "primary",
+    file: "docs/promo/primary-cashback.pdf",
+    labelId: "Cashback Primary — Syarat & Ketentuan",
+    labelEn: "Primary Cashback — Terms & Conditions",
+    re: /primary|primer|developer|rumah\s*baru/i,
+  },
+  {
+    id: "appraisal",
+    file: "docs/promo/free-appraisal.pdf",
+    labelId: "Gratis Biaya Appraisal — Syarat & Ketentuan",
+    labelEn: "Free Appraisal Fee — Terms & Conditions",
+    re: /appraisal|apprais|penilaian|taksasi/i,
+  },
+];
+const PROMO_TRIGGER = /promo|program|cashback|cash\s*back|diskon|gratis|free|appraisal|hadiah|bonus|reward/i;
+
+function showPromoLinksIfRelevant(userText) {
+  const text = String(userText || "");
+  if (!PROMO_TRIGGER.test(text)) return;
+  let matches = PROMO_DOCS.filter((p) => p.re.test(text));
+  if (!matches.length) matches = PROMO_DOCS; // generic "promo/program" -> show all
+  renderPromoLinks(matches);
+}
+
+function renderPromoLinks(items) {
+  const en = getLang() === "en";
+  const el = document.createElement("div");
+  el.className = "msg msg--bot promo-links";
+  const intro = document.createElement("p");
+  intro.className = "promo-links__intro";
+  intro.textContent = en
+    ? "Official program terms & conditions (PDF):"
+    : "Syarat & ketentuan resmi program (PDF):";
+  el.appendChild(intro);
+  for (const p of items) {
+    const a = document.createElement("a");
+    a.className = "promo-links__item";
+    a.href = p.file;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = "📄 " + (en ? p.labelEn : p.labelId);
+    el.appendChild(a);
+  }
+  chatLog.appendChild(el);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
 
 /** An empty bot bubble showing "typing…" dots, to be filled as the reply streams. */
 function addStreamingBubble() {

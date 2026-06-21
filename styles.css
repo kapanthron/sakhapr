@@ -422,6 +422,28 @@ table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-s
   margin: 10px 0;
 }
 .lead-card__err { color: var(--danger); font-size: 11.5px; }
+.promo-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.promo-links__intro {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+.promo-links__item {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px solid var(--teal);
+  border-radius: var(--radius-sm);
+  background: var(--teal-tint);
+  color: var(--teal-dark);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.promo-links__item:hover { background: #fff; }
 .pk-engine {
   display: inline-block;
   margin: 6px 0;
