@@ -351,6 +351,26 @@ async function testAi() {
   }
 }
 
+async function testEmail() {
+  const out = $("emailTestResult");
+  out.textContent = "Mengirim email tes…";
+  try {
+    const r = await fetch("/api/admin/email-test", { method: "POST" });
+    if (r.status === 401) { showLogin("Sesi berakhir. Silakan masuk kembali."); return; }
+    const j = await r.json();
+    if (j.ok) {
+      out.textContent = `Email tes terkirim ✓ ke ${j.to} (dari ${j.from}). Cek inbox/spam.`;
+    } else if (j.configured === false) {
+      out.textContent = "✗ RESEND_API_KEY belum diset. Tambahkan secret di Cloudflare lalu deploy ulang.";
+    } else {
+      out.textContent = `✗ Gagal${j.status ? ` (HTTP ${j.status})` : ""}: ${j.error || "tidak diketahui"}`;
+    }
+  } catch (e) {
+    out.textContent = "Gagal memanggil tes email: " + e.message;
+  }
+}
+
+$("emailTestBtn").addEventListener("click", testEmail);
 $("aiTestBtn").addEventListener("click", testAi);
 $("loginBtn").addEventListener("click", login);
 $("loginForm").addEventListener("submit", (e) => { e.preventDefault(); login(); });
