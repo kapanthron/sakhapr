@@ -129,6 +129,42 @@
         },
         {
           "no": 0,
+          "id": "kota_jaminan",
+          "text": "Lokasi jaminan di kota apa?",
+          "text_en": "In which city is the collateral located?",
+          "type": "choice",
+          "options": [
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Sidoarjo",
+            "Gresik",
+            "Medan",
+            "Batam",
+            "Yogyakarta",
+            "Semarang",
+            "Bali",
+            "Makassar",
+            "Kota Lain"
+          ],
+          "options_en": [
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Sidoarjo",
+            "Gresik",
+            "Medan",
+            "Batam",
+            "Yogyakarta",
+            "Semarang",
+            "Bali",
+            "Makassar",
+            "Other city"
+          ],
+          "flag_hint": "jaminan"
+        },
+        {
+          "no": 0,
           "id": "kode_pos",
           "text": "Kode pos properti / jaminan?",
           "type": "text",
@@ -257,6 +293,42 @@
           "type": "text",
           "flag_hint": "jaminan",
           "text_en": "Full address of the property / collateral?"
+        },
+        {
+          "no": 0,
+          "id": "kota_jaminan",
+          "text": "Lokasi jaminan di kota apa?",
+          "text_en": "In which city is the collateral located?",
+          "type": "choice",
+          "options": [
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Sidoarjo",
+            "Gresik",
+            "Medan",
+            "Batam",
+            "Yogyakarta",
+            "Semarang",
+            "Bali",
+            "Makassar",
+            "Kota Lain"
+          ],
+          "options_en": [
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Sidoarjo",
+            "Gresik",
+            "Medan",
+            "Batam",
+            "Yogyakarta",
+            "Semarang",
+            "Bali",
+            "Makassar",
+            "Other city"
+          ],
+          "flag_hint": "jaminan"
         },
         {
           "no": 0,
@@ -401,6 +473,42 @@
           "type": "text",
           "flag_hint": "jaminan",
           "text_en": "Full address of the property / collateral?"
+        },
+        {
+          "no": 0,
+          "id": "kota_jaminan",
+          "text": "Lokasi jaminan di kota apa?",
+          "text_en": "In which city is the collateral located?",
+          "type": "choice",
+          "options": [
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Sidoarjo",
+            "Gresik",
+            "Medan",
+            "Batam",
+            "Yogyakarta",
+            "Semarang",
+            "Bali",
+            "Makassar",
+            "Kota Lain"
+          ],
+          "options_en": [
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Sidoarjo",
+            "Gresik",
+            "Medan",
+            "Batam",
+            "Yogyakarta",
+            "Semarang",
+            "Bali",
+            "Makassar",
+            "Other city"
+          ],
+          "flag_hint": "jaminan"
         },
         {
           "no": 0,
