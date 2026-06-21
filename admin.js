@@ -370,6 +370,24 @@ async function testEmail() {
   }
 }
 
+async function checkConfig() {
+  const out = $("diagResult");
+  out.textContent = "Memeriksa…";
+  try {
+    const r = await fetch("/api/admin/diag", { headers: { Accept: "application/json" } });
+    if (r.status === 401) { showLogin("Sesi berakhir. Silakan masuk kembali."); return; }
+    const j = await r.json();
+    const yn = (b) => (b ? "✓" : "✗");
+    out.textContent =
+      `GEMINI_API_KEY ${yn(j.hasGeminiKey)} · RESEND_API_KEY ${yn(j.hasResendKey)} · ` +
+      `SESSION_SECRET ${yn(j.hasSessionSecret)} · R2 ${yn(j.hasBucket)} | ` +
+      `model: ${j.geminiModel || j.geminiErr || "-"} | dari ${j.mailFrom} → ${j.mailTo}`;
+  } catch (e) {
+    out.textContent = "Gagal memeriksa konfigurasi: " + e.message;
+  }
+}
+
+$("diagBtn").addEventListener("click", checkConfig);
 $("emailTestBtn").addEventListener("click", testEmail);
 $("aiTestBtn").addEventListener("click", testAi);
 $("loginBtn").addEventListener("click", login);
