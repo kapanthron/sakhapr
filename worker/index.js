@@ -94,6 +94,7 @@ async function handleSubmit(request, env) {
   const ektp = form.get("ektp"); // File (image)
   const report = form.get("report"); // File (.pdf)
   const chatlog = form.get("chatlog"); // File (.txt), optional
+  const pasfoto = form.get("pasfoto"); // File (.jpg, auto-cropped face), optional
 
   if (!(prescreen && ektp && report)) {
     return json({ ok: false, error: "Paket tidak lengkap (prescreen, ektp, report wajib)." }, 400);
@@ -119,6 +120,12 @@ async function handleSubmit(request, env) {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
     });
   }
+  const hasPasfoto = pasfoto && typeof pasfoto.arrayBuffer === "function";
+  if (hasPasfoto) {
+    await env.BUCKET.put(prefix + "pasfoto.jpg", await pasfoto.arrayBuffer(), {
+      httpMetadata: { contentType: "image/jpeg" },
+    });
+  }
 
   const ref = makeRef();
   const meta = {
@@ -137,12 +144,13 @@ async function handleSubmit(request, env) {
       ektp: ektpName,
       report: "laporan_nik.pdf",
       ...(chatlog ? { chatlog: "chatlog.txt" } : {}),
+      ...(hasPasfoto ? { pasfoto: "pasfoto.jpg" } : {}),
     },
     email: { to: env.MAIL_TO || "", status: "pending", at: null, providerId: null, error: null },
   };
 
   // Email the package (best-effort; never blocks storage).
-  meta.email = await sendEmail(env, meta, { prescreen, ektp, report, chatlog, ektpName });
+  meta.email = await sendEmail(env, meta, { prescreen, ektp, report, chatlog, ektpName, pasfoto: hasPasfoto ? pasfoto : null });
 
   await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
     httpMetadata: { contentType: "application/json" },
@@ -565,6 +573,9 @@ async function sendEmail(env, meta, files) {
     if (files.chatlog) {
       attachments.push({ filename: "chatlog.txt", content: await abToBase64(await files.chatlog.arrayBuffer()) });
     }
+    if (files.pasfoto) {
+      attachments.push({ filename: "pasfoto.jpg", content: await abToBase64(await files.pasfoto.arrayBuffer()) });
+    }
     const body = {
       from,
       to: [to],
@@ -575,7 +586,8 @@ async function sendEmail(env, meta, files) {
         `Prescreen   : ${meta.prescreenLabel || "-"} ${meta.prescreenStatus || ""}\n` +
         `Verdict NIK : ${meta.nikVerdict || "-"}\n` +
         `Lead ID     : ${meta.id}\n\n` +
-        `Lampiran: transkrip prescreen, gambar eKTP, laporan skrining NIK.\n` +
+        `Lampiran: transkrip prescreen, gambar eKTP, laporan skrining NIK` +
+        `${files.pasfoto ? ", pas foto (auto-crop)" : ""}.\n` +
         `Catatan: skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan kredit.`,
       attachments,
     };
