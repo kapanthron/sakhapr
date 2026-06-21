@@ -44,6 +44,7 @@ import {
 import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
 import { runOcr, terminateOcr } from "./modules/ocr.js";
+import { geminiOcr } from "./modules/geminiOcr.js";
 import { buildNikReportPdf } from "./modules/pdfReport.js";
 import { submitLead } from "./modules/submit.js";
 
@@ -595,18 +596,26 @@ function setupEktp() {
     updateDataStatus();
 
     ektp.status.textContent = t("ektp_reading");
+    ektp.nikWrap.hidden = false;
     try {
-      const { fields } = await runOcr(file, (m) => {
-        ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
-      });
-      ektp.nik.value = fields.nik || "";
-      ektp.nikWrap.hidden = false;
-      ektp.status.textContent = fields.nik ? t("ektp_read_ok") : t("ektp_read_manual");
+      // Primary: server-side Gemini Vision (accurate). Fallback: on-device OCR.
+      let nik = "";
+      try {
+        const g = await geminiOcr(file);
+        nik = (g.fields && g.fields.nik) || "";
+      } catch (errAi) {
+        console.warn("[SakhaPR] Gemini OCR unavailable, using on-device OCR:", errAi);
+        const { fields } = await runOcr(file, (m) => {
+          ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
+        });
+        nik = fields.nik || "";
+      }
+      ektp.nik.value = nik;
+      ektp.status.textContent = nik ? t("ektp_read_ok") : t("ektp_read_manual");
       validateNikField();
     } catch (err) {
       console.error("[SakhaPR] NIK OCR failed:", err);
       ektp.nik.value = "";
-      ektp.nikWrap.hidden = false;
       ektp.status.textContent = t("ektp_ocr_fail");
       validateNikField();
     }

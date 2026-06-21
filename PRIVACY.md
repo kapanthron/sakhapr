@@ -35,8 +35,8 @@ in R2 and **emails** them. An admin page (server-checked login) lists and downlo
 |---|---|---|---|
 | Chat messages | Possibly personal | Browser RAM; **sent to Google Gemini** to answer; included in `chatlog.txt` | **Yes** — to Google, and to the server |
 | Prescreen answers (incl. **full name, phone, email**, employment, repayment history, price, collateral) | Personal data | Browser RAM → `prescreen.txt` → server | **Yes** — to the server (+ email) |
-| Uploaded eKTP image | Personal data (identity) | Browser RAM; OCR runs on-device; image is **uploaded** | **Yes** — to the server (+ email) |
-| Extracted NIK fields | Personal data | Browser RAM (on-device OCR) | Embedded in the NIK report |
+| Uploaded eKTP image | Personal data (identity) | Browser RAM; **image sent to Google Gemini** to read the NIK (on-device Tesseract is fallback only); image is **uploaded** to the server | **Yes** — to **Google**, the server (+ email) |
+| Extracted NIK fields | Personal data | Browser RAM; produced by **Google Gemini** OCR (or on-device fallback) | Embedded in the NIK report |
 | NIK validation result | Derived data | `laporan_nik.pdf` → server | **Yes** — to the server (+ email) |
 | Stored lead package (`prescreen.txt`, `chatlog.txt`, eKTP image, `laporan_nik.pdf`, `meta.json`) | Personal data | **Cloudflare R2 bucket `sakhapr-leads`** | Stored server-side |
 | Admin session token | Functional | HttpOnly cookie (HMAC-signed), 8h | — |
@@ -55,7 +55,7 @@ controller** (pengendali). The processors engaged by the build are:
 | Processor | Role | Location / transfer |
 |---|---|---|
 | **Cloudflare, Inc.** | Hosting, Worker compute, **R2 storage**, Workers AI (fallback) | Global edge; R2 region currently **"Automatic"** — must be pinned |
-| **Google LLC** (Gemini / Generative Language API) | Generates chat answers from customer text | **Cross-border (outside Indonesia)** |
+| **Google LLC** (Gemini / Generative Language API) | Generates chat answers from customer text **and reads the uploaded eKTP image (OCR) to extract the NIK + fields** | **Cross-border (outside Indonesia)** — now receives a **biometric/identity document** |
 | **Resend** (if `RESEND_API_KEY` set) | Email delivery of the package | **Cross-border (outside Indonesia)** |
 
 Cross-border transfers to Google and Resend engage **UU PDP Pasal 56** (transfer abroad)

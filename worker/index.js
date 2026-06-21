@@ -50,6 +50,9 @@ export default {
       if (pathname === "/api/chat" && request.method === "POST") {
         return await handleChat(request, env);
       }
+      if (pathname === "/api/ocr" && request.method === "POST") {
+        return await handleOcr(request, env);
+      }
       if (pathname === "/api/session" && request.method === "POST") {
         return await handleSession(request, env);
       }
@@ -424,6 +427,108 @@ async function callGemini(env, sys, history, message) {
   const data = await res.json();
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
   return (parts ? parts.map((p) => p.text || "").join("") : "").trim();
+}
+
+/* --- eKTP OCR via Gemini Vision -------------------------------------------- */
+
+const OCR_PROMPT =
+  "Anda pembaca KTP-el (eKTP) Indonesia yang teliti. Dari gambar KTP berikut, " +
+  "baca dan kembalikan HANYA satu objek JSON valid (tanpa teks lain), dengan kunci:\n" +
+  '{"nik":"","nama":"","tempat_lahir":"","tanggal_lahir":"","jenis_kelamin":"",' +
+  '"provinsi":"","kabupaten_kota":"","kecamatan":"","photo_box":[]}\n' +
+  "Aturan: nik = TEPAT 16 digit angka (baca cermat, jangan menambah/menghilangkan digit). " +
+  "tanggal_lahir format dd-mm-yyyy. jenis_kelamin = \"LAKI-LAKI\" atau \"PEREMPUAN\". " +
+  "provinsi/kabupaten_kota/kecamatan sesuai teks pada kartu (HURUF KAPITAL). " +
+  "photo_box = kotak pas foto wajah pada kartu sebagai [ymin,xmin,ymax,xmax] " +
+  "ternormalisasi 0-1000 (relatif terhadap seluruh gambar). " +
+  "Jika sebuah nilai tidak terbaca, isi string kosong (untuk photo_box: array kosong).";
+
+/** Base64-encode an ArrayBuffer in chunks (avoids call-stack limits on big images). */
+function abToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+/** Read an eKTP image with Gemini (multimodal); returns structured fields. */
+async function handleOcr(request, env) {
+  if (!rateLimit("ocr:" + clientIp(request), 20, 60000)) {
+    return json({ ok: false, error: "Terlalu banyak permintaan. Coba lagi sebentar." }, 429);
+  }
+  if (!env.GEMINI_API_KEY) {
+    return json({ ok: false, error: "Gemini belum dikonfigurasi (GEMINI_API_KEY)." }, 503);
+  }
+  const form = await request.formData().catch(() => null);
+  const file = form && form.get("ektp");
+  if (!file || typeof file.arrayBuffer !== "function") {
+    return json({ ok: false, error: "Gambar eKTP wajib." }, 400);
+  }
+  const buf = await file.arrayBuffer();
+  if (buf.byteLength > 8 * 1024 * 1024) {
+    return json({ ok: false, error: "Gambar terlalu besar (maks 8 MB)." }, 400);
+  }
+  try {
+    const out = await geminiVisionOcr(env, abToBase64(buf), file.type || "image/jpeg");
+    return json({ ok: true, ...out });
+  } catch (err) {
+    return json({ ok: false, error: String((err && err.message) || err) }, 502);
+  }
+}
+
+async function geminiVisionOcr(env, b64, mime) {
+  const body = JSON.stringify({
+    contents: [{
+      role: "user",
+      parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: OCR_PROMPT }],
+    }],
+    generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 1024 },
+  });
+  const call = (model) =>
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body,
+    });
+
+  let model = await pickGeminiModel(env);
+  let res = await call(model);
+  if (res.status === 404) {
+    CACHED_GEMINI_MODEL = null;
+    model = await pickGeminiModel(env);
+    res = await call(model);
+  }
+  if (!res.ok) throw new Error(`Gemini OCR HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
+
+  const data = await res.json();
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const text = parts ? parts.map((p) => p.text || "").join("") : "";
+  let parsed = {};
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) { try { parsed = JSON.parse(m[0]); } catch { /* leave empty */ } }
+  }
+
+  const sex = String(parsed.jenis_kelamin || "");
+  const fields = {
+    nik: String(parsed.nik || "").replace(/\D/g, "").slice(0, 16),
+    nama: String(parsed.nama || "").trim(),
+    tempat_lahir: String(parsed.tempat_lahir || "").trim(),
+    tanggal_lahir: String(parsed.tanggal_lahir || "").trim(),
+    jenis_kelamin: /perempuan/i.test(sex) ? "PEREMPUAN" : /laki/i.test(sex) ? "LAKI-LAKI" : "",
+    provinsi: String(parsed.provinsi || "").trim(),
+    kabupaten_kota: String(parsed.kabupaten_kota || "").trim(),
+    kecamatan: String(parsed.kecamatan || "").trim(),
+  };
+  const pb = Array.isArray(parsed.photo_box) && parsed.photo_box.length === 4
+    ? parsed.photo_box.map((n) => Number(n))
+    : null;
+  return { fields, photo_box: pb && pb.every((n) => Number.isFinite(n)) ? pb : null, model };
 }
 
 /** Cloudflare Workers AI (free daily allocation; the [ai] binding). */
