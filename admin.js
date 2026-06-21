@@ -121,6 +121,7 @@ function renderLeads(leads) {
       ["Prescreen (.txt)", files.prescreen],
       ["Log chat (.txt)", files.chatlog],
       ["eKTP", files.ektp],
+      ["Pas foto (.jpg)", files.pasfoto],
       ["Laporan NIK (.pdf)", files.report],
       ["meta.json", "meta.json"],
     ]) {

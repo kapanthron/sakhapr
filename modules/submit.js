@@ -9,7 +9,7 @@
  * @param {{prescreen:Blob, ektp:Blob, report:Blob, meta:object}} parts
  * @returns {Promise<{ok:boolean, id:string, email:string}>}
  */
-export async function submitLead({ prescreen, ektp, report, chatlog, meta }) {
+export async function submitLead({ prescreen, ektp, report, chatlog, pasfoto, meta }) {
   if (!prescreen || !ektp || !report) {
     throw new Error("Berkas tidak lengkap untuk dikirim.");
   }
@@ -18,6 +18,7 @@ export async function submitLead({ prescreen, ektp, report, chatlog, meta }) {
   form.append("ektp", ektp, ektp.name || "ektp");
   form.append("report", report, "laporan_nik.pdf");
   if (chatlog) form.append("chatlog", chatlog, "chatlog.txt");
+  if (pasfoto) form.append("pasfoto", pasfoto, "pasfoto.jpg");
   for (const [k, v] of Object.entries(meta || {})) {
     form.append(k, v == null ? "" : String(v));
   }

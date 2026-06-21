@@ -44,7 +44,7 @@ import {
 import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
 import { runOcr, terminateOcr } from "./modules/ocr.js";
-import { geminiOcr } from "./modules/geminiOcr.js";
+import { geminiOcr, cropByBox } from "./modules/geminiOcr.js";
 import { buildNikReportPdf } from "./modules/pdfReport.js";
 import { submitLead } from "./modules/submit.js";
 
@@ -599,16 +599,22 @@ function setupEktp() {
     ektp.nikWrap.hidden = false;
     try {
       // Primary: server-side Gemini Vision (accurate). Fallback: on-device OCR.
+      // Either way, keep the auto-cropped pas foto for the lead email.
       let nik = "";
+      store.ektp.pasfoto = null;
       try {
         const g = await geminiOcr(file);
         nik = (g.fields && g.fields.nik) || "";
+        if (g.photo_box) {
+          try { store.ektp.pasfoto = await cropByBox(file, g.photo_box); } catch { /* best effort */ }
+        }
       } catch (errAi) {
         console.warn("[SakhaPR] Gemini OCR unavailable, using on-device OCR:", errAi);
-        const { fields } = await runOcr(file, (m) => {
+        const { fields, photo } = await runOcr(file, (m) => {
           ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
         });
         nik = fields.nik || "";
+        store.ektp.pasfoto = photo || null;
       }
       ektp.nik.value = nik;
       ektp.status.textContent = nik ? t("ektp_read_ok") : t("ektp_read_manual");
@@ -682,6 +688,7 @@ async function submitEktp() {
       ektp: file,
       report: reportBlob,
       chatlog: buildChatLogBlob(),
+      pasfoto: store.ektp.pasfoto || null,
       meta: {
         product: store.product || "",
         productName: PRODUCT_NAMES[store.product] || store.product || "",
