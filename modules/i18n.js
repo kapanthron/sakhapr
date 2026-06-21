@@ -113,6 +113,13 @@ const DICT = {
     sim_cashback_low: "Plafon di bawah Rp500 juta belum memenuhi kategori cashback.",
     sim_program_ended: "Catatan: periode program \"{name}\" tercatat berakhir {end}.",
     sim_disc: "— Semua perhitungan bersifat estimasi. Angka final mengikuti analisa kredit dan Perjanjian Kredit.",
+    sim_cta_text: "Ingin tabel simulasi angsuran yang lebih lengkap dan personal? Ajukan sekarang agar tim UOB membantu lebih lanjut.",
+    sim_cta_btn: "Ajukan Sekarang",
+    flexi_explain:
+      "KPR Flexi adalah fitur yang menggabungkan manfaat tabungan dengan fasilitas KPR — saldo tabungan Anda " +
+      "dapat membantu menekan bunga/pokok KPR. Perbedaannya hanya pada tujuan fasilitas: KPR Primary (beli baru " +
+      "di developer), KPR Secondary (properti bekas), atau KPR Take Over (pindah dari bank lain). Silakan baca " +
+      "Ringkasan Informasi Produk & Layanan (RIPLAY) berikut.",
     sim_fail: "Gagal menghitung. Pastikan halaman termuat penuh.",
     sim_load_fail: "Gagal memuat data. Jalankan lewat server/deploy.",
     plafon_ph: "900000000",
@@ -233,6 +240,13 @@ const DICT = {
     sim_cashback_low: "A principal under Rp500 million doesn't yet qualify for a cashback category.",
     sim_program_ended: "Note: the \"{name}\" program period is recorded as ending {end}.",
     sim_disc: "— All figures are estimates. Final figures follow credit analysis and the Credit Agreement.",
+    sim_cta_text: "Want a more complete, personalised installment schedule? Apply now and the UOB team will assist you further.",
+    sim_cta_btn: "Apply Now",
+    flexi_explain:
+      "KPR Flexi is a feature that combines savings benefits with a mortgage facility — your savings balance can " +
+      "help reduce the mortgage interest/principal. The only difference is the facility purpose: KPR Primary (new " +
+      "from a developer), KPR Secondary (used property), or KPR Take Over (move from another bank). Please read the " +
+      "Product Summary (RIPLAY) documents below.",
     sim_fail: "Calculation failed. Make sure the page is fully loaded.",
     sim_load_fail: "Couldn't load data. Run via a server / deployed version.",
     plafon_ph: "900000000",
