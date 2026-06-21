@@ -439,6 +439,15 @@ async function handleKbMessage(text) {
     addContinuationChips();
     return;
   }
+  // "Apa itu KPR Flexi?" -> deterministic explainer + the three RIPLAY PDFs.
+  if (FLEXI_RE.test(text) && !RATE_RE.test(text)) {
+    addMessage("bot", t("flexi_explain"));
+    renderRiplayLinks();
+    showPromoLinksIfRelevant(text);
+    addContinuationChips();
+    return;
+  }
+
   const detRes = answer(kb, classification, TODAY_ISO); // deterministic: product routing + fallback
 
   store.intent = classification.intent;
@@ -513,13 +522,20 @@ function showPromoLinksIfRelevant(userText) {
 
 function renderPromoLinks(items) {
   const en = getLang() === "en";
+  renderDocLinks(
+    en ? "Official program terms & conditions (PDF):" : "Syarat & ketentuan resmi program (PDF):",
+    items
+  );
+}
+
+/** Render a bot bubble with an intro line and a list of PDF links. */
+function renderDocLinks(introText, items) {
+  const en = getLang() === "en";
   const el = document.createElement("div");
   el.className = "msg msg--bot promo-links";
   const intro = document.createElement("p");
   intro.className = "promo-links__intro";
-  intro.textContent = en
-    ? "Official program terms & conditions (PDF):"
-    : "Syarat & ketentuan resmi program (PDF):";
+  intro.textContent = introText;
   el.appendChild(intro);
   for (const p of items) {
     const a = document.createElement("a");
@@ -532,6 +548,19 @@ function renderPromoLinks(items) {
   }
   chatLog.appendChild(el);
   chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+/* --- KPR Flexi explainer + RIPLAY product-summary PDFs --------------------- */
+const RIPLAY_DOCS = [
+  { file: "docs/riplay/kpr-flexi-primary.pdf", labelId: "RIPLAY KPR Flexi Primary", labelEn: "RIPLAY KPR Flexi Primary" },
+  { file: "docs/riplay/kpr-flexi-secondary.pdf", labelId: "RIPLAY KPR Flexi Secondary", labelEn: "RIPLAY KPR Flexi Secondary" },
+  { file: "docs/riplay/kpr-flexi-take-over.pdf", labelId: "RIPLAY KPR Flexi Take Over", labelEn: "RIPLAY KPR Flexi Take Over" },
+];
+const FLEXI_RE = /kpr\s*flexi|flexi|riplay/i;
+
+function renderRiplayLinks() {
+  const en = getLang() === "en";
+  renderDocLinks(en ? "Product summary (RIPLAY):" : "Ringkasan Informasi Produk & Layanan (RIPLAY):", RIPLAY_DOCS);
 }
 
 
@@ -883,6 +912,30 @@ function renderSimulation(container, r) {
   disc.className = "sim__disc";
   disc.textContent = t("sim_disc");
   container.appendChild(disc);
+
+  // CTA: a fuller, personalised schedule comes from applying (starts the chat
+  // interview flow).
+  const cta = document.createElement("div");
+  cta.className = "sim__cta";
+  const ctaText = document.createElement("p");
+  ctaText.className = "sim__cta-text";
+  ctaText.textContent = t("sim_cta_text");
+  const ctaBtn = document.createElement("button");
+  ctaBtn.type = "button";
+  ctaBtn.className = "btn btn--primary";
+  ctaBtn.textContent = t("sim_cta_btn");
+  ctaBtn.addEventListener("click", () => startApplyFlow());
+  cta.append(ctaText, ctaBtn);
+  container.appendChild(cta);
+}
+
+/** Begin the application interview from anywhere (header CTA or sim CTA). */
+function startApplyFlow() {
+  addMessage("user", t("apply_user_msg"));
+  const simPanel = document.getElementById("simPanel");
+  if (simPanel) simPanel.open = false;
+  document.getElementById("chatLog").scrollIntoView({ behavior: "smooth", block: "end" });
+  offerPrescreen(productToSet(store.product)).catch((e) => console.error(e));
 }
 
 function cashbackProgramForLabel(r) {
@@ -931,10 +984,7 @@ function init() {
   setupSimulation();
   const applyBtn = document.getElementById("applyNowBtn");
   if (applyBtn) {
-    applyBtn.addEventListener("click", () => {
-      addMessage("user", t("apply_user_msg"));
-      offerPrescreen(productToSet(store.product)).catch((e) => console.error(e));
-    });
+    applyBtn.addEventListener("click", () => startApplyFlow());
   }
   const langBtn = document.getElementById("langToggle");
   if (langBtn) {
