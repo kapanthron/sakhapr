@@ -161,6 +161,9 @@ async function deleteRecord(id, card) {
   }
 }
 
+let ALL_LEADS = [];
+let DASH_PERIOD = "month";
+
 async function loadLeads() {
   $("leadsStatus").textContent = "Memuat…";
   const res = await fetch("/api/admin/leads", { headers: { Accept: "application/json" } });
@@ -169,8 +172,71 @@ async function loadLeads() {
     return;
   }
   const data = await res.json();
+  ALL_LEADS = data.leads || [];
   showLeads();
-  renderLeads(data.leads || []);
+  renderDashboard();
+  renderRecapMonths();
+  renderLeads(ALL_LEADS);
+}
+
+/* --- Overview dashboard + monthly recap ------------------------------------ */
+
+/** WIB date parts for an ISO timestamp. */
+function wibParts(iso) {
+  try {
+    const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(iso));
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    const y = g("year"), m = g("month"), d = g("day");
+    return { ymd: `${y}-${m}-${d}`, ym: `${y}-${m}`, y };
+  } catch { return { ymd: "", ym: "", y: "" }; }
+}
+
+function inPeriod(iso, period) {
+  if (period === "all") return true;
+  const r = wibParts(iso), now = wibParts(new Date().toISOString());
+  if (period === "day") return r.ymd === now.ymd;
+  if (period === "month") return r.ym === now.ym;
+  if (period === "year") return r.y === now.y;
+  return true;
+}
+
+const VERDICT_BUCKET = { "Consistent": "green", "Consistent with warnings": "amber", "Inconsistent": "red" };
+
+function renderDashboard() {
+  const grid = $("dashGrid");
+  if (!grid) return;
+  const items = ALL_LEADS.filter((m) => inPeriod(m.ts, DASH_PERIOD));
+  const leads = items.filter((m) => m.type !== "session");
+  const calc = items.filter((m) => m.usedCalculator).length;
+  const ktp = items.filter((m) => m.nikVerdict);
+  let green = 0, amber = 0, red = 0;
+  for (const m of ktp) {
+    const b = VERDICT_BUCKET[m.nikVerdict];
+    if (b === "green") green++; else if (b === "amber") amber++; else if (b === "red") red++;
+  }
+  const durs = items.map((m) => m.durationMs || 0).filter((d) => d > 0);
+  const totalMin = durs.reduce((a, b) => a + b, 0) / 60000;
+  const avgMin = durs.length ? totalMin / durs.length : 0;
+
+  const card = (label, value, sub) =>
+    `<div class="dash__card"><div class="dash__value">${value}</div><div class="dash__label">${label}</div>${sub ? `<div class="dash__sub">${sub}</div>` : ""}</div>`;
+
+  grid.innerHTML =
+    card("Total sesi", items.length) +
+    card("Submit dokumen", leads.length) +
+    card("Pakai kalkulator", calc) +
+    card("Pengecekan KTP", ktp.length, `🟢 ${green} · 🟡 ${amber} · 🔴 ${red}`) +
+    card("Total waktu sesi", `${totalMin.toFixed(0)} mnt`, `rata-rata ${avgMin.toFixed(1)} mnt`);
+}
+
+function renderRecapMonths() {
+  const box = $("recapMonths");
+  if (!box) return;
+  const months = [...new Set(ALL_LEADS.map((m) => wibParts(m.ts).ym).filter(Boolean))].sort().reverse();
+  if (!months.length) { box.textContent = "Belum ada data."; return; }
+  box.innerHTML = months.map((ym) =>
+    `<a class="chip" href="/api/admin/recap?month=${encodeURIComponent(ym)}" download>${ym} (.xlsx)</a>`
+  ).join("");
 }
 
 async function login() {
@@ -387,6 +453,13 @@ async function checkConfig() {
   }
 }
 
+$("dashFilter").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-period]");
+  if (!btn) return;
+  DASH_PERIOD = btn.dataset.period;
+  $("dashFilter").querySelectorAll("button").forEach((b) => b.classList.toggle("is-active", b === btn));
+  renderDashboard();
+});
 $("diagBtn").addEventListener("click", checkConfig);
 $("emailTestBtn").addEventListener("click", testEmail);
 $("aiTestBtn").addEventListener("click", testAi);

@@ -787,6 +787,9 @@ async function submitEktp() {
         prescreenLabel: session ? session.label : "",
         prescreenStatus: session && session.isComplete() ? "selesai" : "",
         nikVerdict: (verdict && verdict.verdict) || "",
+        answers: JSON.stringify(collectAnswers()),
+        usedCalculator: !!store.usedCalculator,
+        durationMs: Date.now() - SESSION_START,
       },
     });
 
@@ -872,6 +875,7 @@ async function runSimulation(el) {
   const prog = progId ? (kb.programs || []).find((p) => p.id === progId) : null;
 
   renderSimulation(el.result, { product, scheme, plafon, tenor, sched, provisi, cb, prog });
+  store.usedCalculator = true; // for the admin dashboard
 }
 
 function renderSimulation(container, r) {
@@ -945,6 +949,17 @@ function cashbackProgramForLabel(r) {
 /* --- Session logging (every conversation, even if not submitted) ----------- */
 
 const SESSION_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
+const SESSION_START = Date.now();
+
+/** Flatten the prescreen answers to {id: value} for the columnar admin recap. */
+function collectAnswers() {
+  const session = flow.session || store.prescreen;
+  const out = {};
+  if (session && session.answers) {
+    for (const [id, a] of Object.entries(session.answers)) out[id] = a && a.value != null ? a.value : "";
+  }
+  return out;
+}
 
 /** Send the chat session to the admin log (best-effort, via sendBeacon). */
 function sendSessionLog() {
@@ -960,6 +975,9 @@ function sendSessionLog() {
     prescreenLabel: session ? session.label : "",
     prescreenStatus: session ? (session.isComplete() ? "selesai" : "belum selesai") : "",
     nikVerdict: (store.ektp && store.ektp.verdict && store.ektp.verdict.verdict) || "",
+    answers: collectAnswers(),
+    usedCalculator: !!store.usedCalculator,
+    durationMs: Date.now() - SESSION_START,
   };
   try {
     const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });

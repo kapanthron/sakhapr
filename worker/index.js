@@ -74,6 +74,9 @@ export default {
       if (pathname === "/api/admin/diag" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleDiag(env));
       }
+      if (pathname === "/api/admin/recap" && request.method === "GET") {
+        return await requireAdmin(request, env, () => handleRecap(url, env));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -145,6 +148,9 @@ async function handleSubmit(request, env) {
     prescreenLabel: form.get("prescreenLabel") || "",
     prescreenStatus: form.get("prescreenStatus") || "",
     nikVerdict: form.get("nikVerdict") || "",
+    answers: parseJsonObj(form.get("answers")),
+    usedCalculator: form.get("usedCalculator") === "true",
+    durationMs: parseInt(form.get("durationMs"), 10) || 0,
     files: {
       prescreen: "prescreen.txt",
       ektp: ektpName,
@@ -189,6 +195,9 @@ async function handleSession(request, env) {
     prescreenLabel: b.prescreenLabel || "",
     prescreenStatus: b.prescreenStatus || "",
     nikVerdict: b.nikVerdict || "",
+    answers: (b.answers && typeof b.answers === "object") ? b.answers : {},
+    usedCalculator: !!b.usedCalculator,
+    durationMs: parseInt(b.durationMs, 10) || 0,
     files: { chatlog: "chatlog.txt" },
     email: { status: "n/a" },
   };
@@ -828,22 +837,166 @@ async function requireAdmin(request, env, handler) {
 
 /* --- Admin: data ----------------------------------------------------------- */
 
-async function handleListLeads(env) {
-  const leads = [];
+async function allMetas(env) {
+  const metas = [];
   for (const prefix of ["leads/", "sessions/"]) {
     const listed = await env.BUCKET.list({ prefix });
     for (const obj of listed.objects.filter((o) => o.key.endsWith("/meta.json"))) {
       const got = await env.BUCKET.get(obj.key);
       if (!got) continue;
-      try {
-        leads.push(JSON.parse(await got.text()));
-      } catch {
-        /* skip malformed */
-      }
+      try { metas.push(JSON.parse(await got.text())); } catch { /* skip malformed */ }
     }
   }
-  leads.sort((a, b) => (a.ts < b.ts ? 1 : -1));
-  return json({ ok: true, leads });
+  metas.sort((a, b) => (a.ts < b.ts ? 1 : -1));
+  return metas;
+}
+
+async function handleListLeads(env) {
+  return json({ ok: true, leads: await allMetas(env) });
+}
+
+/* --- Monthly recap as a real .xlsx ----------------------------------------- */
+
+function parseJsonObj(s) {
+  if (!s) return {};
+  try { const o = JSON.parse(s); return (o && typeof o === "object") ? o : {}; } catch { return {}; }
+}
+
+/** WIB year-month ("YYYY-MM") for an ISO timestamp. */
+function wibYearMonth(iso) {
+  try {
+    const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit" }).formatToParts(new Date(iso));
+    const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+    return `${g("year")}-${g("month")}`;
+  } catch { return ""; }
+}
+
+function xmlEsc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
+}
+function colLetter(n) {
+  let s = ""; n++;
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+/** Build a minimal but valid .xlsx (inline strings) from a header + rows. */
+function buildXlsx(headers, rows, sheetName) {
+  const enc = new TextEncoder();
+  const all = [headers, ...rows];
+  let sd = "";
+  all.forEach((row, ri) => {
+    sd += `<row r="${ri + 1}">`;
+    row.forEach((val, ci) => {
+      sd += `<c r="${colLetter(ci)}${ri + 1}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(val)}</t></is></c>`;
+    });
+    sd += `</row>`;
+  });
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sd}</sheetData></worksheet>`;
+  const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${xmlEsc((sheetName || "Rekap").slice(0, 31))}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+  const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
+  return makePlainZip([
+    { name: "[Content_Types].xml", data: enc.encode(ct) },
+    { name: "_rels/.rels", data: enc.encode(rels) },
+    { name: "xl/workbook.xml", data: enc.encode(wb) },
+    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(wbRels) },
+    { name: "xl/worksheets/sheet1.xml", data: enc.encode(sheet) },
+  ]);
+}
+
+const RECAP_HEADERS = [
+  "Timestamp (WIB)", "Ref", "Tipe", "Produk", "Status Prescreen", "Nama Lengkap",
+  "Nomor HP", "Email", "Penghasilan Bersih/bln", "Pekerjaan", "Profesi & Lama Kerja",
+  "Kota Jaminan", "Alamat Jaminan", "Kode Pos", "Verdict NIK", "Pakai Kalkulator",
+  "Durasi (menit)", "Status Email",
+];
+function recapRow(m) {
+  const a = m.answers || {};
+  return [
+    m.ts_wib || m.ts || "",
+    m.ref || m.id || "",
+    m.type === "session" ? "Sesi" : "Lead",
+    m.productName || m.product || "",
+    m.prescreenStatus || "",
+    a.nama_lengkap || "",
+    a.nomor_handphone || "",
+    a.email_aktif || "",
+    a.penghasilan_bersih_bulanan || "",
+    a.pekerjaan_saat_ini || "",
+    a.profesi_dan_lama_kerja || "",
+    a.kota_jaminan || "",
+    a.alamat_jaminan || "",
+    a.kode_pos || "",
+    m.nikVerdict || "",
+    m.usedCalculator ? "Ya" : "Tidak",
+    m.durationMs ? (m.durationMs / 60000).toFixed(1) : "",
+    (m.email && m.email.status) || "",
+  ];
+}
+
+async function handleRecap(url, env) {
+  const month = url.searchParams.get("month") || "all";
+  const metas = await allMetas(env);
+  const rows = metas.filter((m) => month === "all" || wibYearMonth(m.ts) === month).map(recapRow);
+  const xlsx = buildXlsx(RECAP_HEADERS, rows, month === "all" ? "Semua" : month);
+  const fname = `SakhaPR_rekap_${month === "all" ? "semua" : month}.xlsx`;
+  return new Response(xlsx, {
+    headers: {
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="${fname}"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+/** Plain (unencrypted, STORE) ZIP — used to assemble the .xlsx package. */
+function makePlainZip(entries) {
+  const enc = new TextEncoder();
+  const prepared = entries.map((e) => ({ name: enc.encode(e.name), data: e.data, crc: crc32(e.data) }));
+  const chunks = [], central = [];
+  let offset = 0;
+  for (const p of prepared) {
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);
+    lh.setUint16(8, 0, true);     // store
+    lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, p.crc, true);
+    lh.setUint32(18, p.data.length, true);
+    lh.setUint32(22, p.data.length, true);
+    lh.setUint16(26, p.name.length, true);
+    chunks.push(new Uint8Array(lh.buffer), p.name, p.data);
+
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014b50, true);
+    cd.setUint16(4, 20, true);
+    cd.setUint16(6, 20, true);
+    cd.setUint16(14, 0x21, true);
+    cd.setUint32(16, p.crc, true);
+    cd.setUint32(20, p.data.length, true);
+    cd.setUint32(24, p.data.length, true);
+    cd.setUint16(28, p.name.length, true);
+    cd.setUint32(42, offset, true);
+    central.push(new Uint8Array(cd.buffer), p.name);
+    offset += 30 + p.name.length + p.data.length;
+  }
+  let centralSize = 0;
+  for (const c of central) centralSize += c.length;
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, prepared.length, true);
+  eocd.setUint16(10, prepared.length, true);
+  eocd.setUint32(12, centralSize, true);
+  eocd.setUint32(16, offset, true);
+  const all = [...chunks, ...central, new Uint8Array(eocd.buffer)];
+  let total = 0;
+  for (const a of all) total += a.length;
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const a of all) { out.set(a, o); o += a.length; }
+  return out;
 }
 
 async function handleFile(url, env) {
