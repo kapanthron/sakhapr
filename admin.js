@@ -237,6 +237,7 @@ function setupPariksa() {
     nik: f("pkNik"), sex: f("pkSex"), dob: f("pkDob"),
     prov: f("pkProv"), kab: f("pkKab"), kec: f("pkKec"),
     photoWrap: f("pkPhotoWrap"), photo: f("pkPhoto"), photoDl: f("pkPhotoDl"),
+    engine: f("pkEngine"),
   };
   if (!els.file) return;
   let photoUrl = null; // revoked between runs to avoid leaks
@@ -250,6 +251,20 @@ function setupPariksa() {
     els.check.hidden = false;
     els.result.textContent = "";
     els.photoWrap.hidden = true;
+
+    const setEngine = (kind, detail) => {
+      if (!els.engine) return;
+      const map = {
+        ai: { cls: "ok", label: `AI · Gemini${detail ? ` (${detail})` : ""}` },
+        device: { cls: "warn", label: "Offline · OCR perangkat (Tesseract)" },
+        none: { cls: "fail", label: "Gagal membaca" },
+      };
+      const e = map[kind] || map.none;
+      els.engine.textContent = e.label;
+      els.engine.className = `pk-engine status--${e.cls}`;
+      els.engine.hidden = false;
+    };
+    if (els.engine) els.engine.hidden = true;
 
     const setFields = (f) => {
       els.nik.value = f.nik || "";
@@ -277,7 +292,8 @@ function setupPariksa() {
       let photo = null;
       try { photo = await cropByBox(file, g.photo_box); } catch { /* ignore */ }
       showPhoto(photo);
-      els.status.textContent = `OCR AI selesai [${g.model || "gemini"}]. Koreksi bila perlu, lalu klik Periksa NIK.`;
+      setEngine("ai", g.model || "gemini");
+      els.status.textContent = "OCR AI selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
     } catch (errAi) {
       console.warn("[admin] Gemini OCR failed, falling back to Tesseract:", errAi);
       els.status.textContent = "AI tidak tersedia — memakai OCR perangkat…";
@@ -287,9 +303,11 @@ function setupPariksa() {
         });
         setFields(fields);
         showPhoto(photo);
+        setEngine("device");
         els.status.textContent = "OCR perangkat selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
       } catch (err) {
         console.error("[admin] OCR failed:", err);
+        setEngine("none");
         els.status.textContent = "OCR gagal. Anda bisa mengisi field manual lalu Periksa NIK.";
       }
     }
