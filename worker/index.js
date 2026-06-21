@@ -545,11 +545,15 @@ async function callWorkersAi(env, sys, history, message) {
 /* --- Email (Resend) -------------------------------------------------------- */
 
 async function sendEmail(env, meta, files) {
-  const to = env.MAIL_TO;
+  // Defaults make the "Resend → your own Gmail" shortcut work with only one
+  // secret (RESEND_API_KEY): the test sender onboarding@resend.dev can deliver
+  // to the email that owns the Resend account, with no domain verification.
+  const to = env.MAIL_TO || "hendrik.panthron@gmail.com";
+  const from = env.MAIL_FROM || "SakhaPR <onboarding@resend.dev>";
   const at = new Date().toISOString();
-  if (!env.RESEND_API_KEY || !env.MAIL_FROM) {
-    return { to: to || "", status: "not_configured", at, providerId: null,
-      error: "RESEND_API_KEY / MAIL_FROM belum diset; pengiriman dicatat tetapi tidak dikirim." };
+  if (!env.RESEND_API_KEY) {
+    return { to, status: "not_configured", at, providerId: null,
+      error: "RESEND_API_KEY belum diset; pengiriman dicatat tetapi tidak dikirim." };
   }
 
   try {
@@ -562,7 +566,7 @@ async function sendEmail(env, meta, files) {
       attachments.push({ filename: "chatlog.txt", content: await abToBase64(await files.chatlog.arrayBuffer()) });
     }
     const body = {
-      from: env.MAIL_FROM,
+      from,
       to: [to],
       subject: "SakhaPR lead + eKTP screening",
       text:

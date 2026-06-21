@@ -15,11 +15,18 @@ R2 bucket exists, because `wrangler.toml` binds it.
 2. **Set the session secret** (signs admin cookies):
    - `npx wrangler secret put SESSION_SECRET`  → enter any long random string.
    - If skipped, a built-in default is used (works, but NOT secure — set it).
-3. **(Optional) Enable real email** via Resend:
-   - `npx wrangler secret put RESEND_API_KEY`  (from resend.com)
-   - `npx wrangler secret put MAIL_FROM`  → e.g. `SakhaPR <noreply@yourdomain.com>`
-     (the domain must be verified in Resend).
-   - Until both are set, sends are **logged** in the admin panel as
+3. **Enable real email** via Resend — fastest path (send to your own Gmail, no domain):
+   - Sign up at **resend.com using `hendrik.panthron@gmail.com`** as the account email.
+   - Create an API key (Dashboard → API Keys → Create).
+   - `npx wrangler secret put RESEND_API_KEY`  → paste the key.
+   - That's it. With only this secret set, the Worker sends **from
+     `onboarding@resend.dev` to `MAIL_TO`** (`hendrik.panthron@gmail.com`).
+     Resend's test sender can deliver **only to the email that owns the Resend
+     account**, so the recipient must be your Resend signup email.
+   - To send from your own brand domain / to other recipients later, verify a
+     domain in Resend and also set `MAIL_FROM`
+     (`npx wrangler secret put MAIL_FROM` → `SakhaPR <noreply@yourdomain.com>`).
+   - Until `RESEND_API_KEY` is set, sends are **logged** in the admin panel as
      "dicatat (email belum dikonfigurasi)" and storage still works.
 4. **Build token permissions:** the Workers Builds token must allow *Workers
    Scripts: Edit* and *Workers R2 Storage: Edit* so the deploy can bind R2.
