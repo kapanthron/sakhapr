@@ -71,6 +71,9 @@ export default {
       if (pathname === "/api/admin/leads" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleListLeads(env));
       }
+      if (pathname === "/api/admin/diag" && request.method === "GET") {
+        return await requireAdmin(request, env, () => handleDiag(env));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -494,9 +497,11 @@ async function geminiVisionOcr(env, b64, mime) {
   const body = JSON.stringify({
     contents: [{
       role: "user",
-      parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: OCR_PROMPT }],
+      parts: [{ inlineData: { mimeType: mime, data: b64 } }, { text: OCR_PROMPT }],
     }],
-    generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 1024 },
+    // Flash models spend tokens "thinking"; give plenty of headroom so the JSON
+    // answer is never truncated (truncation = empty fields = looks inaccurate).
+    generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 4096 },
   });
   const call = (model) =>
     fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -512,7 +517,7 @@ async function geminiVisionOcr(env, b64, mime) {
     model = await pickGeminiModel(env);
     res = await call(model);
   }
-  if (!res.ok) throw new Error(`Gemini OCR HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
+  if (!res.ok) throw new Error(`Gemini OCR HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
 
   const data = await res.json();
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
@@ -608,6 +613,26 @@ async function sendEmail(env, meta, files) {
   } catch (err) {
     return { to, status: "failed", at, providerId: null, error: String(err && err.message || err) };
   }
+}
+
+/** Admin diagnostic: what does the LIVE worker actually see at runtime? */
+async function handleDiag(env) {
+  let geminiModel = null, geminiErr = null;
+  if (env.GEMINI_API_KEY) {
+    try { geminiModel = await pickGeminiModel(env); }
+    catch (e) { geminiErr = String((e && e.message) || e).slice(0, 160); }
+  }
+  return json({
+    ok: true,
+    hasGeminiKey: !!env.GEMINI_API_KEY,
+    hasResendKey: !!env.RESEND_API_KEY,
+    hasSessionSecret: !!env.SESSION_SECRET,
+    hasBucket: !!env.BUCKET,
+    mailTo: env.MAIL_TO || "(default) hendrik.panthron@gmail.com",
+    mailFrom: env.MAIL_FROM || "(default) onboarding@resend.dev",
+    geminiModel,
+    geminiErr,
+  });
 }
 
 /** Admin diagnostic: verify the Resend key by sending a real test email. */
