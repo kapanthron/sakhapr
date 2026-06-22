@@ -447,7 +447,8 @@ async function checkConfig() {
     out.textContent =
       `GEMINI_API_KEY ${yn(j.hasGeminiKey)} · RESEND_API_KEY ${yn(j.hasResendKey)} · ` +
       `SESSION_SECRET ${yn(j.hasSessionSecret)} · R2 ${yn(j.hasBucket)} | ` +
-      `model: ${j.geminiModel || j.geminiErr || "-"} | dari ${j.mailFrom} → ${j.mailTo}`;
+      `model: ${j.geminiModel || j.geminiErr || "-"}` +
+      `${j.geminiFallback ? ` (cadangan: ${j.geminiFallback})` : ""} | dari ${j.mailFrom} → ${j.mailTo}`;
   } catch (e) {
     out.textContent = "Gagal memeriksa konfigurasi: " + e.message;
   }

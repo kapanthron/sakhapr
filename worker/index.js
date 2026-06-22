@@ -342,11 +342,16 @@ async function streamGemini(env, sys, history, message) {
     contents: geminiContents(history, message),
     generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
   });
-  const model = await pickGeminiModel(env);
-  const upstream = await fetch(
+  const open = (model) => fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
     { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY }, body }
   );
+  let model = await pickGeminiModel(env);
+  let upstream = await open(model);
+  if (isRateLimited(upstream.status)) {
+    const fb = await pickGeminiFallback(env);
+    if (fb && fb !== model) { model = fb; upstream = await open(fb); }
+  }
   if (!upstream.ok || !upstream.body) {
     throw new Error(`Gemini stream HTTP ${upstream.status}: ${(await upstream.text().catch(() => "")).slice(0, 120)}`);
   }
@@ -387,38 +392,89 @@ function sseToText(upstreamBody) {
 
 /** Google Gemini (free tier, no card). Set GEMINI_API_KEY as a secret. */
 let CACHED_GEMINI_MODEL = null;
+let CACHED_GEMINI_FALLBACK = null;
+let CACHED_MODEL_LIST = null;
 
-/** Discover a chat-capable model for THIS key (model names change over time). */
-async function pickGeminiModel(env) {
-  if (env.GEMINI_MODEL) return env.GEMINI_MODEL;
-  if (CACHED_GEMINI_MODEL) return CACHED_GEMINI_MODEL;
-
+async function listGeminiModels(env) {
+  if (CACHED_MODEL_LIST) return CACHED_MODEL_LIST;
   const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
     headers: { "x-goog-api-key": env.GEMINI_API_KEY },
   });
   if (!res.ok) throw new Error(`ListModels HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
   const data = await res.json();
-
   const NON_CHAT = /(tts|image|vision|embedding|robotics|imagen|lyria|nano|thinking|\bexp\b|preview)/i;
   const usable = (data.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"));
   const chat = usable.filter((m) => !NON_CHAT.test(m.name));
+  CACHED_MODEL_LIST = chat.length ? chat : usable;
+  return CACHED_MODEL_LIST;
+}
 
-  // Prefer the newest "Flash" Gemini (fast + cheap), penalise "lite".
-  const score = (name) => {
-    const n = name.toLowerCase();
-    let s = 0;
-    if (n.includes("gemini")) s += 50;
-    if (n.includes("flash")) s += 30;
-    if (n.includes("lite")) s -= 12;
-    const v = n.match(/(\d+(?:\.\d+)?)/);
-    if (v) s += parseFloat(v[1]); // version number as tiebreaker
-    return s;
-  };
-  const pool = chat.length ? chat : usable;
-  const pick = pool.slice().sort((a, b) => score(b.name) - score(a.name))[0];
+function scoreModel(name, preferLite) {
+  const n = name.toLowerCase();
+  let s = 0;
+  if (n.includes("gemini")) s += 50;
+  if (n.includes("flash")) s += 30;
+  if (n.includes("lite")) s += preferLite ? 20 : -12;
+  const v = n.match(/(\d+(?:\.\d+)?)/);
+  if (v) s += parseFloat(v[1]); // version number as tiebreaker
+  return s;
+}
+
+/** Primary chat model: the newest non-lite "Flash" Gemini for THIS key. */
+async function pickGeminiModel(env) {
+  if (env.GEMINI_MODEL) return env.GEMINI_MODEL;
+  if (CACHED_GEMINI_MODEL) return CACHED_GEMINI_MODEL;
+  const pool = await listGeminiModels(env);
+  const pick = pool.slice().sort((a, b) => scoreModel(b.name, false) - scoreModel(a.name, false))[0];
   if (!pick) throw new Error("Tidak ada model yang mendukung generateContent untuk API key ini.");
   CACHED_GEMINI_MODEL = pick.name.replace(/^models\//, "");
   return CACHED_GEMINI_MODEL;
+}
+
+/** Fallback model used when the primary is rate-limited (429): a "lite" Flash,
+ *  which has a higher free-tier quota. Override with GEMINI_FALLBACK_MODEL. */
+async function pickGeminiFallback(env) {
+  if (env.GEMINI_FALLBACK_MODEL) return env.GEMINI_FALLBACK_MODEL;
+  if (CACHED_GEMINI_FALLBACK) return CACHED_GEMINI_FALLBACK;
+  const pool = await listGeminiModels(env);
+  const primary = await pickGeminiModel(env);
+  const sorted = pool.slice().sort((a, b) => scoreModel(b.name, true) - scoreModel(a.name, true));
+  const name = (m) => m.name.replace(/^models\//, "");
+  const pick =
+    sorted.find((m) => name(m) !== primary && /lite/i.test(m.name)) ||
+    sorted.find((m) => name(m) !== primary) ||
+    sorted[0];
+  CACHED_GEMINI_FALLBACK = pick ? name(pick) : primary;
+  return CACHED_GEMINI_FALLBACK;
+}
+
+/** True for responses that mean "try the lighter fallback model". */
+function isRateLimited(status) {
+  return status === 429 || status === 503;
+}
+
+/** POST generateContent with primary model; on 404 re-discover, on 429/503 fall
+ *  back to the lite model. Returns the parsed JSON response. */
+async function geminiGenerate(env, body) {
+  const call = (model) =>
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body,
+    });
+  let model = await pickGeminiModel(env);
+  let res = await call(model);
+  if (res.status === 404) {
+    CACHED_GEMINI_MODEL = null; CACHED_MODEL_LIST = null;
+    model = await pickGeminiModel(env);
+    res = await call(model);
+  }
+  if (isRateLimited(res.status)) {
+    const fb = await pickGeminiFallback(env);
+    if (fb && fb !== model) { model = fb; res = await call(fb); }
+  }
+  if (!res.ok) throw new Error(`Gemini gagal — ${model} HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
+  return { data: await res.json(), model };
 }
 
 async function callGemini(env, sys, history, message) {
@@ -435,23 +491,7 @@ async function callGemini(env, sys, history, message) {
     generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
   });
 
-  const call = async (model) =>
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body,
-    });
-
-  let model = await pickGeminiModel(env);
-  let res = await call(model);
-  if (res.status === 404) {
-    CACHED_GEMINI_MODEL = null; // cached model went stale -> re-discover once
-    model = await pickGeminiModel(env);
-    res = await call(model);
-  }
-  if (!res.ok) throw new Error(`Gemini gagal — ${model} HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
-
-  const data = await res.json();
+  const { data } = await geminiGenerate(env, body);
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
   return (parts ? parts.map((p) => p.text || "").join("") : "").trim();
 }
@@ -516,23 +556,8 @@ async function geminiVisionOcr(env, b64, mime) {
     // answer is never truncated (truncation = empty fields = looks inaccurate).
     generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 4096 },
   });
-  const call = (model) =>
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body,
-    });
-
-  let model = await pickGeminiModel(env);
-  let res = await call(model);
-  if (res.status === 404) {
-    CACHED_GEMINI_MODEL = null;
-    model = await pickGeminiModel(env);
-    res = await call(model);
-  }
-  if (!res.ok) throw new Error(`Gemini OCR HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-
-  const data = await res.json();
+  // Reuses the primary→lite fallback on 404 / 429 / 503.
+  const { data } = await geminiGenerate(env, body);
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
   const text = parts ? parts.map((p) => p.text || "").join("") : "";
   let parsed = {};
@@ -747,10 +772,12 @@ async function sendEmail(env, meta, files) {
 
 /** Admin diagnostic: what does the LIVE worker actually see at runtime? */
 async function handleDiag(env) {
-  let geminiModel = null, geminiErr = null;
+  let geminiModel = null, geminiFallback = null, geminiErr = null;
   if (env.GEMINI_API_KEY) {
-    try { geminiModel = await pickGeminiModel(env); }
-    catch (e) { geminiErr = String((e && e.message) || e).slice(0, 160); }
+    try {
+      geminiModel = await pickGeminiModel(env);
+      geminiFallback = await pickGeminiFallback(env);
+    } catch (e) { geminiErr = String((e && e.message) || e).slice(0, 160); }
   }
   return json({
     ok: true,
@@ -761,6 +788,7 @@ async function handleDiag(env) {
     mailTo: env.MAIL_TO || "(default) hendrik.panthron@gmail.com",
     mailFrom: env.MAIL_FROM || "(default) onboarding@resend.dev",
     geminiModel,
+    geminiFallback,
     geminiErr,
   });
 }

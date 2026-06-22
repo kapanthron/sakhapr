@@ -40,7 +40,10 @@ MAIL_TO = "hendrik.panthron@gmail.com"
 #                      "SakhaPR <noreply@yourdomain.com>". Needed only to send to
 #                      addresses other than your own / from your brand domain.
 #   GEMINI_API_KEY   - free Google AI Studio key; powers /api/chat AND the eKTP
-#                      OCR (/api/ocr). (GEMINI_MODEL optional)
+#                      OCR (/api/ocr). GEMINI_MODEL optionally pins the primary
+#                      model; GEMINI_FALLBACK_MODEL optionally pins the model used
+#                      when the primary is rate-limited (429). Both auto-discover:
+#                      primary = newest non-lite Flash, fallback = newest lite Flash.
 #   ADMIN_PASS_SHA256- (hardening) SHA-256 hex of the admin password. If set, it
 #                      is used instead of ADMIN_PASS; then delete ADMIN_PASS from
 #                      [vars] above so no plaintext password lives in the repo.
