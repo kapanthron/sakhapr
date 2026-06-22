@@ -790,6 +790,8 @@ async function submitEktp() {
         answers: JSON.stringify(collectAnswers()),
         usedCalculator: !!store.usedCalculator,
         durationMs: Date.now() - SESSION_START,
+        sessionStart: SESSION_START_ISO,
+        sessionEnd: new Date().toISOString(),
       },
     });
 
@@ -950,6 +952,7 @@ function cashbackProgramForLabel(r) {
 
 const SESSION_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
 const SESSION_START = Date.now();
+const SESSION_START_ISO = new Date(SESSION_START).toISOString();
 
 /** Flatten the prescreen answers to {id: value} for the columnar admin recap. */
 function collectAnswers() {
@@ -978,6 +981,8 @@ function sendSessionLog() {
     answers: collectAnswers(),
     usedCalculator: !!store.usedCalculator,
     durationMs: Date.now() - SESSION_START,
+    sessionStart: SESSION_START_ISO,
+    sessionEnd: new Date().toISOString(),
   };
   try {
     const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });

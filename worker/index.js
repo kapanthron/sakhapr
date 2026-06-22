@@ -151,6 +151,8 @@ async function handleSubmit(request, env) {
     answers: parseJsonObj(form.get("answers")),
     usedCalculator: form.get("usedCalculator") === "true",
     durationMs: parseInt(form.get("durationMs"), 10) || 0,
+    sessionStart: form.get("sessionStart") || "",
+    sessionEnd: form.get("sessionEnd") || "",
     files: {
       prescreen: "prescreen.txt",
       ektp: ektpName,
@@ -198,6 +200,8 @@ async function handleSession(request, env) {
     answers: (b.answers && typeof b.answers === "object") ? b.answers : {},
     usedCalculator: !!b.usedCalculator,
     durationMs: parseInt(b.durationMs, 10) || 0,
+    sessionStart: b.sessionStart || "",
+    sessionEnd: b.sessionEnd || "",
     files: { chatlog: "chatlog.txt" },
     email: { status: "n/a" },
   };
@@ -906,16 +910,23 @@ function buildXlsx(headers, rows, sheetName) {
   ]);
 }
 
+function wibFmt(iso) {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }); } catch { return ""; }
+}
+
 const RECAP_HEADERS = [
-  "Timestamp (WIB)", "Ref", "Tipe", "Produk", "Status Prescreen", "Nama Lengkap",
-  "Nomor HP", "Email", "Penghasilan Bersih/bln", "Pekerjaan", "Profesi & Lama Kerja",
-  "Kota Jaminan", "Alamat Jaminan", "Kode Pos", "Verdict NIK", "Pakai Kalkulator",
-  "Durasi (menit)", "Status Email",
+  "Timestamp (WIB)", "Sesi Mulai (WIB)", "Sesi Berakhir (WIB)", "Ref", "Tipe", "Produk",
+  "Status Prescreen", "Nama Lengkap", "Nomor HP", "Email", "Penghasilan Bersih/bln",
+  "Pekerjaan", "Profesi & Lama Kerja", "Kota Jaminan", "Alamat Jaminan", "Kode Pos",
+  "Verdict NIK", "Pakai Kalkulator", "Durasi (menit)", "Status Email",
 ];
 function recapRow(m) {
   const a = m.answers || {};
   return [
     m.ts_wib || m.ts || "",
+    wibFmt(m.sessionStart),
+    wibFmt(m.sessionEnd),
     m.ref || m.id || "",
     m.type === "session" ? "Sesi" : "Lead",
     m.productName || m.product || "",
