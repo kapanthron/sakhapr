@@ -919,6 +919,7 @@ const RECAP_HEADERS = [
   "Timestamp (WIB)", "Sesi Mulai (WIB)", "Sesi Berakhir (WIB)", "Ref", "Tipe", "Produk",
   "Status Prescreen", "Nama Lengkap", "Nomor HP", "Email", "Penghasilan Bersih/bln",
   "Pekerjaan", "Profesi & Lama Kerja", "Kota Jaminan", "Alamat Jaminan", "Kode Pos",
+  "Restruktur 12bln Terakhir", "Kondisi Jaminan", "Take Over dari Bank",
   "Verdict NIK", "Pakai Kalkulator", "Durasi (menit)", "Status Email",
 ];
 function recapRow(m) {
@@ -940,6 +941,9 @@ function recapRow(m) {
     a.kota_jaminan || "",
     a.alamat_jaminan || "",
     a.kode_pos || "",
+    a.history_telat_restruktur_12bln || "",
+    a.kondisi_jaminan || a.rencana_huni || "",
+    a.bank_asal || "",
     m.nikVerdict || "",
     m.usedCalculator ? "Ya" : "Tidak",
     m.durationMs ? (m.durationMs / 60000).toFixed(1) : "",
