@@ -406,12 +406,14 @@ async function cropEktpPhoto(imageFile, canvas, data) {
     const ar = (box.x1 - box.x0) / (box.y1 - box.y0); // eKTP photo ≈ 3:4 (0.75)
     if (ar < 0.45 || ar > 1.25) box = null;           // implausible → fall back
   }
-  if (!box) {
+  if (!box && canvas && data) {
     const region = findPhotoRegion(data, canvas.width, canvas.height);
-    if (!region) return null;
-    const rx = img.width / canvas.width, ry = img.height / canvas.height;
-    box = { x0: region.x0 * rx, y0: region.y0 * ry, x1: region.x1 * rx, y1: region.y1 * ry };
+    if (region) {
+      const rx = img.width / canvas.width, ry = img.height / canvas.height;
+      box = { x0: region.x0 * rx, y0: region.y0 * ry, x1: region.x1 * rx, y1: region.y1 * ry };
+    }
   }
+  if (!box) return null;
 
   // Pad: small on sides/top, more at the bottom to include shoulders + caption.
   const w = box.x1 - box.x0, h = box.y1 - box.y0;
@@ -425,6 +427,16 @@ async function cropEktpPhoto(imageFile, canvas, data) {
   c.width = cw; c.height = ch;
   c.getContext("2d").drawImage(img, x, y, cw, ch, 0, 0, cw, ch);
   return await new Promise((res) => c.toBlob((b) => res(b), "image/jpeg", 0.92));
+}
+
+/**
+ * Deterministic, OCR-independent face-photo crop (coloured-panel detection).
+ * Use this for the pas foto so its quality does not depend on the LLM model.
+ * @param {Blob} imageFile
+ * @returns {Promise<Blob|null>}
+ */
+export async function cropFacePhoto(imageFile) {
+  try { return await cropEktpPhoto(imageFile); } catch { return null; }
 }
 
 /** Free the OCR worker (call on Clear all data). */

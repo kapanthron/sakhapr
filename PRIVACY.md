@@ -1,6 +1,6 @@
-# PRIVACY.md — SakhaPR + PARIKSA (as built)
+# PRIVACY.md — Moggy + PARIKSA (as built)
 
-**Purpose.** Data-protection control mapping for the SakhaPR prototype **as actually
+**Purpose.** Data-protection control mapping for the Moggy prototype **as actually
 deployed** on Cloudflare. It supersedes the earlier "zero egress / in-memory only"
 control note: that design was changed on the owner's instruction to a server-backed
 flow. This document describes what the running system really does so a compliance or
@@ -10,7 +10,7 @@ risk reviewer can assess it under Indonesia's UU PDP.
 (see DPIA.md). Several controls are **POC-grade and must be hardened before any pilot
 with real applicant data** — these are listed explicitly in §5.
 
-**What changed from the original design (read this first).** The earlier PARIKSA/SakhaPR
+**What changed from the original design (read this first).** The earlier PARIKSA/Moggy
 note claimed processing stayed on the device with a single, consented egress. The built
 system instead:
 - **stores** the lead package on a server (Cloudflare R2), and an admin can list/download it;
@@ -122,7 +122,7 @@ performance in a credit application). Not established by this tool.
 
 ## 6. Summary for sign-off
 
-SakhaPR (as built) processes regulated personal data partly on-device (OCR, NIK check) and partly
+Moggy (as built) processes regulated personal data partly on-device (OCR, NIK check) and partly
 server-side: it **stores** the lead package in Cloudflare R2, **sends chat text to Google**, and
 **optionally emails** the package via Resend. This is a deliberate move away from the original
 zero-egress design and raises the stakes on storage, retention, access control, and cross-border

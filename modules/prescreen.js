@@ -140,7 +140,7 @@ function formatValue(a) {
  */
 export function buildTranscript(session, timestamp) {
   const L = [];
-  L.push("SakhaPR — Transkrip Prescreen Awal");
+  L.push("Moggy — Transkrip Prescreen Awal");
   L.push("=".repeat(44));
   L.push(`Tanggal : ${timestamp}`);
   L.push(`Produk  : ${session.label} (${session.productId})`);

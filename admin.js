@@ -1,11 +1,11 @@
 /* ============================================================================
-   admin.js  —  Super Admin client for SakhaPR
+   admin.js  —  Super Admin client for Moggy
    Talks to the Worker admin API. Auth is server-checked: the session cookie is
    HttpOnly, so this script never sees the password after login. Download links
    are plain same-origin anchors; the cookie rides along automatically.
    ============================================================================ */
 
-import { runOcr } from "./modules/ocr.js";
+import { runOcr, cropFacePhoto } from "./modules/ocr.js";
 import { geminiOcr, cropByBox } from "./modules/geminiOcr.js";
 import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
@@ -353,11 +353,14 @@ function setupPariksa() {
 
     // Primary: server reader (accurate). Fallback: on-device reader.
     els.status.textContent = "Sedang membaca eKTP oleh sistem…";
+    // Deterministic pas foto crop, independent of the OCR model.
+    let detPhoto = null;
+    try { detPhoto = await cropFacePhoto(file); } catch { /* ignore */ }
     try {
       const g = await geminiOcr(file);
       setFields(g.fields || {});
-      let photo = null;
-      try { photo = await cropByBox(file, g.photo_box); } catch { /* ignore */ }
+      let photo = detPhoto;
+      if (!photo) { try { photo = await cropByBox(file, g.photo_box); } catch { /* ignore */ } }
       showPhoto(photo);
       setEngine("ai");
       els.status.textContent = "Pembacaan selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
@@ -369,7 +372,7 @@ function setupPariksa() {
           els.status.textContent = `Membaca: ${m.status} ${Math.round((m.progress || 0) * 100)}%`;
         });
         setFields(fields);
-        showPhoto(photo);
+        showPhoto(detPhoto || photo);
         setEngine("device");
         els.status.textContent = "Pembacaan selesai. Koreksi bila perlu, lalu klik Periksa NIK.";
       } catch (err) {

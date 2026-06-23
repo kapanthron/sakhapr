@@ -6,7 +6,7 @@
 
 const DICT = {
   id: {
-    brand_sub: "PARIKSA · Asisten KPR UOB",
+    brand_sub: "UOB Mortgage Buddy · PARIKSA",
     apply_now: "Ajukan Sekarang",
     clear_data: "Hapus data",
     lang_toggle: "EN",
@@ -20,7 +20,7 @@ const DICT = {
     data_none: "Tidak ada data tersimpan.",
     data_some: "Data tersimpan di memori ({n} pesan).",
     greeting:
-      "Halo! Saya SakhaPR, asisten KPR UOB Indonesia. Saya bisa menjawab pertanyaan seputar KPR, " +
+      "Halo! Saya Moggy, UOB Mortgage Buddy untuk KPR UOB Indonesia. Saya bisa menjawab pertanyaan seputar KPR, " +
       "membantu memilih produk yang tepat, dan menjalankan prescreen awal. Silakan tanya apa saja, " +
       "atau pilih salah satu di bawah.",
     sug_takeover_l: "Take over KPR",
@@ -136,7 +136,7 @@ const DICT = {
     rate_flexi: "KPR Flexi Primary: SRBI + 2,50% (≈ {pct}%), floating sejak awal.",
   },
   en: {
-    brand_sub: "PARIKSA · UOB Mortgage Assistant",
+    brand_sub: "UOB Mortgage Buddy · PARIKSA",
     apply_now: "Apply Now",
     clear_data: "Clear data",
     lang_toggle: "ID",
@@ -150,7 +150,7 @@ const DICT = {
     data_none: "No data stored.",
     data_some: "Data stored in memory ({n} messages).",
     greeting:
-      "Hi! I'm SakhaPR, the UOB Indonesia mortgage assistant. I can answer mortgage (KPR) questions, " +
+      "Hi! I'm Moggy, your UOB Mortgage Buddy for KPR at UOB Indonesia. I can answer mortgage (KPR) questions, " +
       "help you pick the right product, and run an initial prescreen. Ask me anything, or pick one below.",
     sug_takeover_l: "Take over",
     sug_takeover_q: "I want to take over my mortgage from another bank to UOB. How, and what are the requirements?",

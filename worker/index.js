@@ -1,5 +1,5 @@
 /* ============================================================================
-   worker/index.js  —  SakhaPR backend (Cloudflare Worker)
+   worker/index.js  —  Moggy backend (Cloudflare Worker)
 
    Responsibilities:
    - Serve the static site via the ASSETS binding (and /admin -> admin.html).
@@ -231,7 +231,7 @@ async function handleDelete(request, env) {
 
 const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SYSTEM_PROMPT =
-  "Anda adalah SakhaPR, asisten KPR (Kredit Pemilikan Rumah) UOB Indonesia. " +
+  "Anda adalah Moggy (UOB Mortgage Buddy), asisten KPR (Kredit Pemilikan Rumah) UOB Indonesia. " +
   "Jawab HANYA berdasarkan FAKTA dari knowledge base di bawah. Gunakan Bahasa " +
   "Indonesia yang ramah, jelas, dan ringkas. JANGAN mengarang angka, suku bunga, " +
   "biaya, atau syarat yang tidak ada di FAKTA. Jika informasinya tidak tersedia, " +
@@ -716,7 +716,7 @@ async function sendEmail(env, meta, files) {
   // secret (RESEND_API_KEY): the test sender onboarding@resend.dev can deliver
   // to the email that owns the Resend account, with no domain verification.
   const to = env.MAIL_TO || "hendrik.panthron@gmail.com";
-  const from = env.MAIL_FROM || "SakhaPR <onboarding@resend.dev>";
+  const from = env.MAIL_FROM || "Moggy <onboarding@resend.dev>";
   const at = new Date().toISOString();
   if (!env.RESEND_API_KEY) {
     return { to, status: "not_configured", at, providerId: null,
@@ -737,13 +737,13 @@ async function sendEmail(env, meta, files) {
     }
     // Bundle every file into one password-protected ZIP for safer transit.
     const zip = makeEncryptedZip(attachments, ZIP_PASSWORD);
-    const zipName = `SakhaPR_${meta.ref || meta.id}.zip`;
+    const zipName = `Moggy_${meta.ref || meta.id}.zip`;
     const body = {
       from,
       to: [to],
-      subject: "SakhaPR lead + eKTP screening",
+      subject: "Moggy lead + eKTP screening",
       text:
-        `Lead KPR dari SakhaPR.\n\n` +
+        `Lead KPR dari Moggy.\n\n` +
         `Produk      : ${meta.productName || meta.product || "-"}\n` +
         `Prescreen   : ${meta.prescreenLabel || "-"} ${meta.prescreenStatus || ""}\n` +
         `Verdict NIK : ${meta.nikVerdict || "-"}\n` +
@@ -796,7 +796,7 @@ async function handleDiag(env) {
 /** Admin diagnostic: verify the Resend key by sending a real test email. */
 async function handleEmailTest(env) {
   const to = env.MAIL_TO || "hendrik.panthron@gmail.com";
-  const from = env.MAIL_FROM || "SakhaPR <onboarding@resend.dev>";
+  const from = env.MAIL_FROM || "Moggy <onboarding@resend.dev>";
   if (!env.RESEND_API_KEY) {
     return json({ ok: false, configured: false, to, from, error: "RESEND_API_KEY belum diset." });
   }
@@ -807,8 +807,8 @@ async function handleEmailTest(env) {
       body: JSON.stringify({
         from,
         to: [to],
-        subject: "SakhaPR — tes konfigurasi email",
-        text: "Ini email tes dari SakhaPR. Jika Anda menerima pesan ini, RESEND_API_KEY sudah benar dan pengiriman lead akan bekerja.",
+        subject: "Moggy — tes konfigurasi email",
+        text: "Ini email tes dari Moggy. Jika Anda menerima pesan ini, RESEND_API_KEY sudah benar dan pengiriman lead akan bekerja.",
       }),
     });
     const txt = await res.text();
@@ -984,7 +984,7 @@ async function handleRecap(url, env) {
   const metas = await allMetas(env);
   const rows = metas.filter((m) => month === "all" || wibYearMonth(m.ts) === month).map(recapRow);
   const xlsx = buildXlsx(RECAP_HEADERS, rows, month === "all" ? "Semua" : month);
-  const fname = `SakhaPR_rekap_${month === "all" ? "semua" : month}.xlsx`;
+  const fname = `Moggy_rekap_${month === "all" ? "semua" : month}.xlsx`;
   return new Response(xlsx, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
