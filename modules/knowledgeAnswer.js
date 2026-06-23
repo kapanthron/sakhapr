@@ -125,7 +125,7 @@ function readyToApply(kb, cls) {
 function smallTalk(kb) {
   return {
     text:
-      "Halo! Saya SakhaPR, siap membantu soal KPR UOB. Anda bisa bertanya tentang " +
+      "Halo! Saya Moggy, siap membantu soal KPR UOB. Anda bisa bertanya tentang " +
       "produk, suku bunga, biaya, dokumen, atau langsung menyebut rencana Anda " +
       "(beli rumah baru, second, atau take over).",
     disclaimer: null,

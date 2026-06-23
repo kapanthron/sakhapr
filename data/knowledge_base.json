@@ -1,7 +1,7 @@
 {
   "meta": {
-    "knowledge_base_name": "SakhaPR Master Knowledge Base",
-    "purpose": "Single source of truth for SakhaPR, a smart mortgage buddy (web HTML based) that answers UOB Indonesia KPR questions, checks eligibility, lists documents, explains fees and risks, and runs deterministic calculations.",
+    "knowledge_base_name": "Moggy Master Knowledge Base",
+    "purpose": "Single source of truth for Moggy, a smart mortgage buddy (web HTML based) that answers UOB Indonesia KPR questions, checks eligibility, lists documents, explains fees and risks, and runs deterministic calculations.",
     "owner": "Hendrik Panthron Pangarso Mursid",
     "bank": "PT Bank UOB Indonesia",
     "regulator": "Berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) dan Bank Indonesia.",
@@ -31,7 +31,7 @@
     "general": "Ringkasan ini hanya sarana informasi, bukan penawaran resmi. Jika ada perbedaan antara ringkasan ini dan Perjanjian Kredit, maka Perjanjian Kredit yang berlaku.",
     "rate_movement": "Suku bunga dapat berubah sewaktu waktu. Kenaikan atau penurunan suku bunga dapat mengubah jumlah angsuran per bulan.",
     "approval": "Bank dapat menolak permohonan kredit apabila tidak memenuhi persyaratan dan peraturan yang berlaku.",
-    "estimate_only": "Semua perhitungan yang dihasilkan SakhaPR bersifat estimasi. Angka final mengikuti hasil analisa kredit dan Perjanjian Kredit.",
+    "estimate_only": "Semua perhitungan yang dihasilkan Moggy bersifat estimasi. Angka final mengikuti hasil analisa kredit dan Perjanjian Kredit.",
     "language_priority": "Dokumen resmi dibuat dalam Bahasa Indonesia dan Bahasa Inggris. Jika terdapat ketidaksesuaian, versi Bahasa Indonesia yang berlaku."
   },
   "glossary": {
@@ -950,7 +950,7 @@
         "Dokumen apa yang harus disiapkan?",
         "Berkas KPR untuk karyawan apa saja?"
       ],
-      "answer": "Dokumen wajib berbeda menurut status pekerjaan (karyawan, profesional, wiraswasta). Inti yang sama: KTP pemohon dan pasangan, Kartu Keluarga dan Akta Nikah, NPWP Pribadi, rekening koran 3 sampai 6 bulan, bukti penghasilan, dan dokumen agunan. SakhaPR menampilkan checklist sesuai status pekerjaan yang dipilih nasabah."
+      "answer": "Dokumen wajib berbeda menurut status pekerjaan (karyawan, profesional, wiraswasta). Inti yang sama: KTP pemohon dan pasangan, Kartu Keluarga dan Akta Nikah, NPWP Pribadi, rekening koran 3 sampai 6 bulan, bukti penghasilan, dan dokumen agunan. Moggy menampilkan checklist sesuai status pekerjaan yang dipilih nasabah."
     },
     {
       "intent": "biaya_kredit",

@@ -1,4 +1,4 @@
-# DPIA — SakhaPR + PARIKSA (as built, server-backed)
+# DPIA — Moggy + PARIKSA (as built, server-backed)
 
 Penilaian Dampak Pelindungan Data Pribadi (UU 27/2022, Pasal 34). This revision reflects the
 **system as actually deployed** (Cloudflare Worker + R2 storage + Google Gemini chat + optional
@@ -12,7 +12,7 @@ points for review.
 
 | Field | Value |
 |---|---|
-| Project | SakhaPR + PARIKSA — KPR assistant, eKTP screening, server-backed lead intake (POC) |
+| Project | Moggy + PARIKSA — KPR assistant, eKTP screening, server-backed lead intake (POC) |
 | Version | v0.3 (server-backed design: R2 storage + LLM chat + email) |
 | Author | Hendrik Panthron Pangarso Mursid |
 | DPO / reviewer | `[name]` |

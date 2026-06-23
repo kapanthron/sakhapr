@@ -1,12 +1,12 @@
-# Deploying SakhaPR to Cloudflare
+# Deploying Moggy to Cloudflare
 
-SakhaPR is a **no-build static site** (plain HTML/CSS/ES modules). It serves the
+Moggy is a **no-build static site** (plain HTML/CSS/ES modules). It serves the
 repo root as static assets; `_headers` carries the strict CSP. There are two
 Cloudflare flows — pick the one that matches how your project was created.
 
 ## Backend provisioning (REQUIRED — do this before the next deploy)
 
-SakhaPR now has a backend (Worker + R2 + admin). The deploy will FAIL until the
+Moggy now has a backend (Worker + R2 + admin). The deploy will FAIL until the
 R2 bucket exists, because `wrangler.toml` binds it.
 
 1. **Create the R2 bucket** (must match `wrangler.toml` → `bucket_name`):
@@ -25,7 +25,7 @@ R2 bucket exists, because `wrangler.toml` binds it.
      account**, so the recipient must be your Resend signup email.
    - To send from your own brand domain / to other recipients later, verify a
      domain in Resend and also set `MAIL_FROM`
-     (`npx wrangler secret put MAIL_FROM` → `SakhaPR <noreply@yourdomain.com>`).
+     (`npx wrangler secret put MAIL_FROM` → `Moggy <noreply@yourdomain.com>`).
    - Until `RESEND_API_KEY` is set, sends are **logged** in the admin panel as
      "dicatat (email belum dikonfigurasi)" and storage still works.
 4. **Build token permissions:** the Workers Builds token must allow *Workers

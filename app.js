@@ -1,5 +1,5 @@
 /* ============================================================================
-   app.js — SakhaPR orchestrator
+   app.js — Moggy orchestrator
    Phase 1: wires the shell together. It renders chat messages, handles the
    composer, drives the "Hapus semua data" (Clear all data) button, and keeps an
    on-screen indicator of whether any data is held in memory.
@@ -43,7 +43,7 @@ import {
 } from "./modules/prescreen.js";
 import { validateNik } from "./modules/validateNik.js";
 import { loadRegionData } from "./modules/regionData.js";
-import { runOcr, terminateOcr } from "./modules/ocr.js";
+import { runOcr, terminateOcr, cropFacePhoto } from "./modules/ocr.js";
 import { geminiOcr, cropByBox } from "./modules/geminiOcr.js";
 import { buildNikReportPdf } from "./modules/pdfReport.js";
 import { submitLead } from "./modules/submit.js";
@@ -190,7 +190,7 @@ function addSuggestions() {
       const q = t(qKey);
       row.remove();
       addMessage("user", q);
-      handleKbMessage(q).catch((e) => console.error("[SakhaPR] suggestion failed:", e));
+      handleKbMessage(q).catch((e) => console.error("[Moggy] suggestion failed:", e));
     });
     row.appendChild(btn);
   }
@@ -246,7 +246,7 @@ async function offerPrescreen(setId) {
   try {
     await loadPrescreen();
   } catch (err) {
-    console.error("[SakhaPR] prescreen load failed:", err);
+    console.error("[Moggy] prescreen load failed:", err);
     addMessage("bot", t("prescreen_load_fail"));
     return;
   }
@@ -471,7 +471,7 @@ async function handleKbMessage(text) {
       chatLog.scrollTop = chatLog.scrollHeight;
     }, getLang());
   } catch (err) {
-    console.warn("[SakhaPR] LLM stream failed:", err.message);
+    console.warn("[Moggy] LLM stream failed:", err.message);
   }
   if (full.trim()) {
     bubble.innerHTML = mdToHtml(full);
@@ -603,7 +603,7 @@ composer.addEventListener("submit", async (e) => {
       await handleKbMessage(text);
     }
   } catch (err) {
-    console.error("[SakhaPR] message handling failed:", err);
+    console.error("[Moggy] message handling failed:", err);
     addMessage("bot", t("data_load_fail"));
   }
 });
@@ -694,25 +694,28 @@ function setupEktp() {
       // Either way, keep the auto-cropped pas foto for the lead email.
       let nik = "";
       store.ektp.pasfoto = null;
+      // Pas foto is cropped deterministically (coloured-panel detection), so its
+      // quality never depends on which OCR model answered.
+      try { store.ektp.pasfoto = await cropFacePhoto(file); } catch { /* best effort */ }
       try {
         const g = await geminiOcr(file);
         nik = (g.fields && g.fields.nik) || "";
-        if (g.photo_box) {
+        if (!store.ektp.pasfoto && g.photo_box) {
           try { store.ektp.pasfoto = await cropByBox(file, g.photo_box); } catch { /* best effort */ }
         }
       } catch (errAi) {
-        console.warn("[SakhaPR] Gemini OCR unavailable, using on-device OCR:", errAi);
+        console.warn("[Moggy] Gemini OCR unavailable, using on-device OCR:", errAi);
         const { fields, photo } = await runOcr(file, (m) => {
           ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
         });
         nik = fields.nik || "";
-        store.ektp.pasfoto = photo || null;
+        if (!store.ektp.pasfoto) store.ektp.pasfoto = photo || null;
       }
       ektp.nik.value = nik;
       ektp.status.textContent = nik ? t("ektp_read_ok") : t("ektp_read_manual");
       validateNikField();
     } catch (err) {
-      console.error("[SakhaPR] NIK OCR failed:", err);
+      console.error("[Moggy] NIK OCR failed:", err);
       ektp.nik.value = "";
       ektp.status.textContent = t("ektp_ocr_fail");
       validateNikField();
@@ -737,9 +740,9 @@ function validateNikField() {
 
 /** Build the chat conversation log text from the in-memory messages. */
 function buildChatLogText() {
-  const L = ["SakhaPR — Log Chat", "=".repeat(40), `Tanggal: ${nowWIB()}`, ""];
+  const L = ["Moggy — Log Chat", "=".repeat(40), `Tanggal: ${nowWIB()}`, ""];
   for (const m of store.messages) {
-    L.push(`[${m.role === "user" ? "Nasabah" : "SakhaPR"}] ${m.text}`);
+    L.push(`[${m.role === "user" ? "Nasabah" : "Moggy"}] ${m.text}`);
   }
   return L.join("\n");
 }
@@ -803,7 +806,7 @@ async function submitEktp() {
       { persist: false }
     );
   } catch (err) {
-    console.error("[SakhaPR] submit failed:", err);
+    console.error("[Moggy] submit failed:", err);
     ektp.status.textContent = t("ektp_fail");
     ektp.send.disabled = false;
     ektp.file.disabled = false;
@@ -843,7 +846,7 @@ function setupSimulation() {
 
   el.facility.addEventListener("change", () => { populate().catch(() => {}); });
   el.run.addEventListener("click", () => runSimulation(el).catch((e) => {
-    console.error("[SakhaPR] sim failed:", e);
+    console.error("[Moggy] sim failed:", e);
     el.result.textContent = t("sim_fail");
   }));
   populate().catch(() => { el.result.textContent = t("sim_load_fail"); });
