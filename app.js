@@ -690,30 +690,33 @@ function setupEktp() {
     ektp.status.textContent = t("ektp_reading");
     ektp.nikWrap.hidden = false;
     try {
-      // Primary: server-side Gemini Vision (accurate). Fallback: on-device OCR.
-      // Either way, keep the auto-cropped pas foto for the lead email.
+      // Read the NIK first so it appears fast; never block it on the pas foto.
       let nik = "";
+      let geminiBox = null;
       store.ektp.pasfoto = null;
-      // Pas foto is cropped deterministically (coloured-panel detection), so its
-      // quality never depends on which OCR model answered.
-      try { store.ektp.pasfoto = await cropFacePhoto(file); } catch { /* best effort */ }
       try {
         const g = await geminiOcr(file);
         nik = (g.fields && g.fields.nik) || "";
-        if (!store.ektp.pasfoto && g.photo_box) {
-          try { store.ektp.pasfoto = await cropByBox(file, g.photo_box); } catch { /* best effort */ }
-        }
+        geminiBox = g.photo_box || null;
       } catch (errAi) {
         console.warn("[Moggy] Gemini OCR unavailable, using on-device OCR:", errAi);
         const { fields, photo } = await runOcr(file, (m) => {
           ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
         });
         nik = fields.nik || "";
-        if (!store.ektp.pasfoto) store.ektp.pasfoto = photo || null;
+        store.ektp.pasfoto = photo || null;
       }
       ektp.nik.value = nik;
       ektp.status.textContent = nik ? t("ektp_read_ok") : t("ektp_read_manual");
       validateNikField();
+
+      // Crop the pas foto in the BACKGROUND — must never stall the NIK read.
+      cropFacePhoto(file).then(async (p) => {
+        if (p) { store.ektp.pasfoto = p; return; }
+        if (!store.ektp.pasfoto && geminiBox) {
+          try { store.ektp.pasfoto = await cropByBox(file, geminiBox); } catch { /* best effort */ }
+        }
+      }).catch(() => {});
     } catch (err) {
       console.error("[Moggy] NIK OCR failed:", err);
       ektp.nik.value = "";

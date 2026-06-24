@@ -13,10 +13,19 @@
  * @param {Blob} file  the eKTP image
  * @returns {Promise<{fields:object, photo_box:number[]|null, model:string}>}
  */
-export async function geminiOcr(file) {
+export async function geminiOcr(file, timeoutMs = 30000) {
   const fd = new FormData();
   fd.append("ektp", file);
-  const res = await fetch("/api/ocr", { method: "POST", body: fd });
+  // Abort a slow/hanging server (e.g. rate-limited upstream) so the caller can
+  // fall back to on-device OCR instead of waiting forever.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch("/api/ocr", { method: "POST", body: fd, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     let msg = `OCR HTTP ${res.status}`;
     try { const j = await res.json(); if (j && j.error) msg = j.error; } catch { /* ignore */ }

@@ -436,7 +436,11 @@ async function cropEktpPhoto(imageFile, canvas, data) {
  * @returns {Promise<Blob|null>}
  */
 export async function cropFacePhoto(imageFile) {
-  try { return await cropEktpPhoto(imageFile); } catch { return null; }
+  try {
+    // Never let the (best-effort) crop hang the caller.
+    const timeout = new Promise((res) => setTimeout(() => res(null), 8000));
+    return await Promise.race([cropEktpPhoto(imageFile), timeout]);
+  } catch { return null; }
 }
 
 /** Free the OCR worker (call on Clear all data). */
