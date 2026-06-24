@@ -78,7 +78,7 @@ const DICT = {
     ektp_need_consent: "Mohon centang persetujuan setelah membaca Lembar Pernyataan terlebih dahulu.",
     ektp_building: "Menyusun laporan skrining NIK…",
     ektp_forwarding: "Meneruskan berkas ke the Bank…",
-    ektp_done: "Terima kasih. Data Anda telah diteruskan ke tim the Bank the response team untuk ditindaklanjuti. (No. Ref: {ref}).",
+    ektp_done: "Terima kasih. Data Anda telah diteruskan ke tim the response team untuk ditindaklanjuti. (No. Ref: {ref}).",
     ektp_done_chat: "Pengajuan Anda sudah kami terima dan teruskan ke tim the Bank. Tim akan menghubungi Anda. Terima kasih!",
     ektp_fail: "Maaf, terjadi kendala saat meneruskan data. Mohon coba lagi.",
     /* Simulation */
@@ -110,7 +110,7 @@ const DICT = {
     sim_cashback_h: "Potensi cashback",
     sim_cashback_row: "Kategori {cat} · cashback diterima: {amount}",
     sim_cashback_detail: "(1% = {gross}, maksimum {cap} → {capped}, dipotong PPh 5% {pph})",
-    sim_ssut: "Syarat: wajib membeli unit trust/reksa dana via Wealth Feature di the Bank digital bank.",
+    sim_ssut: "Syarat: wajib membeli unit trust/reksa dana via fitur digital bank di aplikasi the Bank.",
     sim_cashback_low: "Plafon di bawah Rp500 juta belum memenuhi kategori cashback.",
     sim_program_ended: "Catatan: periode program \"{name}\" tercatat berakhir {end}.",
     sim_disc: "— Semua perhitungan bersifat estimasi. Angka final mengikuti analisa kredit dan Perjanjian Kredit.",
@@ -120,7 +120,7 @@ const DICT = {
       "KPR FLX adalah fitur yang menggabungkan manfaat tabungan dengan fasilitas KPR — saldo tabungan Anda " +
       "dapat membantu menekan bunga/pokok KPR. Perbedaannya hanya pada tujuan fasilitas: KPR PRI (beli baru " +
       "di developer), KPR 2ND (properti bekas), atau KPR TO (pindah dari bank lain). Silakan baca " +
-      "Ringkasan Informasi Produk & Layanan (Ringkasan Informasi Produk) berikut.",
+      "Ringkasan Informasi Produk & Layanan berikut.",
     sim_fail: "Gagal menghitung. Pastikan halaman termuat penuh.",
     sim_load_fail: "Gagal memuat data. Jalankan lewat server/deploy.",
     plafon_ph: "900000000",
@@ -164,7 +164,7 @@ const DICT = {
     sug_docs_l: "Documents",
     sug_docs_q: "I'm a private-sector employee. What documents do I need to prepare for a mortgage?",
     sug_process_l: "Process",
-    sug_process_q: "How long does the the Bank mortgage process take from application to signing?",
+    sug_process_q: "How long does the Bank mortgage process take from application to signing?",
     cont_yes: "Yes, continue to apply",
     cont_no: "No, another question",
     cont_no_reply: "Sure. Feel free to ask anything else you'd like to know.",
@@ -183,7 +183,7 @@ const DICT = {
     sim_nudge:
       "To calculate the monthly installment and potential cashback accurately, please use the " +
       "\"Installment & Cashback Simulation\" panel below (choose facility, rate scheme, principal, tenor).",
-    rate_intro: "Here is the the Bank mortgage interest-rate table:",
+    rate_intro: "Here is the Bank mortgage interest-rate table:",
     data_load_fail:
       "Sorry, data couldn't be loaded. If you opened this file directly (file://), serve it over a local " +
       "server or open the deployed version.",
@@ -207,11 +207,11 @@ const DICT = {
     ektp_need_consent: "Please read the Statement and tick the consent box first.",
     ektp_building: "Building the NIK screening report…",
     ektp_forwarding: "Forwarding the files to the Bank…",
-    ektp_done: "Thank you. Your data has been forwarded to the the Bank the response team team for follow-up. (Ref No.: {ref}).",
-    ektp_done_chat: "We've received your application and forwarded it to the the Bank team. They will contact you. Thank you!",
+    ektp_done: "Thank you. Your data has been forwarded to the response team team for follow-up. (Ref No.: {ref}).",
+    ektp_done_chat: "We've received your application and forwarded it to the Bank team. They will contact you. Thank you!",
     ektp_fail: "Sorry, something went wrong forwarding the data. Please try again.",
     sim_title: "Installment & Cashback Simulation",
-    sim_disclaimer: "Estimates use the interest rates from the the Bank knowledge base. Final figures follow credit analysis and the Credit Agreement.",
+    sim_disclaimer: "Estimates use the interest rates from the Bank knowledge base. Final figures follow credit analysis and the Credit Agreement.",
     sim_facility: "Facility type",
     sim_scheme: "Rate scheme",
     sim_plafon: "Loan principal (Rp)",
@@ -238,17 +238,17 @@ const DICT = {
     sim_cashback_h: "Potential cashback",
     sim_cashback_row: "Category {cat} · cashback received: {amount}",
     sim_cashback_detail: "(1% = {gross}, max {cap} → {capped}, less 5% PPh {pph})",
-    sim_ssut: "Condition: must buy unit trust / mutual fund via Wealth Feature in the Bank digital bank.",
+    sim_ssut: "Condition: must buy unit trust / mutual fund via digital bank in the Bank digital bank.",
     sim_cashback_low: "A principal under Rp500 million doesn't yet qualify for a cashback category.",
     sim_program_ended: "Note: the \"{name}\" program period is recorded as ending {end}.",
     sim_disc: "— All figures are estimates. Final figures follow credit analysis and the Credit Agreement.",
-    sim_cta_text: "Want a more complete, personalised installment schedule? Apply now and the the Bank team will assist you further.",
+    sim_cta_text: "Want a more complete, personalised installment schedule? Apply now and the Bank team will assist you further.",
     sim_cta_btn: "Apply Now",
     flexi_explain:
       "KPR FLX is a feature that combines savings benefits with a mortgage facility — your savings balance can " +
       "help reduce the mortgage interest/principal. The only difference is the facility purpose: KPR PRI (new " +
       "from a developer), KPR 2ND (used property), or KPR TO (move from another bank). Please read the " +
-      "Product Summary (Ringkasan Informasi Produk) documents below.",
+      "Product Information Summary documents below.",
     sim_fail: "Calculation failed. Make sure the page is fully loaded.",
     sim_load_fail: "Couldn't load data. Run via a server / deployed version.",
     plafon_ph: "900000000",

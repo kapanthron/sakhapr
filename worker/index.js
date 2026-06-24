@@ -606,7 +606,7 @@ async function callWorkersAi(env, sys, history, message) {
 // (Windows Explorer, 7-Zip, WinRAR, macOS Archive Utility with a password). It
 // is legacy encryption — adequate for transit on top of TLS email, not a
 // substitute for proper key management.
-const ZIP_PASSWORD = "uob2026#";
+const ZIP_PASSWORD = "thebank2026#";
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);

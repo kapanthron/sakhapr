@@ -50,8 +50,8 @@
     "Take Over": "Moving an existing mortgage from another bank to the Bank.",
     "Top Up": "Additional facility on top of a TO for credit costs or consumptive needs.",
     "SLIK OJK": "Sistem Layanan Informasi Keuangan, the OJK credit reporting system. Late payments are recorded here.",
-    "Wealth Feature": "Self Serve Unit Trust. The feature in the the Bank digital bank app used to buy unit trust or reksa dana.",
-    "Unit Trust / Reksa Dana": "Mutual fund product. Purchase via Wealth Feature is a condition for the cashback programs.",
+    "digital bank": "Self Serve Unit Trust. The feature in aplikasi digital bank the Bank used to buy unit trust or reksa dana.",
+    "Unit Trust / Reksa Dana": "Mutual fund product. Purchase via digital bank is a condition for the cashback programs.",
     "PV": "the Bank Privilege Banking customer segment.",
     "WB": "the Bank Wealth Banking customer segment.",
     "Salaried": "Application segment with a fixed and regular income (employee).",
@@ -62,7 +62,7 @@
     "NIK": "Nomor Induk Kependudukan. National ID number on the KTP.",
     "Joint Income": "Combined income of applicant and spouse, allowed for the minimum income requirement.",
     "Rumah Tapak": "Landed house.",
-    "Ringkasan Informasi Produk": "Ringkasan Informasi Produk dan/atau Layanan. The product summary sheet."
+    "Ringkasan Informasi Produk": "Ringkasan Informasi Produk dan/atau Layanan."
   },
   "reference_rates": {
     "as_of_note": "Suku bunga dapat berubah sewaktu waktu. Selalu arahkan nasabah ke website the Bank untuk angka terbaru.",
@@ -645,8 +645,8 @@
         }
       ],
       "terms": [
-        "Wajib membeli produk unit trust atau reksa dana melalui fitur Self Serve Unit Trust (Wealth Feature) di aplikasi the Bank digital bank secara mandiri.",
-        "Dibaca bersama Syarat dan Ketentuan Umum Kredit Konsumen Beragunan dan Syarat dan Ketentuan Transaksi Produk Unit Trust di the Bank digital bank.",
+        "Wajib membeli produk unit trust atau reksa dana melalui fitur Self Serve Unit Trust (digital bank) di aplikasi digital bank the Bank secara mandiri.",
+        "Dibaca bersama Syarat dan Ketentuan Umum Kredit Konsumen Beragunan dan Syarat dan Ketentuan Transaksi Produk Unit Trust di aplikasi digital bank the Bank.",
         "Tidak dapat digabungkan dengan promo KPR the Bank lainnya, termasuk diskon.",
         "Biaya administrasi kredit 1.1% dari plafon, tidak dapat didiskon.",
         "Cashback dikreditkan ke rekening pendebetan KPR paling lambat 5 hari kerja setelah pencairan kredit.",
@@ -764,7 +764,7 @@
         }
       ],
       "terms": [
-        "Wajib membeli produk unit trust atau reksa dana melalui fitur Wealth Feature di aplikasi the Bank digital bank secara mandiri.",
+        "Wajib membeli produk unit trust atau reksa dana melalui fitur digital bank di aplikasi digital bank the Bank secara mandiri.",
         "Appraisal internal dibatasi Rp10.000.000.000 terhadap seluruh fasilitas nasabah. Jika melebihi, wajib appraisal independen.",
         "Tidak dapat digabungkan dengan promo KPR the Bank lainnya, termasuk diskon.",
         "Biaya administrasi kredit 1.1% dari plafon, tidak dapat didiskon.",
@@ -925,7 +925,7 @@
       }
     ],
     "program_conflict_rule": "Setiap program tidak dapat digabungkan dengan promo KPR the Bank lainnya. Jika nasabah memenuhi beberapa promo, hanya satu yang dapat dipakai. TO Cashback sudah mencakup bebas appraisal, jadi tidak perlu digabung dengan program Bebas Biaya Appraisal.",
-    "cashback_requires_ssut": "Cashback hanya cair jika nasabah membeli unit trust atau reksa dana via Wealth Feature di the Bank digital bank."
+    "cashback_requires_ssut": "Cashback hanya cair jika nasabah membeli unit trust atau reksa dana via fitur digital bank di aplikasi the Bank."
   },
   "faq": [
     {
@@ -974,7 +974,7 @@
         "Berapa cashback KPR?",
         "Bagaimana cara dapat cashback?"
       ],
-      "answer": "Cashback 1% dari plafon kredit, dengan maksimum Rp25 juta (Kategori A), Rp15 juta (Kategori B), atau Rp7,5 juta (Kategori C), dan dipotong PPh 5%. Syarat utamanya nasabah harus membeli unit trust atau reksa dana via Wealth Feature di aplikasi the Bank digital bank. Berlaku untuk PRI dan TO selama 1 April sampai 31 Desember 2026."
+      "answer": "Cashback 1% dari plafon kredit, dengan maksimum Rp25 juta (Kategori A), Rp15 juta (Kategori B), atau Rp7,5 juta (Kategori C), dan dipotong PPh 5%. Syarat utamanya nasabah harus membeli unit trust atau reksa dana via fitur digital bank di aplikasi the Bank. Berlaku untuk PRI dan TO selama 1 April sampai 31 Desember 2026."
     },
     {
       "intent": "suku_bunga",
@@ -1019,10 +1019,10 @@
   ],
   "support": {
     "mortgage_relations_unit": "021 2927 6100 ext. 8354-57 / 8239-8242",
-    "mortgage_relations_email": "theresponseteam@uob.co.id",
-    "uob_contact_centre": "14008",
-    "customer_care_email": "the BankCare@uob.co.id",
-    "website": "www.uob.co.id"
+    "mortgage_relations_email": "theresponseteam@thebank.co.id",
+    "bank_contact_centre": "14008",
+    "customer_care_email": "bankcare@thebank.co.id",
+    "website": "www.thebank.co.id"
   },
   "supplemental_qa": [
     {
@@ -1068,7 +1068,7 @@
     {
       "category": "PRODUK",
       "question": "Apa itu KPR FLX?",
-      "answer": "KPR FLX adalah fitur yang menggabungkan manfaat tabungan dengan fasilitas KPR: saldo tabungan nasabah dapat membantu menekan bunga/pokok KPR. Perbedaannya hanya pada tujuan fasilitas — KPR PRI (beli baru di developer), KPR 2ND (properti bekas), atau KPR TO (pindah dari bank lain). Ringkasan Informasi Produk & Layanan (Ringkasan Informasi Produk) tersedia untuk masing-masing varian agar nasabah dapat membaca detail manfaat, biaya, dan risikonya."
+      "answer": "KPR FLX adalah fitur yang menggabungkan manfaat tabungan dengan fasilitas KPR: saldo tabungan nasabah dapat membantu menekan bunga/pokok KPR. Perbedaannya hanya pada tujuan fasilitas — KPR PRI (beli baru di developer), KPR 2ND (properti bekas), atau KPR TO (pindah dari bank lain). Ringkasan Informasi Produk & Layanan tersedia untuk masing-masing varian agar nasabah dapat membaca detail manfaat, biaya, dan risikonya."
     }
   ]
 }
