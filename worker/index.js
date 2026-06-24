@@ -80,7 +80,7 @@ export default {
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
-      if (pathname === "/admin") {
+      if (pathname === "/admin" || pathname === "/super") {
         return env.ASSETS.fetch(new Request(new URL("/admin.html", url), request));
       }
     } catch (err) {
