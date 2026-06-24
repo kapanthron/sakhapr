@@ -29,7 +29,7 @@ points for review.
 | Automated decision with significant effect | No | NIK check + prescreen are screening aids; confirm no downstream auto-reject. |
 | Sensitive / specific personal data | `[assess]` | eKTP + financial prescreen, linked, raises sensitivity. |
 | Large-scale processing | Not yet | POC scale; revisit at pilot. |
-| Data matching | `[assess]` | Does UOB match submissions downstream? |
+| Data matching | `[assess]` | Does the Bank match submissions downstream? |
 | Systematic monitoring | No | — |
 | New technology | **Yes** | Browser OCR (WASM), LLM (Gemini) over customer text, server storage. |
 | **Cross-border transfer** | **Yes** | Chat text → Google; email → Resend; compute/storage → Cloudflare. |
@@ -43,7 +43,7 @@ data now leaves the device, is **stored centrally**, and is **transferred cross-
 ## 2. Description of the processing (as built)
 
 - **Purpose.** Answer KPR questions, route product, run prescreen, capture identity, screen NIK, and
-  **intake the lead to UOB** (store + notify).
+  **intake the lead to the Bank** (store + notify).
 - **Lawful basis (Pasal 20).** `[Select and justify — controller decides.]`
 - **Data categories.** Chat text; prescreen answers incl. **name, phone, email**, employment,
   repayment history, transaction price, collateral; eKTP image; extracted NIK fields; NIK result.
@@ -57,11 +57,11 @@ data now leaves the device, is **stored centrally**, and is **transferred cross-
      Worker** → stored in **R2 (`sakhapr-leads`)** + `meta.json`.
   4. Worker emails the files via **Resend** (if configured) to `hendrik.panthron@gmail.com`.
   5. **Admin** (`/admin`, server-checked login) lists and downloads all stored leads.
-- **Parties.** Controller: PT Bank UOB Indonesia. Processors: **Cloudflare** (compute/storage/Workers
+- **Parties.** Controller: PT the Bank Indonesia. Processors: **Cloudflare** (compute/storage/Workers
   AI), **Google** (chat LLM **and eKTP image OCR — receives the identity document**), **Resend**
   (email). Recipient mailbox: `hendrik.panthron@gmail.com`.
 - **Retention.** Browser: nothing persistent. **R2: indefinite — no retention/auto-delete
-  implemented.** Email inbox: per recipient/UOB policy. Gemini/Resend: per their policies.
+  implemented.** Email inbox: per recipient/the Bank policy. Gemini/Resend: per their policies.
 - **Technology.** Static site; Tesseract WASM OCR; deterministic NIK validator + bundled Kemendagri
   table; Cloudflare Worker; R2; Gemini 3.5 Flash; HMAC-signed admin cookie.
 

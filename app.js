@@ -49,9 +49,9 @@ import { buildNikReportPdf } from "./modules/pdfReport.js";
 import { submitLead } from "./modules/submit.js";
 
 const PRODUCT_NAMES = {
-  kpr_flexi_primary: "KPR Flexi Primary",
-  kpr_secondary: "KPR Secondary",
-  kpr_take_over: "KPR Take Over",
+  kpr_flexi_primary: "KPR FLX PRI",
+  kpr_secondary: "KPR 2ND",
+  kpr_take_over: "KPR TO",
 };
 
 /* --- Reference data (loaded once, public, not personal) -------------------- */
@@ -439,7 +439,7 @@ async function handleKbMessage(text) {
     addContinuationChips();
     return;
   }
-  // "Apa itu KPR Flexi?" -> deterministic explainer + the three RIPLAY PDFs.
+  // "Apa itu KPR FLX?" -> deterministic explainer + the three Ringkasan Informasi Produk PDFs.
   if (FLEXI_RE.test(text) && !RATE_RE.test(text)) {
     addMessage("bot", t("flexi_explain"));
     renderRiplayLinks();
@@ -491,15 +491,15 @@ const PROMO_DOCS = [
   {
     id: "take_over",
     file: "docs/promo/take-over-cashback.pdf",
-    labelId: "Cashback Take Over — Syarat & Ketentuan",
-    labelEn: "Take Over Cashback — Terms & Conditions",
+    labelId: "Cashback TO — Syarat & Ketentuan",
+    labelEn: "TO Cashback — Terms & Conditions",
     re: /take[\s-]*over|takeover|pindah(?:an)?\s*(?:kpr|bank|kredit)|alih\s*kredit/i,
   },
   {
     id: "primary",
     file: "docs/promo/primary-cashback.pdf",
-    labelId: "Cashback Primary — Syarat & Ketentuan",
-    labelEn: "Primary Cashback — Terms & Conditions",
+    labelId: "Cashback PRI — Syarat & Ketentuan",
+    labelEn: "PRI Cashback — Terms & Conditions",
     re: /primary|primer|developer|rumah\s*baru/i,
   },
   {
@@ -550,17 +550,17 @@ function renderDocLinks(introText, items) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-/* --- KPR Flexi explainer + RIPLAY product-summary PDFs --------------------- */
+/* --- KPR FLX explainer + Ringkasan Informasi Produk product-summary PDFs --------------------- */
 const RIPLAY_DOCS = [
-  { file: "docs/riplay/kpr-flexi-primary.pdf", labelId: "RIPLAY KPR Flexi Primary", labelEn: "RIPLAY KPR Flexi Primary" },
-  { file: "docs/riplay/kpr-flexi-secondary.pdf", labelId: "RIPLAY KPR Flexi Secondary", labelEn: "RIPLAY KPR Flexi Secondary" },
-  { file: "docs/riplay/kpr-flexi-take-over.pdf", labelId: "RIPLAY KPR Flexi Take Over", labelEn: "RIPLAY KPR Flexi Take Over" },
+  { file: "docs/riplay/kpr-flexi-primary.pdf", labelId: "Ringkasan Informasi Produk KPR FLX PRI", labelEn: "Ringkasan Informasi Produk KPR FLX PRI" },
+  { file: "docs/riplay/kpr-flexi-secondary.pdf", labelId: "Ringkasan Informasi Produk KPR FLX 2ND", labelEn: "Ringkasan Informasi Produk KPR FLX 2ND" },
+  { file: "docs/riplay/kpr-flexi-take-over.pdf", labelId: "Ringkasan Informasi Produk KPR FLX TO", labelEn: "Ringkasan Informasi Produk KPR FLX TO" },
 ];
 const FLEXI_RE = /kpr\s*flexi|flexi|riplay/i;
 
 function renderRiplayLinks() {
   const en = getLang() === "en";
-  renderDocLinks(en ? "Product summary (RIPLAY):" : "Ringkasan Informasi Produk & Layanan (RIPLAY):", RIPLAY_DOCS);
+  renderDocLinks(en ? "Product Information Summary:" : "Ringkasan Informasi Produk & Layanan:", RIPLAY_DOCS);
 }
 
 

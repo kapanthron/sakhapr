@@ -1,7 +1,7 @@
 {
   "_meta": {
     "name": "Moggy Prescreen Question Sets",
-    "source": "List pertanyaan prescreen interview awal (UOB KPR)",
+    "source": "List pertanyaan prescreen interview awal (the Bank KPR)",
     "compiled_on": "2026-06-20",
     "language": "id-ID",
     "usage": "After intent is READY_TO_APPLY, pick the set by product (decision_routing), run questions one at a time, store answers in memory, then produce file a (.txt). Honour 'conditional': skip a question if its dependency is not met. 'flag_hint' lets the assistant raise an early signal (e.g. risk) for the sales side; it is NOT a credit decision.",
@@ -9,7 +9,7 @@
   },
   "sets": {
     "primary": {
-      "label": "Pengajuan KPR Primary",
+      "label": "Pengajuan KPR PRI",
       "product_id": "kpr_flexi_primary",
       "intro": "Baik pak/bu, terima kasih konfirmasinya. Sebelum kami teruskan ke tim marketing, apakah boleh dibantu interview awal?",
       "questions": [
@@ -50,7 +50,7 @@
           "text_en": "Buying from a developer or a secondary property? Have you paid a booking fee / deposit (UTJ)?",
           "options_en": [
             "Developer",
-            "Secondary"
+            "2ND"
           ]
         },
         {
@@ -199,10 +199,10 @@
         }
       ],
       "intro_en": "Thank you for confirming. Before we forward this to the marketing team, may we run a short initial interview?",
-      "label_en": "KPR Primary Application"
+      "label_en": "KPR PRI Application"
     },
     "secondary": {
-      "label": "Pengajuan KPR Secondary",
+      "label": "Pengajuan KPR 2ND",
       "product_id": "kpr_secondary",
       "intro": "Baik pak/bu, terima kasih konfirmasinya. Sebelum kami teruskan ke tim marketing, apakah boleh dibantu interview awal?",
       "questions": [
@@ -243,7 +243,7 @@
           "text_en": "Buying from a developer or a secondary property? Have you paid a booking fee / deposit (UTJ)?",
           "options_en": [
             "Developer",
-            "Secondary"
+            "2ND"
           ]
         },
         {
@@ -392,10 +392,10 @@
         }
       ],
       "intro_en": "Thank you for confirming. Before we forward this to the marketing team, may we run a short initial interview?",
-      "label_en": "KPR Secondary Application"
+      "label_en": "KPR 2ND Application"
     },
     "take_over": {
-      "label": "Pengajuan KPR Take Over",
+      "label": "Pengajuan KPR TO",
       "product_id": "kpr_take_over",
       "intro": "Baik pak/bu, untuk interview awal sebelum kami teruskan ke marketing, apakah boleh dibantu?",
       "questions": [
@@ -598,7 +598,7 @@
         }
       ],
       "intro_en": "For a short initial interview before we forward this to marketing, may we proceed?",
-      "label_en": "KPR Take Over Application"
+      "label_en": "KPR TO Application"
     }
   }
 }

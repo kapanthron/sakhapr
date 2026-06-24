@@ -1,9 +1,9 @@
-# Moggy (UOB Mortgage Buddy) — Data-Protection & Safety Audit
+# Moggy (the Bank Mortgage Buddy) — Data-Protection & Safety Audit
 
 Scope: UU No. 27/2022 (Pelindungan Data Pribadi / **UU PDP**), and relevant
 **OJK** / **Bank Indonesia** expectations for a bank-operated digital service.
 This is an **engineering compliance review**, not legal advice — the findings
-must be signed off by UOB's DPO / Legal / Compliance before any pilot with real
+must be signed off by the Bank's DPO / Legal / Compliance before any pilot with real
 applicant data.
 
 Status legend: ✅ done · ⚠️ partial / needs config · ❌ gap to close before go-live.
@@ -44,7 +44,7 @@ What is now in place:
   auditable. ✅
 
 To close before go-live:
-- ❌ The bundled PDF is a **POC transcription**. Replace it with UOB's **official
+- ❌ The bundled PDF is a **POC transcription**. Replace it with the Bank's **official
   Pemberitahuan Privasi (Privacy Notice) + Persetujuan Nasabah** PDF, version-
   controlled, and put its version id into `consentDoc`.
 - ⚠️ Consent for **chat → Gemini** is currently covered only by the banner
@@ -155,7 +155,7 @@ As a **bank**-operated service, beyond UU PDP:
 
 **Must-fix before any real applicant data:**
 1. ❌ Move Gemini to **paid Gemini API / Vertex AI** (no training, region, DPA, CMEK).
-2. ❌ Replace POC consent PDF with **official UOB Privacy Notice + Persetujuan**.
+2. ❌ Replace POC consent PDF with **official the Bank Privacy Notice + Persetujuan**.
 3. ❌ Add **R2 lifecycle retention** + mailbox retention; document the policy.
 4. ❌ Harden admin: hashed password secret, strong creds, **MFA**, access logs.
 5. ❌ Sign **DPAs** (Google, Resend, Cloudflare); record cross-border basis (Pasal 56).
@@ -176,4 +176,4 @@ disclaimers.
 ---
 
 *Generated as an internal engineering review for the Moggy POC. Final compliance
-determinations rest with UOB Legal, Compliance, and the DPO.*
+determinations rest with the Bank Legal, Compliance, and the DPO.*

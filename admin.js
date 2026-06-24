@@ -409,7 +409,7 @@ async function testAi() {
     const r = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Tes singkat: sebutkan satu produk KPR UOB." }),
+      body: JSON.stringify({ message: "Tes singkat: sebutkan satu produk KPR the Bank." }),
     });
     const j = await r.json();
     out.textContent = j.ok
