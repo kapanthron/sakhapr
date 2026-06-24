@@ -146,16 +146,12 @@ export function cashbackProgramFor(facility) {
  * Potential cashback for a plafon + segment, per calculators.cashback.
  * segment: "PV" | "WB" | "" (New to Bank / lainnya -> resolve by plafon)
  */
-export function computeCashback(kb, plafon, segment) {
-  const caps = (kb.calculators && kb.calculators.cashback && kb.calculators.cashback.category_caps) || { A: 25000000, B: 15000000, C: 7500000 };
-  let cat = null;
-  if (segment === "PV") cat = "A";
-  else if (segment === "WB") cat = "B";
-  else if (plafon >= 2500000000) cat = "A";
-  else if (plafon >= 1100000000) cat = "B";
-  else if (plafon >= 500000000) cat = "C";
-  if (!cat) return null;
-
+export function computeCashback(kb, plafon, _segment) {
+  // Two plafon-based tiers (program 1064/1065): >= Rp750 juta -> cap Rp10 juta,
+  // otherwise -> cap Rp5 juta. cashback = 1% of plafon, capped, less 5% PPh.
+  const caps = (kb.calculators && kb.calculators.cashback && kb.calculators.cashback.category_caps) || { "1": 10000000, "2": 5000000 };
+  if (!plafon || plafon <= 0) return null;
+  const cat = plafon >= 750000000 ? "1" : "2";
   const cap = caps[cat];
   const gross = 0.01 * plafon;
   const capped = Math.min(gross, cap);

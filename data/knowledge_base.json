@@ -50,8 +50,8 @@
     "Take Over": "Moving an existing mortgage from another bank to the Bank.",
     "Top Up": "Additional facility on top of a TO for credit costs or consumptive needs.",
     "SLIK OJK": "Sistem Layanan Informasi Keuangan, the OJK credit reporting system. Late payments are recorded here.",
-    "digital bank": "Self Serve Unit Trust. The feature in aplikasi digital bank the Bank used to buy unit trust or reksa dana.",
-    "Unit Trust / Reksa Dana": "Mutual fund product. Purchase via digital bank is a condition for the cashback programs.",
+    "Wealth Feature": "Fitur pada aplikasi Digital Bank the Bank untuk membeli unit trust / reksa dana; pembelian via Wealth Feature menjadi syarat program cashback.",
+    "Unit Trust / Reksa Dana": "Produk reksa dana; pembelian via Wealth Feature pada aplikasi Digital Bank menjadi syarat program cashback.",
     "PV": "the Bank Privilege Banking customer segment.",
     "WB": "the Bank Wealth Banking customer segment.",
     "Salaried": "Application segment with a fixed and regular income (employee).",
@@ -504,12 +504,95 @@
   },
   "programs": [
     {
-      "id": "free_appraisal",
-      "name": "Bebas Biaya Appraisal",
-      "tagline": "Langkah Pertama tanpa Biaya dengan the Bank HOME",
+      "id": "take_over_cashback",
+      "program_code": "1064",
+      "name": "TO Cashback",
+      "tagline": "Cashback untuk Take Over KPR ke the Bank",
       "program_period": {
         "start": "2026-04-01",
-        "end": "2026-12-31",
+        "end": "2026-06-30",
+        "basis": "tanggal akad kredit"
+      },
+      "applies_to_products": [
+        "kpr_take_over"
+      ],
+      "applies_to_facilities": [
+        "Take Over Fasilitas KPR",
+        "Take Over Fasilitas KPR dengan Top Up ke the Bank"
+      ],
+      "benefit": "Bebas biaya appraisal internal bank; dan cashback biaya administrasi kredit sebesar 1% dari total plafon kredit yang disetujui, dengan maksimum cashback per nasabah sesuai kategori.",
+      "cashback_percent": 1,
+      "categories": [
+        {
+          "category": 1,
+          "segment": "Pengajuan KPR dengan Plafon Kredit >= Rp750 juta",
+          "max_cashback": 10000000
+        },
+        {
+          "category": 2,
+          "segment": "Pengajuan KPR dengan Plafon Kredit < Rp750 juta",
+          "max_cashback": 5000000
+        }
+      ],
+      "conditions": [
+        "Wajib membeli produk unit trust/reksa dana melalui fitur Wealth Feature pada aplikasi Digital Bank, dilakukan secara mandiri (self-service).",
+        "Tidak dapat digabungkan dengan promo KPR the Bank lainnya (termasuk diskon).",
+        "Cashback dikreditkan ke rekening pendebetan KPR yang terdaftar paling lambat 5 hari kerja setelah pencairan kredit.",
+        "Suku bunga mengikuti suku bunga yang berlaku pada periode program dan dapat dilihat di website the Bank.",
+        "Biaya administrasi kredit 1,1% dari plafon kredit.",
+        "Pajak PPh 5% ditanggung oleh nasabah; pemadanan NPWP dengan NIK diperlukan.",
+        "Batas waktu pengaduan 30 hari kalender setelah cashback dikreditkan ke rekening nasabah.",
+        "Appraisal internal dibatasi Rp10 miliar atas seluruh fasilitas nasabah; jika melebihi, wajib menggunakan appraisal independen yang ditunjuk the Bank."
+      ]
+    },
+    {
+      "id": "primary_cashback",
+      "program_code": "1065",
+      "name": "PRI Cashback",
+      "tagline": "Cashback untuk pembelian KPR Primary di developer kerjasama the Bank",
+      "program_period": {
+        "start": "2026-04-01",
+        "end": "2026-06-30",
+        "basis": "tanggal akad kredit"
+      },
+      "applies_to_products": [
+        "kpr_flexi_primary"
+      ],
+      "applies_to_facilities": [
+        "KPR Pembelian Primary di Developer Kerjasama the Bank"
+      ],
+      "benefit": "Cashback biaya administrasi kredit sebesar 1% dari total plafon kredit yang disetujui, dengan maksimum cashback per nasabah sesuai kategori.",
+      "cashback_percent": 1,
+      "categories": [
+        {
+          "category": 1,
+          "segment": "Pengajuan KPR dengan Plafon Kredit >= Rp750 juta",
+          "max_cashback": 10000000
+        },
+        {
+          "category": 2,
+          "segment": "Pengajuan KPR dengan Plafon Kredit < Rp750 juta",
+          "max_cashback": 5000000
+        }
+      ],
+      "conditions": [
+        "Wajib membeli produk unit trust/reksa dana melalui fitur Wealth Feature pada aplikasi Digital Bank, dilakukan secara mandiri (self-service).",
+        "Tidak dapat digabungkan dengan promo KPR the Bank lainnya (termasuk diskon).",
+        "Cashback dikreditkan ke rekening pendebetan KPR yang terdaftar paling lambat 5 hari kerja setelah pencairan kredit.",
+        "Suku bunga mengikuti suku bunga yang berlaku pada periode program dan dapat dilihat di website the Bank.",
+        "Biaya administrasi kredit 1,1% dari plafon kredit.",
+        "Pajak PPh 5% ditanggung oleh nasabah; pemadanan NPWP dengan NIK diperlukan.",
+        "Batas waktu pengaduan 30 hari kalender setelah cashback dikreditkan ke rekening nasabah."
+      ]
+    },
+    {
+      "id": "free_appraisal",
+      "program_code": "1066",
+      "name": "Bebas Biaya Appraisal",
+      "tagline": "Potongan biaya appraisal internal the Bank",
+      "program_period": {
+        "start": "2026-04-01",
+        "end": "2026-06-30",
         "basis": "tanggal pengajuan appraisal"
       },
       "applies_to_products": [
@@ -517,329 +600,27 @@
         "kpr_take_over"
       ],
       "applies_to_facilities": [
-        "Fasilitas KPR 2ND, termasuk Fasilitas TO Jual Beli",
-        "Fasilitas KPR TO atau TO dengan Top Up"
+        "Fasilitas KPR Secondary (termasuk Take Over Jual Beli)",
+        "Fasilitas KPR Take Over atau Take Over dengan Top Up"
       ],
       "benefit": "Potongan biaya appraisal internal the Bank. Biaya internal appraisal adalah Rp500.000.",
+      "internal_appraisal_fee": 500000,
       "scheme": [
         {
           "category": 1,
           "discount": "100% / bebas biaya",
           "eligible_if_any": [
-            "Nasabah the Bank Privilege Banking (PV)",
-            "Nasabah the Bank Wealth Banking (WB)",
-            "Pengajuan KPR dengan Plafon Kredit lebih besar atau sama dengan Rp1.100.000.000",
-            "Salaried atau Selected Area"
+            "Pengajuan KPR dengan Plafon Kredit >= Rp750 juta",
+            "Status Pekerjaan Karyawan (Salaried)"
           ]
-        },
-        {
-          "category": 2,
-          "discount": "50%",
-          "eligible_if": "Segmen lainnya di luar Kategori 1"
         }
       ],
-      "terms": [
+      "conditions": [
         "Potongan biaya internal appraisal berlaku maksimum 2 jaminan per debitur selama periode program.",
-        "Appraisal internal dibatasi Rp10.000.000.000 terhadap seluruh fasilitas nasabah. Jika melebihi, wajib menggunakan appraisal independen yang ditunjuk the Bank.",
+        "Appraisal internal dibatasi Rp10 miliar atas seluruh fasilitas nasabah; jika melebihi, wajib menggunakan appraisal independen yang ditunjuk the Bank.",
         "Tidak dapat digabungkan dengan promo KPR the Bank lainnya.",
         "Suku bunga mengikuti suku bunga yang berlaku pada periode program dan dapat dilihat di website the Bank.",
-        "Bank dapat mengubah atau memberhentikan program dengan pemberitahuan terlebih dahulu.",
         "Batas waktu pengaduan 30 hari kalender setelah tanggal kunjungan tim appraisal ke lokasi agunan."
-      ],
-      "illustrations": [
-        {
-          "case": 1,
-          "category": 1,
-          "segment": "Nasabah the Bank PV",
-          "application": "< Rp2,5 M",
-          "selected_area": false,
-          "discount": "100% / Bebas"
-        },
-        {
-          "case": 2,
-          "category": 1,
-          "segment": "New to Bank",
-          "application": ">= Rp2,5 M",
-          "selected_area": false,
-          "discount": "100% / Bebas"
-        },
-        {
-          "case": 3,
-          "category": 1,
-          "segment": "Nasabah the Bank WB",
-          "application": "< Rp1,1 M",
-          "selected_area": false,
-          "discount": "100% / Bebas"
-        },
-        {
-          "case": 4,
-          "category": 1,
-          "segment": "New to Bank",
-          "application": ">= Rp1,1 M",
-          "selected_area": false,
-          "discount": "100% / Bebas"
-        },
-        {
-          "case": 5,
-          "category": 1,
-          "segment": "Salaried",
-          "application": "min Rp150 juta",
-          "selected_area": false,
-          "discount": "100% / Bebas"
-        },
-        {
-          "case": 6,
-          "category": 1,
-          "segment": "Non Salaried",
-          "application": "min Rp150 juta",
-          "selected_area": true,
-          "discount": "100% / Bebas"
-        },
-        {
-          "case": 7,
-          "category": 2,
-          "segment": "Non Salaried",
-          "application": "min Rp150 juta",
-          "selected_area": false,
-          "discount": "50%"
-        }
-      ]
-    },
-    {
-      "id": "primary_cashback",
-      "name": "PRI Cashback",
-      "tagline": "Awal Tahun Punya Rumah Baru dengan the Bank HOME",
-      "program_period": {
-        "start": "2026-04-01",
-        "end": "2026-12-31",
-        "basis": "tanggal akad kredit"
-      },
-      "applies_to_products": [
-        "kpr_flexi_primary"
-      ],
-      "applies_to_facilities": [
-        "KPR Pembelian PRI di Developer Kerjasama the Bank"
-      ],
-      "benefit": "Cashback biaya administrasi kredit sebesar 1% dari total plafon kredit yang disetujui, dengan maksimum per kategori. Cashback dikenakan PPh 5% yang ditanggung nasabah.",
-      "scheme": [
-        {
-          "category": "A",
-          "max_cashback": 25000000,
-          "eligible_if_any": [
-            "Nasabah the Bank Privilege Banking (PV)",
-            "Pengajuan KPR dengan Plafon Kredit >= Rp2.500.000.000"
-          ]
-        },
-        {
-          "category": "B",
-          "max_cashback": 15000000,
-          "eligible_if_any": [
-            "Nasabah the Bank Wealth Banking (WB)",
-            "Pengajuan KPR dengan Plafon Kredit >= Rp1.100.000.000"
-          ]
-        },
-        {
-          "category": "C",
-          "max_cashback": 7500000,
-          "eligible_if": "Pengajuan dengan Plafon Kredit minimal Rp500.000.000"
-        }
-      ],
-      "terms": [
-        "Wajib membeli produk unit trust atau reksa dana melalui fitur Self Serve Unit Trust (digital bank) di aplikasi digital bank the Bank secara mandiri.",
-        "Dibaca bersama Syarat dan Ketentuan Umum Kredit Konsumen Beragunan dan Syarat dan Ketentuan Transaksi Produk Unit Trust di aplikasi digital bank the Bank.",
-        "Tidak dapat digabungkan dengan promo KPR the Bank lainnya, termasuk diskon.",
-        "Biaya administrasi kredit 1.1% dari plafon, tidak dapat didiskon.",
-        "Cashback dikreditkan ke rekening pendebetan KPR paling lambat 5 hari kerja setelah pencairan kredit.",
-        "Pemadanan NPWP dengan NIK diperlukan untuk menghindari kendala administrasi perpajakan.",
-        "Pajak program ditanggung nasabah (PPh 5%).",
-        "Batas waktu pengaduan 30 hari kalender setelah cashback dikreditkan."
-      ],
-      "illustrations": [
-        {
-          "case": 1,
-          "category": "A",
-          "segment": "Nasabah the Bank PV",
-          "plafon": 2000000000,
-          "admin_1_1_percent": 22000000,
-          "cashback_gross": 20000000,
-          "cashback_capped": 20000000,
-          "pph_5_percent": 1000000,
-          "cashback_received": 19000000
-        },
-        {
-          "case": 2,
-          "category": "A",
-          "segment": "Pengajuan >= Rp2,5 M",
-          "plafon": 2500000000,
-          "admin_1_1_percent": 27500000,
-          "cashback_gross": 25000000,
-          "cashback_capped": 25000000,
-          "pph_5_percent": 1250000,
-          "cashback_received": 23750000
-        },
-        {
-          "case": 3,
-          "category": "B",
-          "segment": "Nasabah the Bank WB",
-          "plafon": 1000000000,
-          "admin_1_1_percent": 11000000,
-          "cashback_gross": 10000000,
-          "cashback_capped": 10000000,
-          "pph_5_percent": 500000,
-          "cashback_received": 9500000
-        },
-        {
-          "case": 4,
-          "category": "B",
-          "segment": "Pengajuan >= Rp1,1 M",
-          "plafon": 2000000000,
-          "admin_1_1_percent": 22000000,
-          "cashback_gross": 20000000,
-          "cashback_capped": 15000000,
-          "pph_5_percent": 750000,
-          "cashback_received": 14250000
-        },
-        {
-          "case": 5,
-          "category": "C",
-          "segment": "Pengajuan min. Rp500 juta",
-          "plafon": 650000000,
-          "admin_1_1_percent": 7150000,
-          "cashback_gross": 6500000,
-          "cashback_capped": 6500000,
-          "pph_5_percent": 325000,
-          "cashback_received": 6175000
-        },
-        {
-          "case": 6,
-          "category": "C",
-          "segment": "Pengajuan min. Rp500 juta",
-          "plafon": 1000000000,
-          "admin_1_1_percent": 11000000,
-          "cashback_gross": 10000000,
-          "cashback_capped": 7500000,
-          "pph_5_percent": 375000,
-          "cashback_received": 7125000
-        }
-      ]
-    },
-    {
-      "id": "take_over_cashback",
-      "name": "TO Cashback",
-      "tagline": "Awal Tahun Makin Ringan dengan the Bank HOME",
-      "program_period": {
-        "start": "2026-04-01",
-        "end": "2026-12-31",
-        "basis": "tanggal akad kredit"
-      },
-      "applies_to_products": [
-        "kpr_take_over"
-      ],
-      "applies_to_facilities": [
-        "TO Fasilitas KPR",
-        "TO Fasilitas KPR dengan Top Up"
-      ],
-      "benefit": "Dua manfaat: (a) bebas biaya appraisal internal bank, dan (b) cashback biaya administrasi kredit sebesar 1% dari total plafon kredit yang disetujui, dengan maksimum per kategori. Cashback dikenakan PPh 5% yang ditanggung nasabah.",
-      "scheme": [
-        {
-          "category": "A",
-          "max_cashback": 25000000,
-          "eligible_if_any": [
-            "Nasabah the Bank Privilege Banking (PV)",
-            "Pengajuan KPR dengan Plafon Kredit >= Rp2.500.000.000"
-          ]
-        },
-        {
-          "category": "B",
-          "max_cashback": 15000000,
-          "eligible_if_any": [
-            "Nasabah the Bank Wealth Banking (WB)",
-            "Pengajuan KPR dengan Plafon Kredit >= Rp1.100.000.000"
-          ]
-        },
-        {
-          "category": "C",
-          "max_cashback": 7500000,
-          "eligible_if": "Pengajuan dengan Plafon Kredit minimal Rp500.000.000"
-        }
-      ],
-      "terms": [
-        "Wajib membeli produk unit trust atau reksa dana melalui fitur digital bank di aplikasi digital bank the Bank secara mandiri.",
-        "Appraisal internal dibatasi Rp10.000.000.000 terhadap seluruh fasilitas nasabah. Jika melebihi, wajib appraisal independen.",
-        "Tidak dapat digabungkan dengan promo KPR the Bank lainnya, termasuk diskon.",
-        "Biaya administrasi kredit 1.1% dari plafon, tidak dapat didiskon.",
-        "Cashback dikreditkan ke rekening pendebetan KPR paling lambat 5 hari kerja setelah pencairan kredit.",
-        "Pemadanan NPWP dengan NIK diperlukan.",
-        "Pajak program ditanggung nasabah (PPh 5%).",
-        "Batas waktu pengaduan 30 hari kalender setelah cashback dikreditkan."
-      ],
-      "illustrations": [
-        {
-          "case": 1,
-          "category": "A",
-          "segment": "Nasabah the Bank PV",
-          "plafon": 2000000000,
-          "admin_1_1_percent": 22000000,
-          "cashback_gross": 20000000,
-          "cashback_capped": 20000000,
-          "pph_5_percent": 1000000,
-          "cashback_received": 19000000
-        },
-        {
-          "case": 2,
-          "category": "A",
-          "segment": "Pengajuan >= Rp2,5 M",
-          "plafon": 2500000000,
-          "admin_1_1_percent": 27500000,
-          "cashback_gross": 25000000,
-          "cashback_capped": 25000000,
-          "pph_5_percent": 1250000,
-          "cashback_received": 23750000
-        },
-        {
-          "case": 3,
-          "category": "B",
-          "segment": "Nasabah the Bank WB",
-          "plafon": 1000000000,
-          "admin_1_1_percent": 11000000,
-          "cashback_gross": 10000000,
-          "cashback_capped": 10000000,
-          "pph_5_percent": 500000,
-          "cashback_received": 9500000
-        },
-        {
-          "case": 4,
-          "category": "B",
-          "segment": "Pengajuan >= Rp1,1 M",
-          "plafon": 2000000000,
-          "admin_1_1_percent": 22000000,
-          "cashback_gross": 20000000,
-          "cashback_capped": 15000000,
-          "pph_5_percent": 750000,
-          "cashback_received": 14250000
-        },
-        {
-          "case": 5,
-          "category": "C",
-          "segment": "Pengajuan min. Rp500 juta",
-          "plafon": 650000000,
-          "admin_1_1_percent": 7150000,
-          "cashback_gross": 6500000,
-          "cashback_capped": 6500000,
-          "pph_5_percent": 325000,
-          "cashback_received": 6175000
-        },
-        {
-          "case": 6,
-          "category": "C",
-          "segment": "Pengajuan min. Rp500 juta",
-          "plafon": 1000000000,
-          "admin_1_1_percent": 11000000,
-          "cashback_gross": 10000000,
-          "cashback_capped": 7500000,
-          "pph_5_percent": 375000,
-          "cashback_received": 7125000
-        }
       ]
     }
   ],
@@ -855,24 +636,21 @@
         "take_over_cashback"
       ],
       "steps": [
-        "Tentukan kategori (A, B, atau C) dari segmen nasabah atau plafon.",
+        "Tentukan kategori dari plafon: Kategori 1 jika plafon >= Rp750 juta, selain itu Kategori 2.",
         "cashback_gross = 0.01 * plafon_kredit",
         "cashback_capped = min(cashback_gross, max_cashback_kategori)",
         "pph = 0.05 * cashback_capped",
         "cashback_received = cashback_capped - pph"
       ],
       "category_caps": {
-        "A": 25000000,
-        "B": 15000000,
-        "C": 7500000
+        "1": 10000000,
+        "2": 5000000
       },
       "category_resolution": {
-        "A": "Nasabah PV ATAU plafon >= 2.500.000.000",
-        "B": "Nasabah WB ATAU plafon >= 1.100.000.000",
-        "C": "Plafon minimal 500.000.000",
-        "priority": "Pakai kategori dengan cap tertinggi yang syaratnya terpenuhi."
+        "1": "Plafon Kredit >= Rp750.000.000",
+        "2": "Plafon Kredit < Rp750.000.000"
       },
-      "worked_example": "Plafon 2.000.000.000, segmen Pengajuan >= 1,1 M (Kategori B): gross 20.000.000, capped 15.000.000, pph 750.000, diterima 14.250.000."
+      "worked_example": "Plafon 1.500.000.000 (Kategori 1): gross 15.000.000, capped 10.000.000, pph 500.000, diterima 9.500.000."
     },
     "late_penalty": {
       "formula": "denda = 0.04 * jumlah_angsuran_terlambat (per bulan), atau setara 48% per tahun",
@@ -925,7 +703,7 @@
       }
     ],
     "program_conflict_rule": "Setiap program tidak dapat digabungkan dengan promo KPR the Bank lainnya. Jika nasabah memenuhi beberapa promo, hanya satu yang dapat dipakai. TO Cashback sudah mencakup bebas appraisal, jadi tidak perlu digabung dengan program Bebas Biaya Appraisal.",
-    "cashback_requires_ssut": "Cashback hanya cair jika nasabah membeli unit trust atau reksa dana via fitur digital bank di aplikasi the Bank."
+    "cashback_requires_unit_trust": "Cashback hanya cair jika nasabah membeli unit trust atau reksa dana via fitur Wealth Feature pada aplikasi Digital Bank."
   },
   "faq": [
     {
@@ -966,7 +744,7 @@
         "Apakah ada promo gratis appraisal?",
         "Bebas biaya appraisal berlaku untuk siapa?"
       ],
-      "answer": "Ya. Program Bebas Biaya Appraisal berlaku 1 April sampai 31 Desember 2026 untuk KPR 2ND dan TO. Potongan 100% jika nasabah PV atau WB, atau plafon minimal Rp1,1 miliar, atau Salaried atau Selected Area. Selain itu potongan 50%. Biaya internal appraisal normalnya Rp500.000."
+      "answer": "Ya. Program Bebas Biaya Appraisal berlaku 1 April sampai 30 Juni 2026 untuk KPR 2ND (termasuk Take Over Jual Beli) dan KPR TO. Potongan 100% / bebas biaya appraisal internal jika plafon kredit minimal Rp750 juta ATAU status pekerjaan Karyawan (Salaried). Biaya internal appraisal normalnya Rp500.000, berlaku maksimum 2 jaminan per debitur."
     },
     {
       "intent": "cashback",
@@ -974,7 +752,7 @@
         "Berapa cashback KPR?",
         "Bagaimana cara dapat cashback?"
       ],
-      "answer": "Cashback 1% dari plafon kredit, dengan maksimum Rp25 juta (Kategori A), Rp15 juta (Kategori B), atau Rp7,5 juta (Kategori C), dan dipotong PPh 5%. Syarat utamanya nasabah harus membeli unit trust atau reksa dana via fitur digital bank di aplikasi the Bank. Berlaku untuk PRI dan TO selama 1 April sampai 31 Desember 2026."
+      "answer": "Cashback biaya administrasi kredit 1% dari plafon, dengan maksimum Rp10 juta (Kategori 1, plafon >= Rp750 juta) atau Rp5 juta (Kategori 2, plafon < Rp750 juta), dipotong PPh 5%. Syaratnya nasabah membeli unit trust/reksa dana via fitur Wealth Feature pada aplikasi Digital Bank. Berlaku untuk KPR PRI dan TO selama 1 April sampai 30 Juni 2026."
     },
     {
       "intent": "suku_bunga",
