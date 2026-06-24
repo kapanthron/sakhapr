@@ -30,7 +30,7 @@ R2 bucket exists, because `wrangler.toml` binds it.
      "dicatat (email belum dikonfigurasi)" and storage still works.
 4. **Build token permissions:** the Workers Builds token must allow *Workers
    Scripts: Edit* and *Workers R2 Storage: Edit* so the deploy can bind R2.
-5. **Admin credentials** are in `wrangler.toml [vars]` (`pocuob` / `poc2026#`).
+5. **Admin credentials** are in `wrangler.toml [vars]` (`pocadmin` / `poc2026#`).
    For real use, move `ADMIN_PASS` to a secret instead of vars.
 
 Admin panel: visit **`/admin`** on the deployed site and log in. Data lives in

@@ -27,7 +27,7 @@ bucket_name = "sakhapr-leads"
 binding = "AI"
 
 [vars]
-ADMIN_USER = "pocuob"
+ADMIN_USER = "pocadmin"
 ADMIN_PASS = "poc2026#"
 MAIL_TO = "hendrik.panthron@gmail.com"
 # Set as secrets (wrangler secret put / dashboard), NOT here:

@@ -88,7 +88,7 @@ retention** on the free tier, which only the paid/Vertex tier fixes.
   set a short mail-retention, and keep using the **password-protected ZIP** so
   attachments aren't readable in transit logs.
 - ⚠️ Current ZIP uses legacy **ZipCrypto** + a **shared static password**
-  (`uob2026#`) embedded in code — fine as a POC transit safeguard, **not**
+  (`thebank2026#`) embedded in code — fine as a POC transit safeguard, **not**
   adequate for production. Move to **AES-256 ZIP** with a **per-lead random
   password delivered out-of-band**, or stop emailing raw files and have staff
   pull them from the authenticated admin only.
@@ -116,7 +116,7 @@ anonymise. Audit of every store:
 | **Admin session cookie** | HttpOnly, 8h, HMAC-signed | ✅ | — |
 
 Other PDP/security gaps found in code:
-- ❌ **Admin password in plaintext** `wrangler.toml [vars]` (`pocuob`/`poc2026#`).
+- ❌ **Admin password in plaintext** `wrangler.toml [vars]` (`pocadmin`/`poc2026#`).
   Move to `ADMIN_PASS_SHA256` secret (already supported), use a strong password,
   add **MFA** and **access logging** for production (this is a **bank admin**
   console over real ID data).

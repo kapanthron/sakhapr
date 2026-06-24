@@ -8,7 +8,7 @@
    attaches and sends.
    ============================================================================ */
 
-export const RECIPIENT = "hendrik.panthron@uob.co.id";
+export const RECIPIENT = "hendrik.panthron@thebank.co.id";
 export const SUBJECT = "Moggy lead + eKTP screening";
 
 /**

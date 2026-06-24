@@ -74,7 +74,7 @@ step half done.
            then run validateNik.
   Phase 5b modules/pdfReport.js (jsPDF vendored locally) → file c (.pdf report).
   Phase 6  modules/bundle.js (3 files, canvas-downscale image to <5MB) + modules/sendDraft.js
-           (Path A: download bundle + prefilled mailto draft to hendrik.panthron@uob.co.id).
+           (Path A: download bundle + prefilled mailto draft to hendrik.panthron@thebank.co.id).
   Phase 7  (optional, ask me first) modules/semanticSearch.js with Transformers.js.
   Phase 8  (optional, ask me first) Path B relay.
 
@@ -133,7 +133,7 @@ Consistent, 3402010102000003 Consistent. The verdicts must match exactly. How to
 Phase 5a. Build modules/ocr.js using Tesseract.js bundled locally under vendor/tesseract (the
 _headers CSP already allows its WASM and Web Worker). Add a consent gate: the eKTP file input
 stays disabled until the customer ticks an explicit consent box naming the purpose and the
-recipient mailbox (hendrik.panthron@uob.co.id). On upload, OCR reads the NIK and printed fields
+recipient mailbox (hendrik.panthron@thebank.co.id). On upload, OCR reads the NIK and printed fields
 and shows them in editable boxes so I can correct OCR mistakes, then runs validateNik and shows
 the verdict. No PDF yet. How to test included.
 ```
@@ -151,7 +151,7 @@ How to test included.
 Phase 6. Build modules/bundle.js and modules/sendDraft.js for Path A. bundle.js collects file a
 (.txt), the eKTP image (file b), and file c (.pdf). If the total exceeds 5MB, downscale the eKTP
 image with a canvas until the bundle fits, and tell me the final size. sendDraft.js downloads the
-bundle and opens a prefilled mailto draft to hendrik.panthron@uob.co.id with subject
+bundle and opens a prefilled mailto draft to hendrik.panthron@thebank.co.id with subject
 "Moggy lead + eKTP screening" and a body summarising product, prescreen status, and NIK
 verdict, plus a line reminding the sender to attach the downloaded bundle. After send, prompt
 Clear all data. How to test included.
