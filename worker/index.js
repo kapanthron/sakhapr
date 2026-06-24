@@ -153,6 +153,11 @@ async function handleSubmit(request, env) {
     durationMs: parseInt(form.get("durationMs"), 10) || 0,
     sessionStart: form.get("sessionStart") || "",
     sessionEnd: form.get("sessionEnd") || "",
+    consent: {
+      given: form.get("consentGiven") === "true",
+      at: form.get("consentAt") || "",
+      document: form.get("consentDoc") || "",
+    },
     files: {
       prescreen: "prescreen.txt",
       ektp: ektpName,
@@ -948,7 +953,7 @@ const RECAP_HEADERS = [
   "Status Prescreen", "Nama Lengkap", "Nomor HP", "Email", "Penghasilan Bersih/bln",
   "Pekerjaan", "Profesi & Lama Kerja", "Kota Jaminan", "Alamat Jaminan", "Kode Pos",
   "Restruktur 12bln Terakhir", "Kondisi Jaminan", "Take Over dari Bank",
-  "Verdict NIK", "Pakai Kalkulator", "Durasi (menit)", "Status Email",
+  "Verdict NIK", "Persetujuan (waktu)", "Pakai Kalkulator", "Durasi (menit)", "Status Email",
 ];
 function recapRow(m) {
   const a = m.answers || {};
@@ -973,6 +978,7 @@ function recapRow(m) {
     a.kondisi_jaminan || a.rencana_huni || "",
     a.bank_asal || "",
     m.nikVerdict || "",
+    (m.consent && m.consent.given) ? wibFmt(m.consent.at) : "",
     m.usedCalculator ? "Ya" : "Tidak",
     m.durationMs ? (m.durationMs / 60000).toFixed(1) : "",
     (m.email && m.email.status) || "",

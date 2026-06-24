@@ -761,6 +761,14 @@ async function submitEktp() {
     ektp.status.textContent = t("ektp_need_prescreen");
     return;
   }
+  // Hard PDP gate: explicit, freely-given consent is mandatory and must be the
+  // customer's own action (the checkbox is never pre-ticked).
+  if (!ektp.consent || !ektp.consent.checked) {
+    ektp.status.textContent = t("ektp_need_consent");
+    ektp.send.disabled = true;
+    return;
+  }
+  const consentAt = new Date().toISOString();
   ektp.send.disabled = true;
   ektp.file.disabled = true;
   ektp.nik.disabled = true;
@@ -795,6 +803,9 @@ async function submitEktp() {
         durationMs: Date.now() - SESSION_START,
         sessionStart: SESSION_START_ISO,
         sessionEnd: new Date().toISOString(),
+        consentGiven: true,
+        consentAt,
+        consentDoc: "persetujuan-nasabah.pdf",
       },
     });
 
