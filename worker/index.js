@@ -236,13 +236,13 @@ async function handleDelete(request, env) {
 
 const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SYSTEM_PROMPT =
-  "Anda adalah Moggy (UOB Mortgage Buddy), asisten KPR (Kredit Pemilikan Rumah) UOB Indonesia. " +
+  "Anda adalah Moggy (the Bank Mortgage Buddy), asisten KPR (Kredit Pemilikan Rumah) the Bank Indonesia. " +
   "Jawab HANYA berdasarkan FAKTA dari knowledge base di bawah. Gunakan Bahasa " +
   "Indonesia yang ramah, jelas, dan ringkas. JANGAN mengarang angka, suku bunga, " +
   "biaya, atau syarat yang tidak ada di FAKTA. Jika informasinya tidak tersedia, " +
   "katakan dengan jujur lalu ajak nasabah melanjutkan ke proses pengajuan agar tim " +
-  "UOB dapat membantu lebih lanjut (JANGAN menyuruh menghubungi email atau nomor " +
-  "telepon Mortgage Relations). Untuk pertanyaan soal " +
+  "the Bank dapat membantu lebih lanjut (JANGAN menyuruh menghubungi email atau nomor " +
+  "telepon the response team). Untuk pertanyaan soal " +
   "uang (bunga, biaya, cashback, denda), sertakan pengingat singkat bahwa angka " +
   "bersifat estimasi dan dapat berubah. Pemeriksaan ini bukan keputusan kredit. " +
   "Rapikan jawaban: gunakan poin-poin diawali '- ' bila menyebut beberapa hal, dan " +
@@ -425,7 +425,7 @@ function scoreModel(name, preferLite) {
   return s;
 }
 
-/** Primary chat model: the newest non-lite "Flash" Gemini for THIS key. */
+/** PRI chat model: the newest non-lite "Flash" Gemini for THIS key. */
 async function pickGeminiModel(env) {
   if (env.GEMINI_MODEL) return env.GEMINI_MODEL;
   if (CACHED_GEMINI_MODEL) return CACHED_GEMINI_MODEL;
@@ -755,7 +755,7 @@ async function sendEmail(env, meta, files) {
         `Lead ID     : ${meta.id}\n\n` +
         `Lampiran: ${zipName} (ZIP terproteksi kata sandi) berisi transkrip prescreen, ` +
         `gambar eKTP, laporan skrining NIK${files.pasfoto ? ", pas foto" : ""}.\n` +
-        `Kata sandi ZIP sesuai kebijakan internal UOB.\n` +
+        `Kata sandi ZIP sesuai kebijakan internal the Bank.\n` +
         `Catatan: skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan kredit.`,
       attachments: [{ filename: zipName, content: abToBase64(zip) }],
     };
@@ -952,7 +952,7 @@ const RECAP_HEADERS = [
   "Timestamp (WIB)", "Sesi Mulai (WIB)", "Sesi Berakhir (WIB)", "Ref", "Tipe", "Produk",
   "Status Prescreen", "Nama Lengkap", "Nomor HP", "Email", "Penghasilan Bersih/bln",
   "Pekerjaan", "Profesi & Lama Kerja", "Kota Jaminan", "Alamat Jaminan", "Kode Pos",
-  "Restruktur 12bln Terakhir", "Kondisi Jaminan", "Take Over dari Bank",
+  "Restruktur 12bln Terakhir", "Kondisi Jaminan", "TO dari Bank",
   "Verdict NIK", "Persetujuan (waktu)", "Pakai Kalkulator", "Durasi (menit)", "Status Email",
 ];
 function recapRow(m) {

@@ -49,7 +49,7 @@ No analytics or advertising trackers are used.
 ## 2. Legal frame
 
 Governing law: **UU No. 27 Tahun 2022 (UU PDP)**. The eKTP plus the prescreen answers
-are personal data identifying an individual directly. **PT Bank UOB Indonesia is the
+are personal data identifying an individual directly. **PT the Bank Indonesia is the
 controller** (pengendali). The processors engaged by the build are:
 
 | Processor | Role | Location / transfer |
@@ -69,7 +69,7 @@ place** (see §5).
 | Principle | How the build addresses it | Gap |
 |---|---|---|
 | **Terbatas, spesifik, sah, transparan** | Persistent UU PDP banner; consent box before eKTP upload; purpose limited to KPR lead handling. | Banner/consent do not yet name Google/Resend/Cloudflare as recipients of data. |
-| **Sesuai tujuan** (purpose limitation) | Data used only to answer, prescreen, screen NIK, and forward the lead to UOB. | Chat text sent to Google is a secondary disclosure that should be disclosed. |
+| **Sesuai tujuan** (purpose limitation) | Data used only to answer, prescreen, screen NIK, and forward the lead to the Bank. | Chat text sent to Google is a secondary disclosure that should be disclosed. |
 | **Hak subjek** (subject rights) | On-device "Hapus semua data" clears the browser session; OCR/NIK run before upload. | **No deletion of server-stored data**: once uploaded to R2 there is no subject-facing or admin delete function yet. |
 | **Akurat & akuntabel** | NIK check is deterministic (rules + table lookup), labelled a screening aid, never a credit decision. | OCR is now automatic (no human edit before send on the customer path) — accuracy relies on the admin re-checking via the Pariksa tool. |
 | **Keamanan** (security) | HTTPS everywhere; browser CSP `connect-src 'self'`; admin auth via HMAC-signed HttpOnly cookie; R2 encrypted at rest by Cloudflare. | Admin credentials are **POC values in config** (`pocuob`/`poc2026#`); no rate limiting; no per-record encryption. |
@@ -128,4 +128,4 @@ server-side: it **stores** the lead package in Cloudflare R2, **sends chat text 
 zero-egress design and raises the stakes on storage, retention, access control, and cross-border
 transfer. The controls in §3 are partly built and partly outstanding; the items in §5 must be
 closed before any pilot with real applicant data. Lawful basis, processor agreements, retention,
-and admin hardening sit with UOB and deployment, not with the application alone.
+and admin hardening sit with the Bank and deployment, not with the application alone.

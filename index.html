@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Moggy — UOB Mortgage Buddy</title>
-  <meta name="description" content="Moggy (UOB Mortgage Buddy): asisten KPR UOB Indonesia yang memproses data sesuai UU No. 27 Tahun 2022." />
+  <title>Moggy — the Bank Mortgage Buddy</title>
+  <meta name="description" content="Moggy (the Bank Mortgage Buddy): asisten KPR the Bank Indonesia yang memproses data sesuai UU No. 27 Tahun 2022." />
   <!--
     Content Security Policy is served as a real HTTP header from the repo-root
     `_headers` file on Cloudflare Pages. We intentionally do NOT duplicate it as a
@@ -30,7 +30,7 @@
     <div class="app__topbar">
       <div class="brand">
         <span class="brand__name">Moggy</span>
-        <span class="brand__sub" data-i18n="brand_sub">UOB Mortgage Buddy &middot; PARIKSA</span>
+        <span class="brand__sub" data-i18n="brand_sub">the Bank Mortgage Buddy &middot; PARIKSA</span>
       </div>
       <div class="app__topbar-actions">
         <button id="langToggle" type="button" class="btn btn--ghost" data-i18n="lang_toggle" title="English / Bahasa Indonesia">EN</button>
@@ -50,7 +50,7 @@
         class="composer__input"
         type="text"
         data-i18n-ph="composer_ph"
-        placeholder="Tanya apa saja tentang KPR UOB&hellip;"
+        placeholder="Tanya apa saja tentang KPR the Bank&hellip;"
         inputmode="text"
       />
       <button type="submit" class="btn btn--primary" data-i18n="send">Kirim</button>
@@ -66,15 +66,15 @@
       <summary data-i18n="sim_title">Simulasi Angsuran &amp; Cashback</summary>
       <div class="sim__body">
         <p class="ektp__disclaimer" data-i18n="sim_disclaimer">
-          Estimasi memakai suku bunga dari knowledge base UOB. Angka final mengikuti
+          Estimasi memakai suku bunga dari knowledge base the Bank. Angka final mengikuti
           analisa kredit dan Perjanjian Kredit.
         </p>
         <div class="debug__grid">
           <label><span data-i18n="sim_facility">Jenis fasilitas</span>
             <select id="simFacility">
-              <option value="primary" data-i18n="fac_primary">KPR Primary</option>
-              <option value="secondary" data-i18n="fac_secondary">KPR Secondary</option>
-              <option value="take_over" data-i18n="fac_take_over">KPR Take Over</option>
+              <option value="primary" data-i18n="fac_primary">KPR PRI</option>
+              <option value="secondary" data-i18n="fac_secondary">KPR 2ND</option>
+              <option value="take_over" data-i18n="fac_take_over">KPR TO</option>
             </select>
           </label>
           <label><span data-i18n="sim_scheme">Skema bunga</span>
@@ -89,8 +89,8 @@
           <label><span data-i18n="sim_segment">Segmen (untuk cashback)</span>
             <select id="simSegment">
               <option value="" data-i18n="seg_new">New to Bank / lainnya</option>
-              <option value="PV" data-i18n="seg_pv">UOB Privilege (PV)</option>
-              <option value="WB" data-i18n="seg_wb">UOB Wealth (WB)</option>
+              <option value="PV" data-i18n="seg_pv">the Bank Privilege (PV)</option>
+              <option value="WB" data-i18n="seg_wb">the Bank Wealth (WB)</option>
             </select>
           </label>
         </div>

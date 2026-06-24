@@ -14,7 +14,7 @@ phases — this keeps each phase on a clean context budget.
 ## Master prompt (paste first, every session)
 
 ```
-You are building "Moggy", a privacy-first, browser-only GenAI mortgage assistant for UOB
+You are building "Moggy", a privacy-first, browser-only GenAI mortgage assistant for the Bank
 Indonesia KPR, with an embedded eKTP integrity module called PARIKSA. I am the product owner
 and I do not write code, so explain what each file does in plain language and never leave a
 step half done.
@@ -56,7 +56,7 @@ step half done.
 == ASSETS in data/ (treat values as verified facts) ==
 - knowledge_base.json  (Moggy master KB; quote figures exactly, use the calculators block for
   any number, use decision_routing for product choice, append the matching disclaimer)
-- prescreen.json       (three prescreen sets: Primary, Secondary, Take Over)
+- prescreen.json       (three prescreen sets: PRI, 2ND, TO)
 - wilayah_nik.json     (already-transformed region table — see token rules above)
 - reference/validate-nik_reference.js  (deterministic NIK validator to port to an ES module)
 - reference/nik-test-fixtures.md       (known-good / known-bad NIKs for Phase 4 verification)
@@ -110,8 +110,8 @@ against program_period.end and warn if past. Wire both into the chat. How to tes
 
 ### Phase 3
 ```
-Phase 3. Build modules/prescreen.js. Load data/prescreen.json with three sets (Primary,
-Secondary, Take Over). After the router detects READY_TO_APPLY, ask which situation applies, run
+Phase 3. Build modules/prescreen.js. Load data/prescreen.json with three sets (PRI,
+2ND, TO). After the router detects READY_TO_APPLY, ask which situation applies, run
 that set one question at a time, honour any 'conditional' (skip questions whose dependency is not
 met), store answers in memory, and produce file a: a clean .txt transcript with a header
 (timestamp, product, disclaimer) that downloads on demand. How to test included.

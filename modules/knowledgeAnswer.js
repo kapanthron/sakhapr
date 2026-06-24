@@ -21,7 +21,7 @@ const SITUATION_TO_PRODUCT = {
 };
 
 const SITUATION_LABEL = {
-  primary: "pembelian properti baru di developer kerjasama UOB",
+  primary: "pembelian properti baru di developer kerjasama the Bank",
   secondary: "pembelian properti bekas / second",
   take_over: "take over KPR dari bank lain",
 };
@@ -53,7 +53,7 @@ function promoWarning(kb, programIds, todayISO) {
     const prog = findProgram(kb, id);
     const end = prog?.program_period?.end;
     if (end && todayISO > end) {
-      return `Catatan: periode program "${prog.name}" tercatat berakhir pada ${end}. Mohon konfirmasi ketersediaannya ke Mortgage Relations Unit.`;
+      return `Catatan: periode program "${prog.name}" tercatat berakhir pada ${end}. Mohon konfirmasi ketersediaannya ke the response team Unit.`;
     }
   }
   return null;
@@ -110,7 +110,7 @@ function readyToApply(kb, cls) {
   const product = productId ? findProduct(kb, productId) : null;
   const tail = product
     ? `untuk ${product.name}`
-    : "setelah Anda memilih situasi (Primary, Secondary, atau Take Over)";
+    : "setelah Anda memilih situasi (PRI, 2ND, atau TO)";
   return {
     text:
       `Baik, kita bisa mulai prescreen singkat ${tail}. ` +
@@ -125,7 +125,7 @@ function readyToApply(kb, cls) {
 function smallTalk(kb) {
   return {
     text:
-      "Halo! Saya Moggy, siap membantu soal KPR UOB. Anda bisa bertanya tentang " +
+      "Halo! Saya Moggy, siap membantu soal KPR the Bank. Anda bisa bertanya tentang " +
       "produk, suku bunga, biaya, dokumen, atau langsung menyebut rencana Anda " +
       "(beli rumah baru, second, atau take over).",
     disclaimer: null,
@@ -135,7 +135,7 @@ function smallTalk(kb) {
 }
 
 function informationAnswer(kb, cls) {
-  // "apa itu KPR Take Over" and similar explain questions -> product summary.
+  // "apa itu KPR TO" and similar explain questions -> product summary.
   if (cls.productTopic) {
     const product = findProduct(kb, SITUATION_TO_PRODUCT[cls.productTopic]);
     if (product) {
@@ -161,7 +161,7 @@ function informationAnswer(kb, cls) {
       );
     });
     const text = items.length
-      ? `Promo/program KPR UOB yang tersedia:\n${items.join("\n")}\n\nIngin detail salah satunya, misalnya cashback atau bebas biaya appraisal?`
+      ? `Promo/program KPR the Bank yang tersedia:\n${items.join("\n")}\n\nIngin detail salah satunya, misalnya cashback atau bebas biaya appraisal?`
       : "Saat ini belum ada program yang tercatat. Anda bisa memulai proses pengajuan kapan saja.";
     return { text, disclaimer: disclaimerText(kb, "general"), product: null, program: null };
   }
@@ -181,7 +181,7 @@ function informationAnswer(kb, cls) {
   return {
     text:
       "Maaf, saya belum menemukan jawaban pasti untuk pertanyaan itu. " +
-      "Anda bisa langsung memulai proses pengajuan agar tim UOB membantu lebih lanjut, " +
+      "Anda bisa langsung memulai proses pengajuan agar tim the Bank membantu lebih lanjut, " +
       "atau ajukan pertanyaan lain seputar KPR.",
     disclaimer: disclaimerText(kb, "general"),
     product: null,

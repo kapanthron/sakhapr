@@ -78,12 +78,12 @@ function parseTiers(obj) {
 export function schemesForFacility(kb, facility) {
   const schemes = [];
 
-  // KPR Flexi Primary is floating from the start.
+  // KPR FLX PRI is floating from the start.
   if (facility === "primary") {
     const flexi = (kb.products || []).find((p) => p.id === "kpr_flexi_primary");
     const rate = flexi && flexi.interest && flexi.interest.current_estimate_percent;
     if (rate) {
-      schemes.push({ label: `Flexi Floating (SRBI + 2.50% ≈ ${rate}%)`, single: true, floatingRate: rate, minTenor: flexi.tenor_years.min });
+      schemes.push({ label: `FLX Floating (SRBI + 2.50% ≈ ${rate}%)`, single: true, floatingRate: rate, minTenor: flexi.tenor_years.min });
     }
   }
 

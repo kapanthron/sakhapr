@@ -2,7 +2,7 @@
    modules/sendDraft.js  —  Path A send: prefilled email draft (mailto)
    A browser cannot attach a file to an email. So the app downloads the bundle
    locally and opens a prefilled draft (subject + body only); the sales person
-   attaches the downloaded bundle and sends from their own UOB mailbox.
+   attaches the downloaded bundle and sends from their own the Bank mailbox.
 
    This is the single trust boundary: data leaves the device only when the human
    attaches and sends.
@@ -19,7 +19,7 @@ export const SUBJECT = "Moggy lead + eKTP screening";
  */
 export function buildMailto(s) {
   const lines = [
-    "Halo Tim Mortgage Relations UOB,",
+    "Halo Tim the response team the Bank,",
     "",
     "Berikut lead KPR dari Moggy beserta hasil skrining eKTP (PARIKSA).",
     "",
