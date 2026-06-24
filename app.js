@@ -487,6 +487,8 @@ async function handleKbMessage(text) {
 
 /* --- Promo / program PDF links --------------------------------------------- */
 // When a customer asks about a promo/program, surface the official T&C PDF(s).
+// Bump DOC_VERSION whenever a bundled PDF is replaced, to bust browser/CDN cache.
+const DOC_VERSION = "20260624";
 const PROMO_DOCS = [
   {
     id: "take_over",
@@ -540,7 +542,7 @@ function renderDocLinks(introText, items) {
   for (const p of items) {
     const a = document.createElement("a");
     a.className = "promo-links__item";
-    a.href = p.file;
+    a.href = p.file + "?v=" + DOC_VERSION; // cache-bust so updated PDFs are fetched fresh
     a.target = "_blank";
     a.rel = "noopener";
     a.textContent = "📄 " + (en ? p.labelEn : p.labelId);
