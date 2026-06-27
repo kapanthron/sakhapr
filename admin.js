@@ -324,9 +324,9 @@ function renderBigNumbers(b) {
     bigNumCard("YTD jumlah leads", b.ytdLeads) +
     bigNumCard("Jumlah nasabah", b.nasabah, `${b.nasabahPct}% dari lead`) +
     bigNumCard("Total limit pengajuan", rupiah(b.totalLimit)) +
-    bigNumCard("Submit ke analis", b.submitAnalis, `${b.submitAnalisPct}%`) +
-    bigNumCard("Approved", b.approved, `${b.approvedPct}%`) +
-    bigNumCard("Disbursed", b.disbursed, `${b.disbursedPct}%`);
+    bigNumCard("Sedang di analis", b.submitAnalis, `${b.submitAnalisPct}% dari lead`) +
+    bigNumCard("Approval rate", `${b.approvalRate}%`, `${b.approved} approved / ${b.rejected} rejected`) +
+    bigNumCard("Disbursed", b.disbursed, `${b.disbursedPct}% dari lead`);
 }
 
 function renderBiChart() {

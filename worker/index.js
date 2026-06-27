@@ -1348,10 +1348,11 @@ async function handleCustomer360(env, session) {
 }
 
 /* --- Phase 7: BI dashboard (big numbers + monthly series) ------------------ */
-// Pipeline progress sets (linear order: ... submitted -> approved ->
-// approved_not_disbursed -> disbursed). "Submit ke analis" counts leads that
-// reached analyst review, which includes rejected (analyst said no).
-const BI_SUBMITTED = new Set(["submitted", "approved", "approved_not_disbursed", "disbursed", "rejected"]);
+// "Submit ke analis" = leads still being processed by the analyst, i.e. exactly
+// the 'submitted' stage (approved and rejected are outcomes, not in-process).
+// Approved = every lead that got analyst approval (approved and beyond).
+// Approval rate = approved / (approved + rejected).
+const BI_SUBMITTED = new Set(["submitted"]);
 const BI_APPROVED = new Set(["approved", "approved_not_disbursed", "disbursed"]);
 const BI_DISBURSED = new Set(["disbursed"]);
 
@@ -1372,7 +1373,7 @@ async function handleBi(env) {
 
   const total = leads.length;
   const year = String(new Date().getFullYear());
-  let ytd = 0, nasabah = 0, totalLimit = 0, submitAnalis = 0, approved = 0, disbursed = 0;
+  let ytd = 0, nasabah = 0, totalLimit = 0, submitAnalis = 0, approved = 0, rejected = 0, disbursed = 0;
   const monthly = {}; // "YYYY-MM" -> { volume, nasabah }
   for (const l of leads) {
     const ym = wibYearMonth(l.created_at);
@@ -1382,12 +1383,15 @@ async function handleBi(env) {
     totalLimit += Number(l.plafon) || 0;
     if (BI_SUBMITTED.has(l.status)) submitAnalis++;
     if (BI_APPROVED.has(l.status)) approved++;
+    if (l.status === "rejected") rejected++;
     if (BI_DISBURSED.has(l.status)) disbursed++;
     const slot = (monthly[ym] = monthly[ym] || { volume: 0, nasabah: 0 });
     slot.volume++;
     if (unique) slot.nasabah++;
   }
   const pct = (n) => (total ? Math.round((n / total) * 1000) / 10 : 0);
+  const decided = approved + rejected;
+  const approvalRate = decided ? Math.round((approved / decided) * 1000) / 10 : 0;
   const series = Object.keys(monthly).sort().map((ym) => ({ ym, ...monthly[ym] }));
 
   return json({
@@ -1397,7 +1401,7 @@ async function handleBi(env) {
       ytdLeads: ytd,
       nasabah, nasabahPct: pct(nasabah), totalLimit,
       submitAnalis, submitAnalisPct: pct(submitAnalis),
-      approved, approvedPct: pct(approved),
+      approved, rejected, approvalRate,
       disbursed, disbursedPct: pct(disbursed),
     },
     series,
