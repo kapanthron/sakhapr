@@ -811,6 +811,7 @@ async function submitEktp() {
         consentGiven: true,
         consentAt,
         consentDoc: "persetujuan-nasabah.pdf",
+        nik: store.ektp.nik || "", // server stores only a masked form in the CMS
       },
     });
 

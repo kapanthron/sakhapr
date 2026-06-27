@@ -77,6 +77,9 @@ export default {
       if (pathname === "/api/admin/recap" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleRecap(url, env));
       }
+      if (pathname === "/api/admin/cms/leads" && request.method === "GET") {
+        return await requireAdmin(request, env, () => handleCmsLeads(env));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -168,8 +171,21 @@ async function handleSubmit(request, env) {
     email: { to: env.MAIL_TO || "", status: "pending", at: null, providerId: null, error: null },
   };
 
-  // Email the package (best-effort; never blocks storage).
-  meta.email = await sendEmail(env, meta, { prescreen, ektp, report, chatlog, ektpName, pasfoto: hasPasfoto ? pasfoto : null });
+  // CMS ingestion replaces the email relay once D1 is bound. If D1 isn't
+  // configured yet (or ingestion fails), fall back to email so leads are never
+  // lost during the transition.
+  let cmsIngested = false;
+  if (env.DB) {
+    try {
+      await cmsIngestLead(env, id, ts, form, meta);
+      cmsIngested = true;
+    } catch (e) {
+      console.error("[CMS] ingest failed, falling back to email:", e && e.message);
+    }
+  }
+  meta.email = cmsIngested
+    ? { to: "", status: "cms", at: ts, providerId: null, error: null }
+    : await sendEmail(env, meta, { prescreen, ektp, report, chatlog, ektpName, pasfoto: hasPasfoto ? pasfoto : null });
 
   await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
     httpMetadata: { contentType: "application/json" },
@@ -998,6 +1014,75 @@ async function handleRecap(url, env) {
       "Cache-Control": "no-store",
     },
   });
+}
+
+/* --- CMS (Cloudflare D1) — Phase 1: ingestion + list ----------------------- */
+// TODO SECURITY/PDPA: D1 now stores personal data permanently. Retention +
+// DPIA must be revised before real applicant data; full NIK is NOT stored here
+// (only masked) — the full value remains inside the eKTP image / NIK report.
+
+function digitsOnly(s) { return String(s == null ? "" : s).replace(/\D/g, ""); }
+
+function maskNik(nik) {
+  const d = digitsOnly(nik);
+  return d.length === 16 ? d.slice(0, 6) + "******" + d.slice(12) : "";
+}
+
+function jenisKprFromProduct(product) {
+  if (product === "kpr_flexi_primary") return "primary";
+  if (product === "kpr_secondary") return "second";
+  if (product === "kpr_take_over") return "take_over";
+  return product || "";
+}
+
+/** Insert a lead row + its 4 file rows + a session metric into D1. */
+async function cmsIngestLead(env, id, ts, form, meta) {
+  const a = parseJsonObj(form.get("answers"));
+  const restruktur = /^pernah$/i.test(String(a.history_telat_restruktur_12bln || "").trim()) ? 1 : 0;
+  const sertifikat = /sudah sertifikat/i.test(String(a.jaminan_sertifikat_atau_ppjb || "")) ? 1 : 0;
+
+  await env.DB.prepare(
+    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,kota,pernah_restruktur,to_sertifikat_siap,submit_count,status) " +
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'uncontacted')"
+  ).bind(
+    id, ts,
+    a.nama_lengkap || "",
+    digitsOnly(a.nomor_handphone),
+    String(a.email_aktif || "").toLowerCase(),
+    maskNik(form.get("nik")),
+    jenisKprFromProduct(meta.product),
+    parseInt(digitsOnly(a.penghasilan_bersih_bulanan), 10) || null,
+    parseInt(digitsOnly(a.harga_transaksi), 10) || null,    // proxy: prescreen captures price, not loan amount
+    a.kota_jaminan || "",
+    restruktur,
+    sertifikat
+  ).run();
+
+  const f = meta.files || {};
+  const fileRows = [
+    ["chatlog", f.chatlog],
+    ["prescreen_xls", f.prescreen],
+    ["pariksa_pdf", f.report],
+    ["pasfoto", f.pasfoto],
+  ];
+  for (const [jenis, name] of fileRows) {
+    if (!name) continue;
+    await env.DB.prepare(
+      "INSERT INTO lead_files (id,lead_id,jenis,r2_key,uploaded_at) VALUES (?,?,?,?,?)"
+    ).bind(crypto.randomUUID(), id, jenis, `leads/${id}/${name}`, ts).run();
+  }
+  await env.DB.prepare(
+    "INSERT INTO sessions_metric (id,tipe,created_at) VALUES (?,?,?)"
+  ).bind(crypto.randomUUID(), "prescreen_submit", ts).run();
+}
+
+async function handleCmsLeads(env) {
+  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
+  const leads = (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC LIMIT 500").all()).results || [];
+  const files = (await env.DB.prepare("SELECT lead_id,jenis,r2_key FROM lead_files").all()).results || [];
+  const byLead = {};
+  for (const fl of files) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
+  return json({ ok: true, leads: leads.map((l) => ({ ...l, files: byLead[l.id] || [] })) });
 }
 
 /** Plain (unencrypted, STORE) ZIP — used to assemble the .xlsx package. */
