@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS leads (
   nik_masked TEXT,
   jenis_kpr TEXT,                 -- primary, second, take_over
   gaji_bulanan INTEGER,           -- rupiah
-  plafon INTEGER,                 -- rupiah
+  plafon INTEGER,                 -- rupiah, jumlah plafon kredit yang diajukan
+  tenor_tahun INTEGER,            -- tenor kredit yang diajukan (tahun)
   kota TEXT,
   pernah_restruktur INTEGER,      -- 0 atau 1
   to_sertifikat_siap INTEGER,     -- 0 atau 1, hanya untuk take_over
@@ -29,10 +30,14 @@ CREATE TABLE IF NOT EXISTS leads (
   tier_lokasi INTEGER,
   sales_owner TEXT,               -- AS, HB, RB, ER
   status TEXT DEFAULT 'uncontacted',
-  call_due_at TEXT,
-  wa_due_at TEXT,
+  call_due_at TEXT,               -- Task Call jatuh tempo (30 menit sejak lead masuk)
+  wa_due_at TEXT,                 -- Task WA follow up jatuh tempo (1 jam sejak call selesai)
   call_done_at TEXT,
-  wa_done_at TEXT
+  wa_done_at TEXT,
+  last_activity_at TEXT,          -- update terakhir (untuk sweep mingguan)
+  call_reminder_at TEXT,          -- kapan reminder SLA call dikirim (null = belum)
+  wa_reminder_at TEXT,            -- kapan reminder SLA WA dikirim (null = belum)
+  weekly_reminder_at TEXT         -- kapan reminder sweep mingguan terakhir dikirim
 );
 
 CREATE TABLE IF NOT EXISTS lead_files (

@@ -76,6 +76,7 @@ export class PrescreenSession {
       text: q.text,
       value,
       type: q.type,
+      unit: q.unit || null,
       flag_hint: q.flag_hint || null,
     };
   }
@@ -126,7 +127,8 @@ export function validateAnswer(q, raw) {
 /** Format a stored answer for display (numbers get Indonesian grouping). */
 function formatValue(a) {
   if (a.type === "number" && /^[0-9]+$/.test(a.value)) {
-    return `Rp${Number(a.value).toLocaleString("id-ID")}`;
+    const n = Number(a.value).toLocaleString("id-ID");
+    return a.unit ? `${n} ${a.unit}` : `Rp${n}`;
   }
   return a.value;
 }

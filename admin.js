@@ -307,6 +307,7 @@ function renderCmsLeads(leads) {
       `<span>Kota: <strong>${escapeHtml(l.kota || "-")}</strong></span>` +
       `<span>Gaji/bln: <strong>${rupiah(l.gaji_bulanan)}</strong></span>` +
       `<span>Plafon: <strong>${rupiah(l.plafon)}</strong></span>` +
+      `<span>Tenor: <strong>${l.tenor_tahun != null ? escapeHtml(String(l.tenor_tahun)) + " th" : "-"}</strong></span>` +
       `<span>NIK: <strong class="mono">${escapeHtml(l.nik_masked || "-")}</strong></span>` +
       `<span>Tier lokasi: <strong>${l.tier_lokasi === 1 ? "1" : l.tier_lokasi === 2 ? "2" : "Lain"}</strong></span>` +
       `<span>Status: <strong>${escapeHtml(l.status || "-")}</strong></span>` +
@@ -326,6 +327,26 @@ function renderCmsLeads(leads) {
         `<span>Sales: <strong>${escapeHtml(SALES_LABEL[l.sales_owner] || l.sales_owner || "-")}</strong></span>`;
       card.appendChild(score);
     }
+
+    // Phase 4: SLA tasks (call + WA) — status + actions.
+    const tasks = document.createElement("div");
+    tasks.className = "lead-card__meta cms-tasks";
+    tasks.innerHTML =
+      `<span>Task Call: <strong>${taskState(l.call_due_at, l.call_done_at, l.call_reminder_at)}</strong></span>` +
+      `<span>Task WA: <strong>${taskState(l.wa_due_at, l.wa_done_at, l.wa_reminder_at)}</strong></span>`;
+    card.appendChild(tasks);
+
+    const taskBtns = document.createElement("div");
+    taskBtns.className = "chips cms-task-actions";
+    if (!l.call_done_at) {
+      taskBtns.appendChild(taskButton("Call selesai", "chip--ok", l.id, "call_done"));
+      taskBtns.appendChild(taskButton("Paksa due call (uji)", "", l.id, "force_call_due"));
+    }
+    if (l.call_done_at && !l.wa_done_at) {
+      taskBtns.appendChild(taskButton("WA selesai", "chip--ok", l.id, "wa_done"));
+      taskBtns.appendChild(taskButton("Paksa due WA (uji)", "", l.id, "force_wa_due"));
+    }
+    if (taskBtns.children.length) card.appendChild(taskBtns);
 
     // Phase 2: qualification flags (review markers, not auto-reject).
     const flags = [];
@@ -363,6 +384,58 @@ function renderCmsLeads(leads) {
 
     card.appendChild(dl);
     list.appendChild(card);
+  }
+}
+
+// Phase 4: human-readable state of an SLA task.
+function taskState(dueAt, doneAt, reminderAt) {
+  if (doneAt) return "Selesai " + escapeHtml(fmtTime(doneAt));
+  if (!dueAt) return "—";
+  const overdue = new Date(dueAt).getTime() <= Date.now();
+  const due = "jatuh tempo " + escapeHtml(fmtTime(dueAt));
+  if (overdue) return `LEWAT (${due})${reminderAt ? " · reminder terkirim" : ""}`;
+  return "Terjadwal (" + due + ")";
+}
+
+function taskButton(label, cls, id, action) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "chip" + (cls ? " " + cls : "");
+  b.textContent = label;
+  b.addEventListener("click", () => callCmsTask(id, action));
+  return b;
+}
+
+async function callCmsTask(id, action) {
+  try {
+    const r = await fetch("/api/admin/cms/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    });
+    if (r.ok) loadCms();
+    else alert("Gagal: " + ((await r.json().catch(() => ({}))).error || r.status));
+  } catch (e) {
+    alert("Gagal: " + e.message);
+  }
+}
+
+async function runSla() {
+  const s = $("cmsStatus");
+  s.textContent = "Menjalankan sweep SLA…";
+  try {
+    const r = await fetch("/api/admin/cms/run-sla?weekly=1", { method: "POST" });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) {
+      s.textContent =
+        `Sweep selesai — reminder call: ${d.call}, WA: ${d.wa}, mingguan: ${d.weekly}, email terkirim: ${d.sent}.` +
+        (d.notConfigured ? " (RESEND_API_KEY belum diset; reminder dicatat tapi email tidak terkirim.)" : "");
+      loadCms();
+    } else {
+      s.textContent = "Gagal sweep: " + (d.error || r.status);
+    }
+  } catch (e) {
+    s.textContent = "Gagal sweep: " + e.message;
   }
 }
 
@@ -599,6 +672,7 @@ $("tabLeads").addEventListener("click", showLeads);
 $("tabPariksa").addEventListener("click", showPariksa);
 $("tabCms").addEventListener("click", () => { showCms(); loadCms(); });
 $("cmsRefreshBtn").addEventListener("click", loadCms);
+$("cmsSlaBtn").addEventListener("click", runSla);
 logoutBtn.addEventListener("click", logout);
 setupPariksa();
 

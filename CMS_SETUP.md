@@ -38,3 +38,38 @@ Moggy switches to **CMS-only** ingestion automatically.
 
 (Duplicate detection, qualification flags, scoring, sales assignment, SLA/Cron,
 pipeline, Customer-360 and the BI dashboard are the next phases.)
+
+## Migrations (run once when upgrading an already-created database)
+
+If you created the database from an **older** `schema.sql`, run the new column
+migrations in the D1 **Console** (paste the file contents and **Run**). They are
+additive and safe; skip any that error with "duplicate column".
+
+- `cms/migrations/0001_add_tenor.sql` — adds `tenor_tahun` (Phase 3.5: plafon +
+  tenor questions).
+- `cms/migrations/0002_phase4_sla.sql` — adds `last_activity_at`,
+  `call_reminder_at`, `wa_reminder_at`, `weekly_reminder_at` (Phase 4 SLA).
+
+A database freshly created from the current `schema.sql` already has every
+column, so no migration is needed.
+
+## Phase 4 — SLA tasks + cron reminders
+
+When a lead is assigned, two tasks open automatically:
+
+- **Task Call** — due **30 minutes** after the lead arrives (`call_due_at`).
+- **Task WA follow up** — due **1 hour** after the call is marked done
+  (`wa_due_at` is set when you click *Call selesai*).
+
+A **Cron Trigger** runs the worker's `scheduled()` handler every 5 minutes
+(`[triggers] crons` in `wrangler.toml`). It emails a reminder to the sales owner
+for any overdue Task Call / Task WA that isn't done yet, and every **Friday
+15:00 WIB** sweeps leads with no update that week.
+
+> **Design note (POC):** reminders go to `MAIL_TO` (your one Resend mailbox).
+> To route per sales owner later, set secrets `SALES_EMAIL_AS`, `SALES_EMAIL_HB`,
+> `SALES_EMAIL_RB`, `SALES_EMAIL_ER`; the code uses them automatically.
+
+Test without waiting for the timers: in **Super → CMS**, use **Paksa due call
+(uji)** on a lead, then **Jalankan SLA sekarang**. The status line reports how
+many reminders fired (and whether email is configured).
