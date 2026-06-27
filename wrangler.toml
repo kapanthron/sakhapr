@@ -33,6 +33,12 @@ database_id = "0451ed4a-d114-4683-b1e7-23b5d40c3530"
 [ai]
 binding = "AI"
 
+# Cron Triggers — CMS Phase 4 SLA sweep. Runs the scheduled() handler every 5
+# minutes: overdue call/WA tasks -> reminder email to the sales owner; every
+# Friday 15:00 WIB (08:00 UTC) a weekly sweep of leads with no update that week.
+[triggers]
+crons = ["*/5 * * * *"]
+
 [vars]
 ADMIN_USER = "pocadmin"
 ADMIN_PASS = "poc2026#"

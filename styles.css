@@ -487,6 +487,11 @@ table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-s
 .badge.chip--warn { color: var(--warn); background: #fff4e0; border-color: #e8c98a; }
 .badge.chip--danger { color: var(--danger); background: #fdeaea; border-color: #e6a3a3; }
 .cms-score span { white-space: nowrap; }
+.cms-tasks span { white-space: nowrap; }
+.cms-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cms-task-actions { margin-top: 4px; }
+.chip--ok { color: #1d6b34; border-color: #9ed3ad; }
+.chip--ok:hover { background: #1d6b34; color: var(--white); }
 
 /* --- Temporary NIK debug panel (Phase 4) ---------------------------------- */
 .debug {

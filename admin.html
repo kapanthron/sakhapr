@@ -137,7 +137,10 @@
     <section id="cmsView" hidden>
       <div class="app__topbar">
         <h2 class="ektp__title ektp__title--flush">CMS — Lead</h2>
-        <button id="cmsRefreshBtn" type="button" class="btn btn--ghost">Muat ulang</button>
+        <div class="cms-actions">
+          <button id="cmsSlaBtn" type="button" class="btn btn--ghost" title="Jalankan sweep SLA (reminder call/WA) sekarang">Jalankan SLA sekarang</button>
+          <button id="cmsRefreshBtn" type="button" class="btn btn--ghost">Muat ulang</button>
+        </div>
       </div>
       <div id="cmsStatus" class="ektp__status" aria-live="polite"></div>
       <div id="cmsList"></div>

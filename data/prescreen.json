@@ -120,14 +120,23 @@
         },
         {
           "no": 5,
-          "id": "harga_transaksi",
-          "text": "Harga transaksi berapa?",
+          "id": "plafon_diajukan",
+          "text": "Jumlah plafon kredit yang diajukan berapa? (dalam Rupiah)",
           "type": "number",
           "flag_hint": "plafon_basis",
-          "text_en": "What is the transaction price?"
+          "text_en": "What loan amount (plafond) are you applying for? (in IDR)"
         },
         {
           "no": 6,
+          "id": "tenor_diajukan",
+          "text": "Tenor kredit yang diajukan berapa tahun?",
+          "type": "number",
+          "unit": "tahun",
+          "flag_hint": "tenor",
+          "text_en": "What loan tenor (in years) are you applying for?"
+        },
+        {
+          "no": 7,
           "id": "jaminan_sertifikat_atau_ppjb",
           "text": "Apabila beli rumah second, apakah jaminan sudah sertifikat atau masih PPJB?",
           "type": "choice",
@@ -313,14 +322,23 @@
         },
         {
           "no": 5,
-          "id": "harga_transaksi",
-          "text": "Harga transaksi berapa?",
+          "id": "plafon_diajukan",
+          "text": "Jumlah plafon kredit yang diajukan berapa? (dalam Rupiah)",
           "type": "number",
           "flag_hint": "plafon_basis",
-          "text_en": "What is the transaction price?"
+          "text_en": "What loan amount (plafond) are you applying for? (in IDR)"
         },
         {
           "no": 6,
+          "id": "tenor_diajukan",
+          "text": "Tenor kredit yang diajukan berapa tahun?",
+          "type": "number",
+          "unit": "tahun",
+          "flag_hint": "tenor",
+          "text_en": "What loan tenor (in years) are you applying for?"
+        },
+        {
+          "no": 7,
           "id": "jaminan_sertifikat_atau_ppjb",
           "text": "Apabila beli rumah second, apakah jaminan sudah sertifikat atau masih PPJB?",
           "type": "choice",
@@ -543,6 +561,23 @@
             "Yes",
             "No"
           ]
+        },
+        {
+          "no": 8,
+          "id": "plafon_diajukan",
+          "text": "Jumlah plafon kredit yang diajukan berapa? (take over + top up bila ada, dalam Rupiah)",
+          "type": "number",
+          "flag_hint": "plafon_basis",
+          "text_en": "What loan amount (plafond) are you applying for? (take over + top up if any, in IDR)"
+        },
+        {
+          "no": 9,
+          "id": "tenor_diajukan",
+          "text": "Tenor kredit yang diajukan berapa tahun?",
+          "type": "number",
+          "unit": "tahun",
+          "flag_hint": "tenor",
+          "text_en": "What loan tenor (in years) are you applying for?"
         },
         {
           "no": 0,

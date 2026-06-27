@@ -83,6 +83,12 @@ export default {
       if (pathname === "/api/admin/cms/delete" && request.method === "POST") {
         return await requireAdmin(request, env, (s) => handleCmsDelete(request, env, s));
       }
+      if (pathname === "/api/admin/cms/task" && request.method === "POST") {
+        return await requireAdmin(request, env, (s) => handleCmsTask(request, env, s));
+      }
+      if (pathname === "/api/admin/cms/run-sla" && request.method === "POST") {
+        return await requireAdmin(request, env, () => handleRunSla(url, env));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -95,6 +101,12 @@ export default {
 
     // Everything else: static assets.
     return env.ASSETS.fetch(request);
+  },
+
+  // Cron Triggers (Phase 4): SLA sweep. The weekly digest only fires on the
+  // Friday 15:00 WIB tick; the per-lead call/WA reminders run every tick.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runSlaSweep(env, { weekly: isFridaySweepTick() }));
   },
 };
 
@@ -970,7 +982,8 @@ function wibFmt(iso) {
 const RECAP_HEADERS = [
   "Timestamp (WIB)", "Sesi Mulai (WIB)", "Sesi Berakhir (WIB)", "Ref", "Tipe", "Produk",
   "Status Prescreen", "Nama Lengkap", "Nomor HP", "Email", "Penghasilan Bersih/bln",
-  "Pekerjaan", "Profesi & Lama Kerja", "Kota Jaminan", "Alamat Jaminan", "Kode Pos",
+  "Pekerjaan", "Profesi & Lama Kerja", "Plafon Diajukan", "Tenor (th)",
+  "Kota Jaminan", "Alamat Jaminan", "Kode Pos",
   "Restruktur 12bln Terakhir", "Kondisi Jaminan", "TO dari Bank",
   "Verdict NIK", "Persetujuan (waktu)", "Pakai Kalkulator", "Durasi (menit)", "Status Email",
 ];
@@ -990,6 +1003,8 @@ function recapRow(m) {
     a.penghasilan_bersih_bulanan || "",
     a.pekerjaan_saat_ini || "",
     a.profesi_dan_lama_kerja || "",
+    a.plafon_diajukan || "",
+    a.tenor_diajukan || "",
     a.kota_jaminan || "",
     a.alamat_jaminan || "",
     a.kode_pos || "",
@@ -1105,7 +1120,8 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   const nama = String(a.nama_lengkap || "").replace(/\s+/g, " ").trim();
   const kota = a.kota_jaminan || "";
   const gaji = parseInt(digitsOnly(a.penghasilan_bersih_bulanan), 10) || null;
-  const plafon = parseInt(digitsOnly(a.harga_transaksi), 10) || null; // proxy: price, not loan amount
+  const plafon = parseInt(digitsOnly(a.plafon_diajukan), 10) || null; // requested loan amount
+  const tenor = parseInt(digitsOnly(a.tenor_diajukan), 10) || null;    // requested tenor (years)
 
   // Phase 2: duplicate check on normalised telepon OR email (prior submissions).
   const prior = (await env.DB.prepare(
@@ -1121,10 +1137,14 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   const gradeAll = bandGrade(skor);
   const owner = salesOwner(kota);
 
+  // Phase 4: open the Task Call (due 30 min after the lead arrives) and seed
+  // the activity clock used by the weekly sweep.
+  const callDue = new Date(Date.parse(ts) + 30 * 60 * 1000).toISOString();
+
   await env.DB.prepare(
-    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,kota,pernah_restruktur,to_sertifikat_siap,tier_lokasi,is_duplicate,submit_count,last_submit_at," +
-    "grade_gaji,grade_plafon,grade_lokasi,skor_komposit,grade_keseluruhan,sales_owner,status) " +
-    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'uncontacted')"
+    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,tenor_tahun,kota,pernah_restruktur,to_sertifikat_siap,tier_lokasi,is_duplicate,submit_count,last_submit_at," +
+    "grade_gaji,grade_plafon,grade_lokasi,skor_komposit,grade_keseluruhan,sales_owner,call_due_at,last_activity_at,status) " +
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'uncontacted')"
   ).bind(
     id, ts,
     nama,
@@ -1134,6 +1154,7 @@ async function cmsIngestLead(env, id, ts, form, meta) {
     jenisKprFromProduct(meta.product),
     gaji,
     plafon,
+    tenor,
     kota,
     restruktur,
     sertifikat,
@@ -1146,7 +1167,9 @@ async function cmsIngestLead(env, id, ts, form, meta) {
     gLokasi,
     skor,
     gradeAll,
-    owner
+    owner,
+    callDue,
+    ts
   ).run();
 
   const f = meta.files || {};
@@ -1201,6 +1224,167 @@ async function handleCmsDelete(request, env, session) {
   await env.DB.prepare("DELETE FROM leads WHERE id = ?").bind(id).run();
   await cmsAudit(env, session && session.u, "delete", `lead:${id}`);
   return json({ ok: true, deleted });
+}
+
+/* --- Phase 4: SLA tasks + cron reminders ----------------------------------- */
+
+/** True only on the cron tick that lands on Friday 15:00 WIB (08:00 UTC). The
+ *  cron runs every 5 minutes, so we accept the 08:00–08:04 UTC window once. */
+function isFridaySweepTick(now = new Date()) {
+  return now.getUTCDay() === 5 && now.getUTCHours() === 8 && now.getUTCMinutes() < 5;
+}
+
+/** Resolve the sales owner's mailbox. Optional per-owner env vars
+ *  (SALES_EMAIL_AS / _HB / _RB / _ER) override; otherwise everything goes to
+ *  MAIL_TO so the POC works with a single mailbox. */
+function salesEmail(env, owner) {
+  return (env[`SALES_EMAIL_${owner}`] || env.MAIL_TO || "hendrik.panthron@gmail.com");
+}
+
+/** Send a plain text email (no attachments) via Resend. */
+async function sendPlainEmail(env, to, subject, text) {
+  const from = env.MAIL_FROM || "Moggy <onboarding@resend.dev>";
+  if (!env.RESEND_API_KEY) return { to, status: "not_configured", error: "RESEND_API_KEY belum diset." };
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to: [to], subject, text }),
+    });
+    if (!res.ok) return { to, status: "failed", error: `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}` };
+    const data = await res.json().catch(() => ({}));
+    return { to, status: "sent", providerId: data.id || null };
+  } catch (err) {
+    return { to, status: "failed", error: String((err && err.message) || err) };
+  }
+}
+
+/**
+ * SLA sweep, shared by the cron handler and the manual "run now" admin button.
+ * - Overdue Task Call (call_due_at passed, call_done_at empty, not yet reminded)
+ *   -> reminder email to the sales owner; stamp call_reminder_at.
+ * - Overdue Task WA (wa_due_at passed, wa_done_at empty, not yet reminded)
+ *   -> reminder; stamp wa_reminder_at.
+ * - Weekly (opts.weekly): leads with no activity in 7 days, not yet reminded
+ *   this week -> digest email; stamp weekly_reminder_at.
+ */
+async function runSlaSweep(env, opts = {}) {
+  if (!env.DB) return { ok: false, error: "CMS belum dikonfigurasi." };
+  const nowIso = new Date().toISOString();
+  const out = { ok: true, call: 0, wa: 0, weekly: 0, sent: 0, notConfigured: false };
+
+  // 1) Overdue call reminders.
+  const overdueCall = (await env.DB.prepare(
+    "SELECT id,nama,telepon,kota,sales_owner,call_due_at FROM leads " +
+    "WHERE call_due_at IS NOT NULL AND call_due_at <= ? AND call_done_at IS NULL AND call_reminder_at IS NULL"
+  ).bind(nowIso).all()).results || [];
+  for (const l of overdueCall) {
+    const r = await sendPlainEmail(env, salesEmail(env, l.sales_owner),
+      `[Moggy CMS] SLA call lewat — ${l.nama || l.id} (${l.sales_owner || "?"})`,
+      `Task Call untuk lead berikut sudah melewati jatuh tempo dan belum ditandai selesai.\n\n` +
+      `Nama   : ${l.nama || "-"}\nTelepon: ${l.telepon || "-"}\nKota   : ${l.kota || "-"}\n` +
+      `Sales  : ${l.sales_owner || "-"}\nJatuh tempo call: ${l.call_due_at}\nLead ID: ${l.id}\n\n` +
+      `Mohon segera hubungi nasabah lalu tandai "Call selesai" di CMS.`);
+    if (r.status === "sent") out.sent++;
+    if (r.status === "not_configured") out.notConfigured = true;
+    await env.DB.prepare("UPDATE leads SET call_reminder_at = ? WHERE id = ?").bind(nowIso, l.id).run();
+    out.call++;
+  }
+
+  // 2) Overdue WA reminders.
+  const overdueWa = (await env.DB.prepare(
+    "SELECT id,nama,telepon,kota,sales_owner,wa_due_at FROM leads " +
+    "WHERE wa_due_at IS NOT NULL AND wa_due_at <= ? AND wa_done_at IS NULL AND wa_reminder_at IS NULL"
+  ).bind(nowIso).all()).results || [];
+  for (const l of overdueWa) {
+    const r = await sendPlainEmail(env, salesEmail(env, l.sales_owner),
+      `[Moggy CMS] SLA WA lewat — ${l.nama || l.id} (${l.sales_owner || "?"})`,
+      `Task WA follow up untuk lead berikut sudah melewati jatuh tempo (1 jam setelah call) dan belum selesai.\n\n` +
+      `Nama   : ${l.nama || "-"}\nTelepon: ${l.telepon || "-"}\nKota   : ${l.kota || "-"}\n` +
+      `Sales  : ${l.sales_owner || "-"}\nJatuh tempo WA: ${l.wa_due_at}\nLead ID: ${l.id}\n\n` +
+      `Mohon kirim WA follow up lalu tandai "WA selesai" di CMS.`);
+    if (r.status === "sent") out.sent++;
+    if (r.status === "not_configured") out.notConfigured = true;
+    await env.DB.prepare("UPDATE leads SET wa_reminder_at = ? WHERE id = ?").bind(nowIso, l.id).run();
+    out.wa++;
+  }
+
+  // 3) Weekly sweep: leads with no activity in the last 7 days.
+  if (opts.weekly) {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const stale = (await env.DB.prepare(
+      "SELECT id,nama,telepon,kota,sales_owner,status,last_activity_at FROM leads " +
+      "WHERE COALESCE(last_activity_at, created_at) < ? " +
+      "AND (weekly_reminder_at IS NULL OR weekly_reminder_at < ?)"
+    ).bind(weekAgo, weekAgo).all()).results || [];
+    if (stale.length) {
+      // One digest per sales owner.
+      const byOwner = {};
+      for (const l of stale) (byOwner[l.sales_owner || "ER"] = byOwner[l.sales_owner || "ER"] || []).push(l);
+      for (const [owner, rows] of Object.entries(byOwner)) {
+        const lines = rows.map((l) => `- ${l.nama || l.id} · ${l.telepon || "-"} · ${l.kota || "-"} · status ${l.status || "-"} · update terakhir ${l.last_activity_at || "?"}`);
+        const r = await sendPlainEmail(env, salesEmail(env, owner),
+          `[Moggy CMS] Sweep mingguan — ${rows.length} lead tanpa update (${owner})`,
+          `Lead berikut belum ada update dalam 7 hari terakhir. Mohon ditindaklanjuti.\n\n${lines.join("\n")}`);
+        if (r.status === "sent") out.sent++;
+        if (r.status === "not_configured") out.notConfigured = true;
+      }
+      // Digest copy to the admin mailbox.
+      await sendPlainEmail(env, env.MAIL_TO || "hendrik.panthron@gmail.com",
+        `[Moggy CMS] Sweep mingguan — ${stale.length} lead tanpa update`,
+        `Total ${stale.length} lead tanpa update minggu ini. Reminder sudah dikirim ke masing-masing sales owner.`);
+      for (const l of stale) {
+        await env.DB.prepare("UPDATE leads SET weekly_reminder_at = ? WHERE id = ?").bind(nowIso, l.id).run();
+      }
+      out.weekly = stale.length;
+    }
+  }
+  return out;
+}
+
+/** Manual trigger for the SLA sweep (admin "Jalankan SLA sekarang" button). */
+async function handleRunSla(url, env) {
+  const weekly = url.searchParams.get("weekly") === "1";
+  const res = await runSlaSweep(env, { weekly });
+  return json(res);
+}
+
+/**
+ * Task actions on a lead (Phase 4). Marking the call done opens the WA task
+ * (due 1 hour later). The force_* actions exist so the SLA sweep can be tested
+ * without waiting for the real 30-minute / 1-hour timers.
+ */
+async function handleCmsTask(request, env, session) {
+  if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
+  const { id, action } = await request.json().catch(() => ({}));
+  if (!id || /[^a-zA-Z0-9-]/.test(String(id))) return json({ ok: false, error: "ID tidak valid." }, 400);
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  if (action === "call_done") {
+    const waDue = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+    await env.DB.prepare(
+      "UPDATE leads SET call_done_at = ?, wa_due_at = ?, last_activity_at = ? WHERE id = ?"
+    ).bind(nowIso, waDue, nowIso, id).run();
+  } else if (action === "wa_done") {
+    await env.DB.prepare(
+      "UPDATE leads SET wa_done_at = ?, last_activity_at = ? WHERE id = ?"
+    ).bind(nowIso, nowIso, id).run();
+  } else if (action === "force_call_due") {
+    const past = new Date(now.getTime() - 60 * 1000).toISOString();
+    await env.DB.prepare(
+      "UPDATE leads SET call_due_at = ?, call_reminder_at = NULL WHERE id = ?"
+    ).bind(past, id).run();
+  } else if (action === "force_wa_due") {
+    const past = new Date(now.getTime() - 60 * 1000).toISOString();
+    await env.DB.prepare(
+      "UPDATE leads SET wa_due_at = ?, wa_reminder_at = NULL WHERE id = ?"
+    ).bind(past, id).run();
+  } else {
+    return json({ ok: false, error: "Aksi tidak dikenal." }, 400);
+  }
+  await cmsAudit(env, session && session.u, "task:" + action, `lead:${id}`);
+  return json({ ok: true });
 }
 
 /** Plain (unencrypted, STORE) ZIP — used to assemble the .xlsx package. */
