@@ -22,6 +22,13 @@ binding = "ASSETS"
 binding = "BUCKET"
 bucket_name = "sakhapr-leads"
 
+# Cloudflare D1 — structured CMS data (leads, files, status, audit, metrics).
+# Bound as env.DB. Run cms/schema.sql against this database once (see CMS_SETUP.md).
+[[d1_databases]]
+binding = "DB"
+database_name = "my-kapanbase"
+database_id = "0451ed4a-d114-4683-b1e7-23b5d40c3530"
+
 # Workers AI — free, integrated, no API key. Powers the /api/chat RAG endpoint.
 [ai]
 binding = "AI"
