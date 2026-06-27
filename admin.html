@@ -35,6 +35,11 @@
     <!-- Login -->
     <section class="ektp" id="loginView" hidden>
       <h2 class="ektp__title">Masuk Super Page</h2>
+      <p class="ektp__disclaimer">
+        Login pertama: masukkan ID dan <strong>tetapkan kata sandi Anda sendiri</strong>
+        (minimal 8 karakter). Kata sandi tidak disimpan di kode — hanya hash-nya di
+        database. Login berikutnya pakai kata sandi yang sama.
+      </p>
       <form id="loginForm" class="debug__grid" autocomplete="off">
         <label>ID
           <input id="loginUser" type="text" autocomplete="username" />
@@ -146,6 +151,19 @@
       </div>
       <div id="cmsStatus" class="ektp__status" aria-live="polite"></div>
       <div id="cmsList"></div>
+
+      <!-- Audit log (Phase 8) -->
+      <div class="audit" id="auditView">
+        <div class="dash__head">
+          <h3 class="dash__title">Audit Log</h3>
+          <div class="cms-actions">
+            <button id="pwdChangeBtn" type="button" class="btn btn--ghost">Ubah kata sandi</button>
+            <button id="auditRefreshBtn" type="button" class="btn btn--ghost">Muat audit log</button>
+          </div>
+        </div>
+        <div id="auditStatus" class="ektp__status" aria-live="polite"></div>
+        <div id="auditList"></div>
+      </div>
     </section>
 
     <!-- Dashboard BI (Phase 7) — big numbers + monthly chart from D1 -->

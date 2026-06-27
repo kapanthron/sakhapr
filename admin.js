@@ -250,11 +250,16 @@ async function login() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user, pass }),
   });
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    $("loginStatus").textContent = "ID atau kata sandi salah.";
+    // First login: the password must be chosen now (min 8 chars).
+    $("loginStatus").textContent = data.error || "ID atau kata sandi salah.";
     return;
   }
   $("loginPass").value = "";
+  if (data.firstLogin) {
+    $("loginStatus").textContent = "Kata sandi berhasil ditetapkan. Selamat datang.";
+  }
   await loadLeads();
 }
 
@@ -481,13 +486,23 @@ function renderCmsLeads(leads) {
     const order = ["ektp", "pasfoto", "prescreen_xls", "pariksa_pdf", "chatlog"];
     const files = (l.files || []).slice().sort((a, b) => order.indexOf(a.jenis) - order.indexOf(b.jenis));
     for (const f of files) {
+      const group = document.createElement("span");
+      group.className = "doc-chip";
       const a = document.createElement("a");
       a.className = "chip";
       a.textContent = "⬇ " + (CMS_FILE_LABEL[f.jenis] || f.jenis);
       a.href = `/api/admin/file?key=${encodeURIComponent(f.r2_key)}`;
       const base = f.r2_key.split("/").pop();
       a.download = `${(l.nama || "lead").replace(/[^A-Za-z0-9]+/g, "_")}_${base}`;
-      dl.appendChild(a);
+      group.appendChild(a);
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "chip chip--danger doc-chip__del";
+      x.title = "Hapus dokumen ini";
+      x.textContent = "✕";
+      x.addEventListener("click", () => deleteCmsFile(l.id, f.r2_key, group));
+      group.appendChild(x);
+      dl.appendChild(group);
     }
     const del = document.createElement("button");
     del.type = "button";
@@ -498,6 +513,67 @@ function renderCmsLeads(leads) {
 
     card.appendChild(dl);
     list.appendChild(card);
+  }
+}
+
+// Phase 8: delete a single document.
+async function deleteCmsFile(leadId, r2Key, group) {
+  if (!confirm("Hapus dokumen ini secara permanen? Tindakan ini tercatat di audit log.")) return;
+  try {
+    const r = await fetch("/api/admin/cms/file-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lead_id: leadId, r2_key: r2Key }),
+    });
+    if (r.ok) group.remove();
+    else alert("Gagal menghapus dokumen.");
+  } catch (e) {
+    alert("Gagal menghapus dokumen: " + e.message);
+  }
+}
+
+// Phase 8: audit log viewer.
+async function loadAudit() {
+  $("auditStatus").textContent = "Memuat…";
+  $("auditList").textContent = "";
+  let res;
+  try { res = await fetch("/api/admin/cms/audit", { headers: { Accept: "application/json" } }); }
+  catch (e) { $("auditStatus").textContent = "Gagal memuat: " + e.message; return; }
+  if (res.status === 401) { showLogin("Sesi berakhir. Silakan masuk kembali."); return; }
+  const data = await res.json().catch(() => ({}));
+  if (!data.ok) { $("auditStatus").textContent = data.error || "Audit log belum tersedia."; return; }
+  const rows = data.rows || [];
+  $("auditStatus").textContent = `${rows.length} entri terbaru.`;
+  const list = $("auditList");
+  list.textContent = "";
+  for (const e of rows) {
+    const row = document.createElement("div");
+    row.className = "audit-row";
+    row.innerHTML =
+      `<span class="mono audit-row__time">${escapeHtml(fmtTime(e.at))}</span>` +
+      `<span class="badge">${escapeHtml(e.aksi || "-")}</span>` +
+      `<span class="audit-row__actor">${escapeHtml(e.actor || "-")}</span>` +
+      `<span class="audit-row__target mono">${escapeHtml(e.target || "")}</span>`;
+    list.appendChild(row);
+  }
+}
+
+// Phase 8: change the admin password.
+async function changePassword() {
+  const np = prompt("Kata sandi baru (minimal 8 karakter):");
+  if (np == null) return;
+  if (np.length < 8) { alert("Kata sandi minimal 8 karakter."); return; }
+  try {
+    const r = await fetch("/api/admin/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPass: np }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) alert("Kata sandi berhasil diubah.");
+    else alert("Gagal: " + (d.error || r.status));
+  } catch (e) {
+    alert("Gagal: " + e.message);
   }
 }
 
@@ -800,10 +876,12 @@ $("loginForm").addEventListener("submit", (e) => { e.preventDefault(); login(); 
 $("refreshBtn").addEventListener("click", loadLeads);
 $("tabLeads").addEventListener("click", showLeads);
 $("tabPariksa").addEventListener("click", showPariksa);
-$("tabCms").addEventListener("click", () => { showCms(); loadCms(); });
+$("tabCms").addEventListener("click", () => { showCms(); loadCms(); loadAudit(); });
 $("tabBi").addEventListener("click", () => { showBi(); loadBi(); });
 $("cmsRefreshBtn").addEventListener("click", loadCms);
 $("cmsSlaBtn").addEventListener("click", runSla);
+$("auditRefreshBtn").addEventListener("click", loadAudit);
+$("pwdChangeBtn").addEventListener("click", changePassword);
 $("biRefreshBtn").addEventListener("click", loadBi);
 $("biChartToggle").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-metric]");

@@ -40,8 +40,10 @@ binding = "AI"
 crons = ["*/5 * * * *"]
 
 [vars]
-ADMIN_USER = "pocadmin"
-ADMIN_PASS = "poc2026#"
+ADMIN_USER = "panthronpoc"
+# Phase 8: NO password in the repo. The admin password is chosen on first login
+# and stored hashed in D1 (app_auth table). ADMIN_PASS / ADMIN_PASS_SHA256 below
+# are only a fallback for when D1 is not connected.
 MAIL_TO = "hendrik.panthron@gmail.com"
 # Set as secrets (wrangler secret put / dashboard), NOT here:
 #   SESSION_SECRET   - HMAC key for admin session cookies (required)

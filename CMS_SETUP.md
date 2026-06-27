@@ -125,4 +125,28 @@ ingest. The dashboard numbers therefore match the lead/session rows in D1.
 > in-process). **Approval rate = approved / (approved + rejected)**, shown
 > alongside the approved and rejected counts.
 
+## Phase 8 — Auth + document management + audit log
+
+**Login.** The Super page, CMS, dashboard and sales interface all require login.
+The admin ID is **`panthronpoc`** (set in `wrangler.toml`). **No password lives in
+the repo** — on the *first* login you choose your own password (min 8 chars); it
+is stored only as a SHA-256 hash in D1 (`app_auth`). Later logins use that same
+password. The table is created automatically on first login, so no migration is
+required (`cms/migrations/0003_app_auth.sql` is provided for completeness).
+
+- Change it anytime with **Ubah kata sandi** (CMS → Audit Log header).
+- Fallback: if D1 is ever disconnected, the worker falls back to `ADMIN_PASS` /
+  `ADMIN_PASS_SHA256` env vars (neither is set in the repo).
+
+**Document management.** Each file chip on a lead card has a **✕** to delete that
+single document (R2 object + `lead_files` row). Whole-lead delete still exists.
+Every **download** and **delete** is written to `audit_log`.
+
+**Audit log.** The **Audit Log** panel at the bottom of the CMS tab lists the most
+recent 200 actions (download, delete, status change, password set/change, export)
+with who and when.
+
+> **Test:** delete one document (the ✕ on a file chip), click **Muat audit log**,
+> and confirm a `delete · file:leads/<id>/<file>` row appears.
+
 No DB migration needed (`sessions_metric` already exists from Phase 1).
