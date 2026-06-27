@@ -73,3 +73,17 @@ for any overdue Task Call / Task WA that isn't done yet, and every **Friday
 Test without waiting for the timers: in **Super → CMS**, use **Paksa due call
 (uji)** on a lead, then **Jalankan SLA sekarang**. The status line reports how
 many reminders fired (and whether email is configured).
+
+## Phase 5 — pipeline status + history
+
+Each lead card has a **Status pipeline** dropdown with the exact stages from the
+brief:
+
+`uncontacted → slow_response → collect_data → submitted → approved →
+approved_not_disbursed → disbursed`, plus the branch exits `drop_process`,
+`rejected`, `deal_other_bank`.
+
+Changing it writes a row to `status_history` (old → new, timestamp, who) and the
+card shows the full change log underneath. Reaching a terminal stage
+(`disbursed`, `drop_process`, `rejected`, `deal_other_bank`) stops the SLA
+reminders. No migration is needed — `status_history` already exists from Phase 1.

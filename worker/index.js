@@ -89,6 +89,9 @@ export default {
       if (pathname === "/api/admin/cms/run-sla" && request.method === "POST") {
         return await requireAdmin(request, env, () => handleRunSla(url, env));
       }
+      if (pathname === "/api/admin/cms/status" && request.method === "POST") {
+        return await requireAdmin(request, env, (s) => handleCmsStatus(request, env, s));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -1195,9 +1198,57 @@ async function handleCmsLeads(env) {
   if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
   const leads = (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC LIMIT 500").all()).results || [];
   const files = (await env.DB.prepare("SELECT lead_id,jenis,r2_key FROM lead_files").all()).results || [];
-  const byLead = {};
+  const hist = (await env.DB.prepare(
+    "SELECT lead_id,status_lama,status_baru,changed_at,changed_by FROM status_history ORDER BY changed_at ASC"
+  ).all()).results || [];
+  const byLead = {}, histByLead = {};
   for (const fl of files) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
-  return json({ ok: true, leads: leads.map((l) => ({ ...l, files: byLead[l.id] || [] })) });
+  for (const h of hist) (histByLead[h.lead_id] = histByLead[h.lead_id] || []).push(h);
+  return json({
+    ok: true,
+    statuses: CMS_STATUSES,
+    leads: leads.map((l) => ({ ...l, files: byLead[l.id] || [], history: histByLead[l.id] || [] })),
+  });
+}
+
+/* --- Phase 5: pipeline statuses (exact keys + labels from the brief) -------- */
+const CMS_STATUSES = [
+  { key: "uncontacted", label: "Belum berhasil dihubungi" },
+  { key: "slow_response", label: "Sudah dihubungi tapi lambat merespons" },
+  { key: "collect_data", label: "Sudah submit dokumen ke sales" },
+  { key: "submitted", label: "Sudah masuk ke analis" },
+  { key: "approved", label: "Disetujui analis" },
+  { key: "approved_not_disbursed", label: "Disetujui tapi belum deal" },
+  { key: "disbursed", label: "Sudah akad" },
+  { key: "drop_process", label: "Batal proses" },
+  { key: "rejected", label: "Aplikasi ditolak" },
+  { key: "deal_other_bank", label: "Pilih bank lain" },
+];
+const CMS_STATUS_KEYS = new Set(CMS_STATUSES.map((s) => s.key));
+// Terminal stages: SLA reminders stop once a lead reaches one of these.
+const CMS_TERMINAL = new Set(["disbursed", "drop_process", "rejected", "deal_other_bank"]);
+
+/** Update a lead's pipeline status and record the change in status_history. */
+async function handleCmsStatus(request, env, session) {
+  if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
+  const { id, status } = await request.json().catch(() => ({}));
+  if (!id || /[^a-zA-Z0-9-]/.test(String(id))) return json({ ok: false, error: "ID tidak valid." }, 400);
+  if (!CMS_STATUS_KEYS.has(status)) return json({ ok: false, error: "Status tidak dikenal." }, 400);
+
+  const row = (await env.DB.prepare("SELECT status FROM leads WHERE id = ?").bind(id).first());
+  if (!row) return json({ ok: false, error: "Lead tidak ditemukan." }, 404);
+  const oldStatus = row.status || null;
+  if (oldStatus === status) return json({ ok: true, unchanged: true });
+
+  const now = new Date().toISOString();
+  const by = (session && session.u) || "admin";
+  await env.DB.prepare("UPDATE leads SET status = ?, last_activity_at = ? WHERE id = ?")
+    .bind(status, now, id).run();
+  await env.DB.prepare(
+    "INSERT INTO status_history (id,lead_id,status_lama,status_baru,changed_at,changed_by) VALUES (?,?,?,?,?,?)"
+  ).bind(crypto.randomUUID(), id, oldStatus, status, now, by).run();
+  await cmsAudit(env, by, "status:" + status, `lead:${id}`);
+  return json({ ok: true });
 }
 
 /** Write an audit-log row (best-effort). */
@@ -1274,9 +1325,11 @@ async function runSlaSweep(env, opts = {}) {
   const out = { ok: true, call: 0, wa: 0, weekly: 0, sent: 0, notConfigured: false };
 
   // 1) Overdue call reminders.
+  const TERMINAL_SQL = "('disbursed','drop_process','rejected','deal_other_bank')";
   const overdueCall = (await env.DB.prepare(
     "SELECT id,nama,telepon,kota,sales_owner,call_due_at FROM leads " +
-    "WHERE call_due_at IS NOT NULL AND call_due_at <= ? AND call_done_at IS NULL AND call_reminder_at IS NULL"
+    "WHERE call_due_at IS NOT NULL AND call_due_at <= ? AND call_done_at IS NULL AND call_reminder_at IS NULL " +
+    "AND status NOT IN " + TERMINAL_SQL
   ).bind(nowIso).all()).results || [];
   for (const l of overdueCall) {
     const r = await sendPlainEmail(env, salesEmail(env, l.sales_owner),
@@ -1294,7 +1347,8 @@ async function runSlaSweep(env, opts = {}) {
   // 2) Overdue WA reminders.
   const overdueWa = (await env.DB.prepare(
     "SELECT id,nama,telepon,kota,sales_owner,wa_due_at FROM leads " +
-    "WHERE wa_due_at IS NOT NULL AND wa_due_at <= ? AND wa_done_at IS NULL AND wa_reminder_at IS NULL"
+    "WHERE wa_due_at IS NOT NULL AND wa_due_at <= ? AND wa_done_at IS NULL AND wa_reminder_at IS NULL " +
+    "AND status NOT IN " + TERMINAL_SQL
   ).bind(nowIso).all()).results || [];
   for (const l of overdueWa) {
     const r = await sendPlainEmail(env, salesEmail(env, l.sales_owner),
@@ -1315,7 +1369,8 @@ async function runSlaSweep(env, opts = {}) {
     const stale = (await env.DB.prepare(
       "SELECT id,nama,telepon,kota,sales_owner,status,last_activity_at FROM leads " +
       "WHERE COALESCE(last_activity_at, created_at) < ? " +
-      "AND (weekly_reminder_at IS NULL OR weekly_reminder_at < ?)"
+      "AND (weekly_reminder_at IS NULL OR weekly_reminder_at < ?) " +
+      "AND status NOT IN " + TERMINAL_SQL
     ).bind(weekAgo, weekAgo).all()).results || [];
     if (stale.length) {
       // One digest per sales owner.

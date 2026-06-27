@@ -280,7 +280,15 @@ async function loadCms() {
     $("cmsStatus").textContent = data.error || "CMS belum tersedia (Cloudflare D1 belum dikonfigurasi).";
     return;
   }
+  if (Array.isArray(data.statuses)) CMS_STATUSES = data.statuses;
   renderCmsLeads(data.leads || []);
+}
+
+// Phase 5: pipeline statuses (populated from the server response).
+let CMS_STATUSES = [];
+function statusLabel(key) {
+  const s = CMS_STATUSES.find((x) => x.key === key);
+  return s ? s.label : (key || "-");
 }
 
 function renderCmsLeads(leads) {
@@ -310,7 +318,6 @@ function renderCmsLeads(leads) {
       `<span>Tenor: <strong>${l.tenor_tahun != null ? escapeHtml(String(l.tenor_tahun)) + " th" : "-"}</strong></span>` +
       `<span>NIK: <strong class="mono">${escapeHtml(l.nik_masked || "-")}</strong></span>` +
       `<span>Tier lokasi: <strong>${l.tier_lokasi === 1 ? "1" : l.tier_lokasi === 2 ? "2" : "Lain"}</strong></span>` +
-      `<span>Status: <strong>${escapeHtml(l.status || "-")}</strong></span>` +
       (l.is_duplicate && l.last_submit_at ? `<span>Submit terakhir: <strong>${escapeHtml(fmtTime(l.last_submit_at))}</strong></span>` : "");
     card.appendChild(meta);
 
@@ -347,6 +354,41 @@ function renderCmsLeads(leads) {
       taskBtns.appendChild(taskButton("Paksa due WA (uji)", "", l.id, "force_wa_due"));
     }
     if (taskBtns.children.length) card.appendChild(taskBtns);
+
+    // Phase 5: pipeline status selector + change history.
+    const pipe = document.createElement("div");
+    pipe.className = "cms-pipe";
+    const lbl = document.createElement("label");
+    lbl.className = "cms-pipe__label";
+    lbl.textContent = "Status pipeline";
+    const sel = document.createElement("select");
+    sel.className = "cms-pipe__select";
+    for (const s of CMS_STATUSES) {
+      const o = document.createElement("option");
+      o.value = s.key;
+      o.textContent = s.label;
+      if (s.key === l.status) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.addEventListener("change", () => updateCmsStatus(l.id, sel.value, sel));
+    lbl.appendChild(sel);
+    pipe.appendChild(lbl);
+
+    const hist = (l.history || []).slice().reverse();
+    if (hist.length) {
+      const h = document.createElement("ul");
+      h.className = "cms-history";
+      for (const e of hist) {
+        const li = document.createElement("li");
+        li.innerHTML =
+          `<span class="mono">${escapeHtml(fmtTime(e.changed_at))}</span> — ` +
+          `${escapeHtml(statusLabel(e.status_lama) || "(awal)")} → <strong>${escapeHtml(statusLabel(e.status_baru))}</strong>` +
+          (e.changed_by ? ` <span class="cms-history__by">oleh ${escapeHtml(e.changed_by)}</span>` : "");
+        h.appendChild(li);
+      }
+      pipe.appendChild(h);
+    }
+    card.appendChild(pipe);
 
     // Phase 2: qualification flags (review markers, not auto-reject).
     const flags = [];
@@ -418,6 +460,22 @@ async function callCmsTask(id, action) {
   } catch (e) {
     alert("Gagal: " + e.message);
   }
+}
+
+async function updateCmsStatus(id, status, sel) {
+  if (sel) sel.disabled = true;
+  try {
+    const r = await fetch("/api/admin/cms/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    if (r.ok) { loadCms(); return; }
+    alert("Gagal ubah status: " + ((await r.json().catch(() => ({}))).error || r.status));
+  } catch (e) {
+    alert("Gagal ubah status: " + e.message);
+  }
+  if (sel) sel.disabled = false;
 }
 
 async function runSla() {
