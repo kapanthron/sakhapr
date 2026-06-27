@@ -95,6 +95,9 @@ export default {
       if (pathname === "/api/admin/cms/c360" && request.method === "GET") {
         return await requireAdmin(request, env, (s) => handleCustomer360(env, s));
       }
+      if (pathname === "/api/admin/cms/bi" && request.method === "GET") {
+        return await requireAdmin(request, env, () => handleBi(env));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -250,6 +253,14 @@ async function handleSession(request, env) {
   await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
     httpMetadata: { contentType: "application/json" },
   });
+  // Phase 7: count non-submitted conversations in D1 for the BI dashboard.
+  // (Submitted sessions are recorded separately as 'prescreen_submit' at ingest.)
+  if (env.DB) {
+    try {
+      await env.DB.prepare("INSERT INTO sessions_metric (id,tipe,created_at) VALUES (?,?,?)")
+        .bind(crypto.randomUUID(), "chatbot", meta.ts).run();
+    } catch { /* never block session logging on the metric */ }
+  }
   return json({ ok: true, id });
 }
 
@@ -1333,6 +1344,63 @@ async function handleCustomer360(env, session) {
       "Content-Disposition": `attachment; filename="Moggy_Customer360.xlsx"`,
       "Cache-Control": "no-store",
     },
+  });
+}
+
+/* --- Phase 7: BI dashboard (big numbers + monthly series) ------------------ */
+// Pipeline progress sets (linear order: ... submitted -> approved ->
+// approved_not_disbursed -> disbursed). "Submit ke analis" counts leads that
+// reached analyst review, which includes rejected (analyst said no).
+const BI_SUBMITTED = new Set(["submitted", "approved", "approved_not_disbursed", "disbursed", "rejected"]);
+const BI_APPROVED = new Set(["approved", "approved_not_disbursed", "disbursed"]);
+const BI_DISBURSED = new Set(["disbursed"]);
+
+async function handleBi(env) {
+  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
+  const leads = (await env.DB.prepare(
+    "SELECT created_at,is_duplicate,status,plafon FROM leads"
+  ).all()).results || [];
+  const metrics = (await env.DB.prepare(
+    "SELECT tipe, COUNT(*) AS n FROM sessions_metric GROUP BY tipe"
+  ).all()).results || [];
+
+  const metricBy = {};
+  for (const m of metrics) metricBy[m.tipe] = m.n;
+  const sesiChatbot = metricBy.chatbot || 0;
+  const sesiPrescreen = metricBy.prescreen_submit || 0;
+  const sesiTotal = sesiChatbot + sesiPrescreen;
+
+  const total = leads.length;
+  const year = String(new Date().getFullYear());
+  let ytd = 0, nasabah = 0, totalLimit = 0, submitAnalis = 0, approved = 0, disbursed = 0;
+  const monthly = {}; // "YYYY-MM" -> { volume, nasabah }
+  for (const l of leads) {
+    const ym = wibYearMonth(l.created_at);
+    if (ym.slice(0, 4) === year) ytd++;
+    const unique = !l.is_duplicate;
+    if (unique) nasabah++;
+    totalLimit += Number(l.plafon) || 0;
+    if (BI_SUBMITTED.has(l.status)) submitAnalis++;
+    if (BI_APPROVED.has(l.status)) approved++;
+    if (BI_DISBURSED.has(l.status)) disbursed++;
+    const slot = (monthly[ym] = monthly[ym] || { volume: 0, nasabah: 0 });
+    slot.volume++;
+    if (unique) slot.nasabah++;
+  }
+  const pct = (n) => (total ? Math.round((n / total) * 1000) / 10 : 0);
+  const series = Object.keys(monthly).sort().map((ym) => ({ ym, ...monthly[ym] }));
+
+  return json({
+    ok: true,
+    bigNumbers: {
+      sesiTotal, sesiChatbot, sesiPrescreen,
+      ytdLeads: ytd,
+      nasabah, nasabahPct: pct(nasabah), totalLimit,
+      submitAnalis, submitAnalisPct: pct(submitAnalis),
+      approved, approvedPct: pct(approved),
+      disbursed, disbursedPct: pct(disbursed),
+    },
+    series,
   });
 }
 

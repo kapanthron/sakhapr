@@ -499,6 +499,20 @@ table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-s
 .cms-history li { padding: 1px 0; }
 .cms-history__by { color: #888; }
 
+/* --- Dashboard BI (Phase 7) ----------------------------------------------- */
+.bi-bignums { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 10px 0 18px; }
+.bi-card { border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; padding: 10px 12px; }
+.bi-card__value { font-size: 22px; font-weight: 700; color: var(--brand, #0E7C7B); line-height: 1.1; }
+.bi-card__label { font-size: 11.5px; color: #555; margin-top: 3px; }
+.bi-card__sub { font-size: 11px; color: #888; margin-top: 1px; }
+.bi-chart { border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; padding: 10px 12px; }
+.bi-chart__canvas { margin-top: 8px; overflow-x: auto; }
+.bi-svg { width: 100%; max-width: 720px; height: auto; }
+.bi-bar { fill: #0E7C7B; }
+.bi-bar__val { font-size: 10px; fill: #333; }
+.bi-axis { font-size: 9px; fill: #888; }
+.bi-axisline { stroke: var(--line); stroke-width: 1; }
+
 /* --- Temporary NIK debug panel (Phase 4) ---------------------------------- */
 .debug {
   border: 1px dashed var(--line);
