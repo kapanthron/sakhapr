@@ -302,9 +302,23 @@ function renderCmsLeads(leads) {
       `<span>Gaji/bln: <strong>${rupiah(l.gaji_bulanan)}</strong></span>` +
       `<span>Plafon: <strong>${rupiah(l.plafon)}</strong></span>` +
       `<span>NIK: <strong class="mono">${escapeHtml(l.nik_masked || "-")}</strong></span>` +
-      `<span>Restruktur: <strong>${l.pernah_restruktur ? "Ya" : "Tidak"}</strong></span>` +
-      `<span>Status: <strong>${escapeHtml(l.status || "-")}</strong></span>`;
+      `<span>Tier lokasi: <strong>${l.tier_lokasi === 1 ? "1" : l.tier_lokasi === 2 ? "2" : "Lain"}</strong></span>` +
+      `<span>Status: <strong>${escapeHtml(l.status || "-")}</strong></span>` +
+      (l.is_duplicate && l.last_submit_at ? `<span>Submit terakhir: <strong>${escapeHtml(fmtTime(l.last_submit_at))}</strong></span>` : "");
     card.appendChild(meta);
+
+    // Phase 2: qualification flags (review markers, not auto-reject).
+    const flags = [];
+    if (l.gaji_bulanan != null && l.gaji_bulanan < 13000000) flags.push("Gaji &lt; Rp13jt");
+    if (l.plafon != null && l.plafon < 500000000) flags.push("Plafon &lt; Rp500jt");
+    if (l.pernah_restruktur) flags.push("Pernah restruktur");
+    if (l.jenis_kpr === "take_over" && !l.to_sertifikat_siap) flags.push("TO: sertifikat belum siap");
+    if (flags.length) {
+      const fl = document.createElement("div");
+      fl.className = "cms-flags";
+      fl.innerHTML = flags.map((f) => `<span class="badge chip--danger">${f}</span>`).join(" ");
+      card.appendChild(fl);
+    }
 
     const dl = document.createElement("div");
     dl.className = "chips";
