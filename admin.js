@@ -258,7 +258,7 @@ async function login() {
 /* --- CMS (Phase 1: lead list from D1) -------------------------------------- */
 
 const JENIS_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
-const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", pasfoto: "Pas foto (.jpg)" };
+const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", ektp: "eKTP penuh", pasfoto: "Pas foto (.jpg)" };
 
 function rupiah(n) { return n ? "Rp" + Number(n).toLocaleString("id-ID") : "-"; }
 
@@ -308,15 +308,42 @@ function renderCmsLeads(leads) {
 
     const dl = document.createElement("div");
     dl.className = "chips";
-    for (const f of (l.files || [])) {
+    // Show files in a stable order (eKTP penuh first so it's easy to find).
+    const order = ["ektp", "pasfoto", "prescreen_xls", "pariksa_pdf", "chatlog"];
+    const files = (l.files || []).slice().sort((a, b) => order.indexOf(a.jenis) - order.indexOf(b.jenis));
+    for (const f of files) {
       const a = document.createElement("a");
       a.className = "chip";
-      a.textContent = CMS_FILE_LABEL[f.jenis] || f.jenis;
+      a.textContent = "⬇ " + (CMS_FILE_LABEL[f.jenis] || f.jenis);
       a.href = `/api/admin/file?key=${encodeURIComponent(f.r2_key)}`;
+      const base = f.r2_key.split("/").pop();
+      a.download = `${(l.nama || "lead").replace(/[^A-Za-z0-9]+/g, "_")}_${base}`;
       dl.appendChild(a);
     }
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "chip chip--danger";
+    del.textContent = "Hapus lead";
+    del.addEventListener("click", () => deleteCmsLead(l.id, card));
+    dl.appendChild(del);
+
     card.appendChild(dl);
     list.appendChild(card);
+  }
+}
+
+async function deleteCmsLead(id, card) {
+  if (!confirm("Hapus lead ini beserta semua dokumennya secara permanen? Tindakan ini tercatat di audit log.")) return;
+  try {
+    const r = await fetch("/api/admin/cms/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (r.ok) card.remove();
+    else alert("Gagal menghapus.");
+  } catch (e) {
+    alert("Gagal menghapus: " + e.message);
   }
 }
 
