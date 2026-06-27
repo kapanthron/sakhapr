@@ -99,7 +99,16 @@ export default {
         return await requireAdmin(request, env, () => handleBi(env));
       }
       if (pathname === "/api/admin/file" && request.method === "GET") {
-        return await requireAdmin(request, env, () => handleFile(url, env));
+        return await requireAdmin(request, env, (s) => handleFile(url, env, s));
+      }
+      if (pathname === "/api/admin/set-password" && request.method === "POST") {
+        return await requireAdmin(request, env, (s) => handleSetPassword(request, env, s));
+      }
+      if (pathname === "/api/admin/cms/file-delete" && request.method === "POST") {
+        return await requireAdmin(request, env, (s) => handleCmsFileDelete(request, env, s));
+      }
+      if (pathname === "/api/admin/cms/audit" && request.method === "GET") {
+        return await requireAdmin(request, env, () => handleCmsAudit(env));
       }
       if (pathname === "/admin" || pathname === "/super") {
         return env.ASSETS.fetch(new Request(new URL("/admin.html", url), request));
@@ -884,15 +893,66 @@ async function handleLogin(request, env) {
     return json({ ok: false, error: "Terlalu banyak percobaan masuk. Coba lagi nanti." }, 429);
   }
   const { user, pass } = await request.json().catch(() => ({}));
-  const okUser = timingSafeEqual(String(user || ""), env.ADMIN_USER || "");
-  const okPass = await checkPassword(env, String(pass || ""));
-  if (!okUser || !okPass) {
+  const u = String(user || "");
+  const p = String(pass || "");
+  const adminUser = env.ADMIN_USER || "panthronpoc";
+  if (!timingSafeEqual(u, adminUser)) {
     return json({ ok: false, error: "Kredensial salah." }, 401);
   }
-  const token = await makeSession(env, env.ADMIN_USER);
-  return json({ ok: true }, 200, {
-    "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS),
-  });
+
+  // Phase 8: the password is set on first login and stored (hashed) in D1, so no
+  // password lives in the repo. Falls back to env credentials only if D1 is absent.
+  if (env.DB) {
+    let firstLogin = false;
+    try {
+      await ensureAuthTable(env);
+      const row = await env.DB.prepare("SELECT pass_sha256 FROM app_auth WHERE id = ?").bind(adminUser).first();
+      if (!row) {
+        if (p.length < 8) {
+          return json({ ok: false, firstLogin: true, error: "Login pertama: tetapkan kata sandi minimal 8 karakter." }, 400);
+        }
+        const now = new Date().toISOString();
+        await env.DB.prepare("INSERT INTO app_auth (id,pass_sha256,created_at) VALUES (?,?,?)")
+          .bind(adminUser, await sha256hex(p), now).run();
+        await cmsAudit(env, adminUser, "password_set", "first_login");
+        firstLogin = true;
+      } else if (!timingSafeEqual((await sha256hex(p)).toLowerCase(), String(row.pass_sha256).toLowerCase())) {
+        return json({ ok: false, error: "Kredensial salah." }, 401);
+      }
+      const token = await makeSession(env, adminUser);
+      return json({ ok: true, firstLogin }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
+    } catch (e) {
+      // Fall through to env-based auth if the D1 path fails unexpectedly.
+    }
+  }
+
+  if (!(await checkPassword(env, p))) return json({ ok: false, error: "Kredensial salah." }, 401);
+  const token = await makeSession(env, adminUser);
+  return json({ ok: true }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
+}
+
+/** Create the app_auth table if it does not exist yet (first-login bootstrap). */
+async function ensureAuthTable(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS app_auth (id TEXT PRIMARY KEY, pass_sha256 TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT)"
+  ).run();
+}
+
+/** Change the admin password (requires an authenticated session). */
+async function handleSetPassword(request, env, session) {
+  if (!env.DB) return json({ ok: false, error: "Penyimpanan kata sandi (D1) belum dikonfigurasi." }, 503);
+  const { newPass } = await request.json().catch(() => ({}));
+  const np = String(newPass || "");
+  if (np.length < 8) return json({ ok: false, error: "Kata sandi baru minimal 8 karakter." }, 400);
+  const adminUser = (session && session.u) || env.ADMIN_USER || "panthronpoc";
+  const now = new Date().toISOString();
+  await ensureAuthTable(env);
+  await env.DB.prepare(
+    "INSERT INTO app_auth (id,pass_sha256,created_at,updated_at) VALUES (?,?,?,?) " +
+    "ON CONFLICT(id) DO UPDATE SET pass_sha256 = excluded.pass_sha256, updated_at = excluded.updated_at"
+  ).bind(adminUser, await sha256hex(np), now, now).run();
+  await cmsAudit(env, adminUser, "password_change", "self");
+  return json({ ok: true });
 }
 
 /** Verify the admin password against ADMIN_PASS_SHA256 (preferred) or ADMIN_PASS. */
@@ -1434,6 +1494,33 @@ async function handleCmsDelete(request, env, session) {
   return json({ ok: true, deleted });
 }
 
+/* --- Phase 8: document management + audit log ------------------------------ */
+
+/** Delete a single document (R2 object + its lead_files row), logged to audit. */
+async function handleCmsFileDelete(request, env, session) {
+  if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
+  const { lead_id, r2_key } = await request.json().catch(() => ({}));
+  if (!lead_id || /[^a-zA-Z0-9-]/.test(String(lead_id))) return json({ ok: false, error: "ID tidak valid." }, 400);
+  const key = String(r2_key || "");
+  // The key must belong to this lead's folder — no traversal, no cross-lead deletes.
+  if (key !== `leads/${lead_id}/${key.split("/").pop()}` || key.includes("..") || !key.startsWith(`leads/${lead_id}/`)) {
+    return json({ ok: false, error: "Key tidak valid." }, 400);
+  }
+  await env.BUCKET.delete(key);
+  await env.DB.prepare("DELETE FROM lead_files WHERE lead_id = ? AND r2_key = ?").bind(lead_id, key).run();
+  await cmsAudit(env, session && session.u, "delete", `file:${key}`);
+  return json({ ok: true });
+}
+
+/** Recent audit-log rows (Phase 8 viewer). */
+async function handleCmsAudit(env) {
+  if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
+  const rows = (await env.DB.prepare(
+    "SELECT actor,aksi,target,at FROM audit_log ORDER BY at DESC LIMIT 200"
+  ).all()).results || [];
+  return json({ ok: true, rows });
+}
+
 /* --- Phase 4: SLA tasks + cron reminders ----------------------------------- */
 
 /** True only on the cron tick that lands on Friday 15:00 WIB (08:00 UTC). The
@@ -1647,13 +1734,15 @@ function makePlainZip(entries) {
   return out;
 }
 
-async function handleFile(url, env) {
+async function handleFile(url, env, session) {
   const key = url.searchParams.get("key") || "";
   if (!(key.startsWith("leads/") || key.startsWith("sessions/")) || key.includes("..")) {
     return json({ ok: false, error: "Key tidak valid." }, 400);
   }
   const obj = await env.BUCKET.get(key);
   if (!obj) return json({ ok: false, error: "Tidak ditemukan." }, 404);
+  // Phase 8: log every document download to the audit trail.
+  if (env.DB) await cmsAudit(env, session && session.u, "download", key);
   // Allow the admin to request a unique download filename (so files with the
   // same base name don't overwrite each other).
   const requested = url.searchParams.get("name") || "";

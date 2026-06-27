@@ -71,6 +71,15 @@ CREATE TABLE IF NOT EXISTS sessions_metric (
   created_at TEXT NOT NULL
 );
 
+-- Phase 8: admin password set on first login (no password lives in the repo).
+-- id = username; pass_sha256 = SHA-256 hex of the chosen password.
+CREATE TABLE IF NOT EXISTS app_auth (
+  id TEXT PRIMARY KEY,
+  pass_sha256 TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_leads_created ON leads (created_at);
 CREATE INDEX IF NOT EXISTS idx_leads_telepon ON leads (telepon);
 CREATE INDEX IF NOT EXISTS idx_leads_email ON leads (email);
