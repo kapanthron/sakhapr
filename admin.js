@@ -259,6 +259,12 @@ async function login() {
 
 const JENIS_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
 const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", ektp: "eKTP penuh", pasfoto: "Pas foto (.jpg)" };
+const SALES_LABEL = { AS: "AS", HB: "HB", RB: "RB", ER: "ER (eskalasi)" };
+function gradeChip(g) {
+  if (g === "A+" || g === "A") return "chip--ok";
+  if (g === "B") return "chip--warn";
+  return "chip--danger";
+}
 
 function rupiah(n) { return n ? "Rp" + Number(n).toLocaleString("id-ID") : "-"; }
 
@@ -306,6 +312,20 @@ function renderCmsLeads(leads) {
       `<span>Status: <strong>${escapeHtml(l.status || "-")}</strong></span>` +
       (l.is_duplicate && l.last_submit_at ? `<span>Submit terakhir: <strong>${escapeHtml(fmtTime(l.last_submit_at))}</strong></span>` : "");
     card.appendChild(meta);
+
+    // Phase 3: scoring (grade per dimensi, komposit, grade keseluruhan, sales owner).
+    if (l.grade_keseluruhan || l.skor_komposit != null || l.sales_owner) {
+      const score = document.createElement("div");
+      score.className = "lead-card__meta cms-score";
+      score.innerHTML =
+        `<span>Grade: <strong class="badge ${gradeChip(l.grade_keseluruhan)}">${escapeHtml(l.grade_keseluruhan || "-")}</strong></span>` +
+        `<span>Skor: <strong>${l.skor_komposit != null ? escapeHtml(String(l.skor_komposit)) : "-"}</strong></span>` +
+        `<span>Gaji: <strong>${escapeHtml(l.grade_gaji || "-")}</strong></span>` +
+        `<span>Plafon: <strong>${escapeHtml(l.grade_plafon || "-")}</strong></span>` +
+        `<span>Lokasi: <strong>${escapeHtml(l.grade_lokasi || "-")}</strong></span>` +
+        `<span>Sales: <strong>${escapeHtml(SALES_LABEL[l.sales_owner] || l.sales_owner || "-")}</strong></span>`;
+      card.appendChild(score);
+    }
 
     // Phase 2: qualification flags (review markers, not auto-reject).
     const flags = [];

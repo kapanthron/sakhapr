@@ -1050,6 +1050,52 @@ function tierLokasi(kota) {
   return 0;
 }
 
+/* --- Phase 3: scoring + sales assignment (exact tables from the brief) ------ */
+function gradeGaji(g) {
+  g = g || 0;
+  if (g < 13000000) return "C";
+  if (g <= 50000000) return "B";
+  if (g <= 100000000) return "A";
+  return "A+";
+}
+function gradePlafon(p) {
+  p = p || 0;
+  if (p < 750000000) return "D";
+  if (p < 1100000000) return "C";
+  if (p < 2500000000) return "B";
+  if (p <= 5000000000) return "A";
+  return "A+";
+}
+const LOKASI_A = new Set(["jabodetabek", "bandung", "surabaya", "gresik", "sidoarjo"]);
+const LOKASI_B = new Set(["yogyakarta", "jogja", "semarang", "makassar", "medan", "batam", "bali"]);
+function gradeLokasi(kota) {
+  const k = String(kota || "").trim().toLowerCase();
+  if (LOKASI_A.has(k)) return "A";
+  if (LOKASI_B.has(k)) return "B";
+  return "C";
+}
+const GRADE_POINTS = { "A+": 100, "A": 85, "B": 70, "C": 50, "D": 30 };
+function compositeScore(gg, gp, gl) {
+  return Math.round(0.40 * (GRADE_POINTS[gg] || 0) + 0.40 * (GRADE_POINTS[gp] || 0) + 0.20 * (GRADE_POINTS[gl] || 0));
+}
+function bandGrade(s) {
+  if (s >= 90) return "A+";
+  if (s >= 80) return "A";
+  if (s >= 65) return "B";
+  if (s >= 50) return "C";
+  return "D";
+}
+const SALES_AS = new Set(["jabodetabek", "medan", "batam"]);
+const SALES_HB = new Set(["surabaya", "gresik", "sidoarjo", "makassar", "bali"]);
+const SALES_RB = new Set(["bandung", "yogyakarta", "jogja", "semarang"]);
+function salesOwner(kota) {
+  const k = String(kota || "").trim().toLowerCase();
+  if (SALES_AS.has(k)) return "AS";
+  if (SALES_HB.has(k)) return "HB";
+  if (SALES_RB.has(k)) return "RB";
+  return "ER";
+}
+
 async function cmsIngestLead(env, id, ts, form, meta) {
   const a = parseJsonObj(form.get("answers"));
   const restruktur = /^pernah$/i.test(String(a.history_telat_restruktur_12bln || "").trim()) ? 1 : 0;
@@ -1057,6 +1103,9 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   const tel = digitsOnly(a.nomor_handphone);
   const em = String(a.email_aktif || "").toLowerCase().trim();
   const nama = String(a.nama_lengkap || "").replace(/\s+/g, " ").trim();
+  const kota = a.kota_jaminan || "";
+  const gaji = parseInt(digitsOnly(a.penghasilan_bersih_bulanan), 10) || null;
+  const plafon = parseInt(digitsOnly(a.harga_transaksi), 10) || null; // proxy: price, not loan amount
 
   // Phase 2: duplicate check on normalised telepon OR email (prior submissions).
   const prior = (await env.DB.prepare(
@@ -1066,9 +1115,16 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   const submitCount = prior.length + 1;
   const lastSubmitAt = prior.length ? prior[0].created_at : null;
 
+  // Phase 3: grades, composite, overall band, sales owner.
+  const gGaji = gradeGaji(gaji), gPlafon = gradePlafon(plafon), gLokasi = gradeLokasi(kota);
+  const skor = compositeScore(gGaji, gPlafon, gLokasi);
+  const gradeAll = bandGrade(skor);
+  const owner = salesOwner(kota);
+
   await env.DB.prepare(
-    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,kota,pernah_restruktur,to_sertifikat_siap,tier_lokasi,is_duplicate,submit_count,last_submit_at,status) " +
-    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'uncontacted')"
+    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,kota,pernah_restruktur,to_sertifikat_siap,tier_lokasi,is_duplicate,submit_count,last_submit_at," +
+    "grade_gaji,grade_plafon,grade_lokasi,skor_komposit,grade_keseluruhan,sales_owner,status) " +
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'uncontacted')"
   ).bind(
     id, ts,
     nama,
@@ -1076,15 +1132,21 @@ async function cmsIngestLead(env, id, ts, form, meta) {
     em,
     maskNik(form.get("nik")),
     jenisKprFromProduct(meta.product),
-    parseInt(digitsOnly(a.penghasilan_bersih_bulanan), 10) || null,
-    parseInt(digitsOnly(a.harga_transaksi), 10) || null,    // proxy: prescreen captures price, not loan amount
-    a.kota_jaminan || "",
+    gaji,
+    plafon,
+    kota,
     restruktur,
     sertifikat,
-    tierLokasi(a.kota_jaminan),
+    tierLokasi(kota),
     isDuplicate,
     submitCount,
-    lastSubmitAt
+    lastSubmitAt,
+    gGaji,
+    gPlafon,
+    gLokasi,
+    skor,
+    gradeAll,
+    owner
   ).run();
 
   const f = meta.files || {};
