@@ -33,16 +33,18 @@ function showLogin(msg) {
 }
 
 const cmsView = $("cmsView");
+const biView = $("biView");
 
 function showView(view, tabId) {
   loginView.hidden = true;
   leadsView.hidden = true;
   pariksaView.hidden = true;
   if (cmsView) cmsView.hidden = true;
+  if (biView) biView.hidden = true;
   view.hidden = false;
   adminNav.hidden = false;
   logoutBtn.hidden = false;
-  for (const id of ["tabLeads", "tabCms", "tabPariksa"]) {
+  for (const id of ["tabLeads", "tabCms", "tabBi", "tabPariksa"]) {
     const b = $(id);
     if (b) b.classList.toggle("is-active", id === tabId);
   }
@@ -50,6 +52,7 @@ function showView(view, tabId) {
 function showLeads() { showView(leadsView, "tabLeads"); }
 function showPariksa() { showView(pariksaView, "tabPariksa"); }
 function showCms() { showView(cmsView, "tabCms"); }
+function showBi() { showView(biView, "tabBi"); }
 
 const EMAIL_LABEL = {
   sent: "✓ terkirim",
@@ -282,6 +285,75 @@ async function loadCms() {
   }
   if (Array.isArray(data.statuses)) CMS_STATUSES = data.statuses;
   renderCmsLeads(data.leads || []);
+}
+
+/* --- Phase 7: Dashboard BI (big numbers + monthly chart) ------------------- */
+let biSeries = [];
+let biMetric = "volume";
+
+async function loadBi() {
+  $("biStatus").textContent = "Memuat…";
+  let res;
+  try { res = await fetch("/api/admin/cms/bi", { headers: { Accept: "application/json" } }); }
+  catch (e) { $("biStatus").textContent = "Gagal memuat: " + e.message; return; }
+  if (res.status === 401) { showLogin("Sesi berakhir. Silakan masuk kembali."); return; }
+  const data = await res.json().catch(() => ({}));
+  if (!data.ok) {
+    $("biStatus").textContent = data.error || "Dashboard belum tersedia (D1 belum dikonfigurasi).";
+    $("biBigNums").textContent = "";
+    $("biChart").textContent = "";
+    return;
+  }
+  $("biStatus").textContent = "";
+  biSeries = data.series || [];
+  renderBigNumbers(data.bigNumbers || {});
+  renderBiChart();
+}
+
+function bigNumCard(label, value, sub) {
+  return `<div class="bi-card"><div class="bi-card__value">${escapeHtml(String(value))}</div>` +
+    `<div class="bi-card__label">${escapeHtml(label)}</div>` +
+    (sub ? `<div class="bi-card__sub">${escapeHtml(sub)}</div>` : "") + `</div>`;
+}
+
+function renderBigNumbers(b) {
+  $("biBigNums").innerHTML =
+    bigNumCard("Total sesi keseluruhan", b.sesiTotal) +
+    bigNumCard("Sesi chatbot", b.sesiChatbot) +
+    bigNumCard("Sesi prescreen & submit", b.sesiPrescreen) +
+    bigNumCard("YTD jumlah leads", b.ytdLeads) +
+    bigNumCard("Jumlah nasabah", b.nasabah, `${b.nasabahPct}% dari lead`) +
+    bigNumCard("Total limit pengajuan", rupiah(b.totalLimit)) +
+    bigNumCard("Submit ke analis", b.submitAnalis, `${b.submitAnalisPct}%`) +
+    bigNumCard("Approved", b.approved, `${b.approvedPct}%`) +
+    bigNumCard("Disbursed", b.disbursed, `${b.disbursedPct}%`);
+}
+
+function renderBiChart() {
+  const host = $("biChart");
+  host.textContent = "";
+  if (!biSeries.length) { host.innerHTML = `<p class="ektp__disclaimer">Belum ada data lead.</p>`; return; }
+  const vals = biSeries.map((s) => (biMetric === "nasabah" ? s.nasabah : s.volume));
+  const max = Math.max(1, ...vals);
+  const W = 640, H = 220, padL = 32, padB = 28, padT = 10, padR = 10;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = biSeries.length;
+  const bw = Math.max(6, Math.min(48, innerW / n - 10));
+  let bars = "";
+  biSeries.forEach((s, i) => {
+    const v = vals[i];
+    const x = padL + (innerW * (i + 0.5)) / n - bw / 2;
+    const h = (v / max) * innerH;
+    const y = padT + innerH - h;
+    bars +=
+      `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="bi-bar"></rect>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" class="bi-bar__val">${v}</text>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${(H - 8).toFixed(1)}" text-anchor="middle" class="bi-axis">${escapeHtml(s.ym)}</text>`;
+  });
+  host.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" class="bi-svg" role="img" aria-label="Grafik lead per bulan">` +
+    `<line x1="${padL}" y1="${padT + innerH}" x2="${W - padR}" y2="${padT + innerH}" class="bi-axisline"></line>` +
+    bars + `</svg>`;
 }
 
 // Phase 5: pipeline statuses (populated from the server response).
@@ -729,8 +801,17 @@ $("refreshBtn").addEventListener("click", loadLeads);
 $("tabLeads").addEventListener("click", showLeads);
 $("tabPariksa").addEventListener("click", showPariksa);
 $("tabCms").addEventListener("click", () => { showCms(); loadCms(); });
+$("tabBi").addEventListener("click", () => { showBi(); loadBi(); });
 $("cmsRefreshBtn").addEventListener("click", loadCms);
 $("cmsSlaBtn").addEventListener("click", runSla);
+$("biRefreshBtn").addEventListener("click", loadBi);
+$("biChartToggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-metric]");
+  if (!btn) return;
+  biMetric = btn.dataset.metric;
+  $("biChartToggle").querySelectorAll("button").forEach((b) => b.classList.toggle("is-active", b === btn));
+  renderBiChart();
+});
 logoutBtn.addEventListener("click", logout);
 setupPariksa();
 

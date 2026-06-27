@@ -103,3 +103,25 @@ brief lists. No migration needed; it reads existing columns.
 
 **Image export (pas foto):** the cropped face photo is already a per-lead
 download — the **Pas foto (.jpg)** chip on each card saves the JPG from R2.
+
+## Phase 7 — Dashboard BI
+
+A new **Dashboard BI** tab (login required) reads straight from D1:
+
+**Big numbers:** total sessions, chatbot sessions, prescreen/submit sessions,
+YTD leads, number of customers (+ % of leads) and total requested limit, plus the
+count and % that reached *submit to analyst*, *approved*, and *disbursed*.
+
+**Chart:** leads per month, with a **Volume** / **Jumlah nasabah** toggle —
+Volume counts every submission; Jumlah nasabah counts unique customers
+(`is_duplicate = 0`).
+
+Session counting: each non-submitted conversation records a `chatbot` row in
+`sessions_metric`; each submitted lead records a `prescreen_submit` row at
+ingest. The dashboard numbers therefore match the lead/session rows in D1.
+
+> **Reporting note:** "submit ke analis" counts leads that reached analyst review,
+> which **includes `rejected`** (analyst reviewed and declined). Say the word if
+> you'd rather exclude rejected from that figure.
+
+No DB migration needed (`sessions_metric` already exists from Phase 1).

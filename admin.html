@@ -28,6 +28,7 @@
     <nav class="admin-nav" id="adminNav" hidden>
       <button type="button" id="tabLeads" class="btn btn--ghost is-active">Log Lead</button>
       <button type="button" id="tabCms" class="btn btn--ghost">CMS</button>
+      <button type="button" id="tabBi" class="btn btn--ghost">Dashboard BI</button>
       <button type="button" id="tabPariksa" class="btn btn--ghost">Pariksa (uji OCR)</button>
     </nav>
 
@@ -145,6 +146,26 @@
       </div>
       <div id="cmsStatus" class="ektp__status" aria-live="polite"></div>
       <div id="cmsList"></div>
+    </section>
+
+    <!-- Dashboard BI (Phase 7) — big numbers + monthly chart from D1 -->
+    <section id="biView" hidden>
+      <div class="app__topbar">
+        <h2 class="ektp__title ektp__title--flush">Dashboard BI</h2>
+        <button id="biRefreshBtn" type="button" class="btn btn--ghost">Muat ulang</button>
+      </div>
+      <div id="biStatus" class="ektp__status" aria-live="polite"></div>
+      <div class="bi-bignums" id="biBigNums"></div>
+      <div class="bi-chart">
+        <div class="dash__head">
+          <h3 class="dash__title">Pergerakan lead per bulan</h3>
+          <div class="dash__filter" id="biChartToggle">
+            <button type="button" data-metric="volume" class="btn btn--ghost is-active">Volume</button>
+            <button type="button" data-metric="nasabah" class="btn btn--ghost">Jumlah nasabah</button>
+          </div>
+        </div>
+        <div id="biChart" class="bi-chart__canvas"></div>
+      </div>
     </section>
   </main>
 
