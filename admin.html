@@ -27,6 +27,7 @@
 
     <nav class="admin-nav" id="adminNav" hidden>
       <button type="button" id="tabLeads" class="btn btn--ghost is-active">Log Lead</button>
+      <button type="button" id="tabCms" class="btn btn--ghost">CMS</button>
       <button type="button" id="tabPariksa" class="btn btn--ghost">Pariksa (uji OCR)</button>
     </nav>
 
@@ -130,6 +131,16 @@
 
       <button type="button" id="pkCheck" class="btn btn--primary" hidden>Periksa NIK</button>
       <div id="pkResult" class="debug__result" aria-live="polite"></div>
+    </section>
+
+    <!-- CMS (mini-Salesforce) — Phase 1: lead list from D1 -->
+    <section id="cmsView" hidden>
+      <div class="app__topbar">
+        <h2 class="ektp__title ektp__title--flush">CMS — Lead</h2>
+        <button id="cmsRefreshBtn" type="button" class="btn btn--ghost">Muat ulang</button>
+      </div>
+      <div id="cmsStatus" class="ektp__status" aria-live="polite"></div>
+      <div id="cmsList"></div>
     </section>
   </main>
 

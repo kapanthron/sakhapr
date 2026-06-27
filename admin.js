@@ -32,25 +32,24 @@ function showLogin(msg) {
   if (msg) $("loginStatus").textContent = msg;
 }
 
-function showLeads() {
-  loginView.hidden = true;
-  pariksaView.hidden = true;
-  leadsView.hidden = false;
-  adminNav.hidden = false;
-  logoutBtn.hidden = false;
-  $("tabLeads").classList.add("is-active");
-  $("tabPariksa").classList.remove("is-active");
-}
+const cmsView = $("cmsView");
 
-function showPariksa() {
+function showView(view, tabId) {
   loginView.hidden = true;
   leadsView.hidden = true;
-  pariksaView.hidden = false;
+  pariksaView.hidden = true;
+  if (cmsView) cmsView.hidden = true;
+  view.hidden = false;
   adminNav.hidden = false;
   logoutBtn.hidden = false;
-  $("tabPariksa").classList.add("is-active");
-  $("tabLeads").classList.remove("is-active");
+  for (const id of ["tabLeads", "tabCms", "tabPariksa"]) {
+    const b = $(id);
+    if (b) b.classList.toggle("is-active", id === tabId);
+  }
 }
+function showLeads() { showView(leadsView, "tabLeads"); }
+function showPariksa() { showView(pariksaView, "tabPariksa"); }
+function showCms() { showView(cmsView, "tabCms"); }
 
 const EMAIL_LABEL = {
   sent: "✓ terkirim",
@@ -254,6 +253,71 @@ async function login() {
   }
   $("loginPass").value = "";
   await loadLeads();
+}
+
+/* --- CMS (Phase 1: lead list from D1) -------------------------------------- */
+
+const JENIS_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
+const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", pasfoto: "Pas foto (.jpg)" };
+
+function rupiah(n) { return n ? "Rp" + Number(n).toLocaleString("id-ID") : "-"; }
+
+async function loadCms() {
+  $("cmsStatus").textContent = "Memuat…";
+  $("cmsList").textContent = "";
+  let res;
+  try { res = await fetch("/api/admin/cms/leads", { headers: { Accept: "application/json" } }); }
+  catch (e) { $("cmsStatus").textContent = "Gagal memuat: " + e.message; return; }
+  if (res.status === 401) { showLogin("Sesi berakhir. Silakan masuk kembali."); return; }
+  const data = await res.json().catch(() => ({}));
+  if (!data.ok) {
+    $("cmsStatus").textContent = data.error || "CMS belum tersedia (Cloudflare D1 belum dikonfigurasi).";
+    return;
+  }
+  renderCmsLeads(data.leads || []);
+}
+
+function renderCmsLeads(leads) {
+  const list = $("cmsList");
+  list.textContent = "";
+  $("cmsStatus").textContent = `${leads.length} lead di CMS (D1).`;
+  for (const l of leads) {
+    const card = document.createElement("div");
+    card.className = "lead-card";
+
+    const head = document.createElement("div");
+    head.className = "lead-card__head";
+    head.innerHTML =
+      `<div><strong>${escapeHtml(l.nama || "(tanpa nama)")}</strong> ` +
+      `<span class="badge">${escapeHtml(JENIS_LABEL[l.jenis_kpr] || l.jenis_kpr || "-")}</span>` +
+      (l.is_duplicate ? ` <span class="badge chip--danger">DUPLICATE ×${escapeHtml(String(l.submit_count || 1))}</span>` : "") +
+      `<span class="lead-card__id mono">${escapeHtml(l.telepon || "")}${l.email ? " · " + escapeHtml(l.email) : ""}</span></div>` +
+      `<div class="lead-card__time mono">${escapeHtml(fmtTime(l.created_at))} WIB</div>`;
+    card.appendChild(head);
+
+    const meta = document.createElement("div");
+    meta.className = "lead-card__meta";
+    meta.innerHTML =
+      `<span>Kota: <strong>${escapeHtml(l.kota || "-")}</strong></span>` +
+      `<span>Gaji/bln: <strong>${rupiah(l.gaji_bulanan)}</strong></span>` +
+      `<span>Plafon: <strong>${rupiah(l.plafon)}</strong></span>` +
+      `<span>NIK: <strong class="mono">${escapeHtml(l.nik_masked || "-")}</strong></span>` +
+      `<span>Restruktur: <strong>${l.pernah_restruktur ? "Ya" : "Tidak"}</strong></span>` +
+      `<span>Status: <strong>${escapeHtml(l.status || "-")}</strong></span>`;
+    card.appendChild(meta);
+
+    const dl = document.createElement("div");
+    dl.className = "chips";
+    for (const f of (l.files || [])) {
+      const a = document.createElement("a");
+      a.className = "chip";
+      a.textContent = CMS_FILE_LABEL[f.jenis] || f.jenis;
+      a.href = `/api/admin/file?key=${encodeURIComponent(f.r2_key)}`;
+      dl.appendChild(a);
+    }
+    card.appendChild(dl);
+    list.appendChild(card);
+  }
 }
 
 async function logout() {
@@ -472,6 +536,8 @@ $("loginForm").addEventListener("submit", (e) => { e.preventDefault(); login(); 
 $("refreshBtn").addEventListener("click", loadLeads);
 $("tabLeads").addEventListener("click", showLeads);
 $("tabPariksa").addEventListener("click", showPariksa);
+$("tabCms").addEventListener("click", () => { showCms(); loadCms(); });
+$("cmsRefreshBtn").addEventListener("click", loadCms);
 logoutBtn.addEventListener("click", logout);
 setupPariksa();
 
