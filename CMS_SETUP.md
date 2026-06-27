@@ -120,8 +120,9 @@ Session counting: each non-submitted conversation records a `chatbot` row in
 `sessions_metric`; each submitted lead records a `prescreen_submit` row at
 ingest. The dashboard numbers therefore match the lead/session rows in D1.
 
-> **Reporting note:** "submit ke analis" counts leads that reached analyst review,
-> which **includes `rejected`** (analyst reviewed and declined). Say the word if
-> you'd rather exclude rejected from that figure.
+> **Reporting definitions:** "Sedang di analis" counts only leads in the
+> `submitted` stage (still being processed — approved/rejected are outcomes, not
+> in-process). **Approval rate = approved / (approved + rejected)**, shown
+> alongside the approved and rejected counts.
 
 No DB migration needed (`sessions_metric` already exists from Phase 1).
