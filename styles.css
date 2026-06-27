@@ -431,6 +431,7 @@ table.rate .rate-jenis { font-weight: 700; background: var(--teal-tint); white-s
 .dash__value { font-size: 24px; font-weight: 700; color: var(--teal-dark); }
 .dash__label { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
 .dash__sub { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+.cms-flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
 .recap__months { display: flex; flex-wrap: wrap; gap: 8px; }
 .recap__months .chip { text-decoration: none; }
 .sim__cta {

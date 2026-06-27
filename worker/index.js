@@ -1039,26 +1039,52 @@ function jenisKprFromProduct(product) {
 }
 
 /** Insert a lead row + its 4 file rows + a session metric into D1. */
+// Phase 2: location tier (1 = Jabodetabek/Bandung/Surabaya/Gresik/Sidoarjo,
+// 2 = Yogyakarta/Semarang/Makassar/Medan/Batam/Bali, 0 = lain).
+const TIER1 = new Set(["jabodetabek", "bandung", "surabaya", "gresik", "sidoarjo"]);
+const TIER2 = new Set(["yogyakarta", "jogja", "semarang", "makassar", "medan", "batam", "bali"]);
+function tierLokasi(kota) {
+  const k = String(kota || "").trim().toLowerCase();
+  if (TIER1.has(k)) return 1;
+  if (TIER2.has(k)) return 2;
+  return 0;
+}
+
 async function cmsIngestLead(env, id, ts, form, meta) {
   const a = parseJsonObj(form.get("answers"));
   const restruktur = /^pernah$/i.test(String(a.history_telat_restruktur_12bln || "").trim()) ? 1 : 0;
   const sertifikat = /sudah sertifikat/i.test(String(a.jaminan_sertifikat_atau_ppjb || "")) ? 1 : 0;
+  const tel = digitsOnly(a.nomor_handphone);
+  const em = String(a.email_aktif || "").toLowerCase().trim();
+  const nama = String(a.nama_lengkap || "").replace(/\s+/g, " ").trim();
+
+  // Phase 2: duplicate check on normalised telepon OR email (prior submissions).
+  const prior = (await env.DB.prepare(
+    "SELECT created_at FROM leads WHERE (telepon != '' AND telepon = ?) OR (email != '' AND email = ?) ORDER BY created_at DESC"
+  ).bind(tel, em).all()).results || [];
+  const isDuplicate = prior.length > 0 ? 1 : 0;
+  const submitCount = prior.length + 1;
+  const lastSubmitAt = prior.length ? prior[0].created_at : null;
 
   await env.DB.prepare(
-    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,kota,pernah_restruktur,to_sertifikat_siap,submit_count,status) " +
-    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'uncontacted')"
+    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,kota,pernah_restruktur,to_sertifikat_siap,tier_lokasi,is_duplicate,submit_count,last_submit_at,status) " +
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'uncontacted')"
   ).bind(
     id, ts,
-    a.nama_lengkap || "",
-    digitsOnly(a.nomor_handphone),
-    String(a.email_aktif || "").toLowerCase(),
+    nama,
+    tel,
+    em,
     maskNik(form.get("nik")),
     jenisKprFromProduct(meta.product),
     parseInt(digitsOnly(a.penghasilan_bersih_bulanan), 10) || null,
     parseInt(digitsOnly(a.harga_transaksi), 10) || null,    // proxy: prescreen captures price, not loan amount
     a.kota_jaminan || "",
     restruktur,
-    sertifikat
+    sertifikat,
+    tierLokasi(a.kota_jaminan),
+    isDuplicate,
+    submitCount,
+    lastSubmitAt
   ).run();
 
   const f = meta.files || {};
