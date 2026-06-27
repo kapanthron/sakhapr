@@ -87,3 +87,19 @@ Changing it writes a row to `status_history` (old → new, timestamp, who) and t
 card shows the full change log underneath. Reaching a terminal stage
 (`disbursed`, `drop_process`, `rejected`, `deal_other_bank`) stops the SLA
 reminders. No migration is needed — `status_history` already exists from Phase 1.
+
+## Phase 6 — Customer 360 + export
+
+The **Customer 360 (.xlsx)** button in the CMS header downloads one workbook with
+four tabs:
+
+- **Total** — every lead.
+- **Primary** / **Second** / **Take Over** — leads of that `jenis_kpr` only.
+
+Each row carries identity (submit date, name, phone, email, masked NIK, city,
+product), the per-dimension grades, composite score, overall grade, sales owner,
+current status (Indonesian label), and submit count — exactly the fields the
+brief lists. No migration needed; it reads existing columns.
+
+**Image export (pas foto):** the cropped face photo is already a per-lead
+download — the **Pas foto (.jpg)** chip on each card saves the JPG from R2.
