@@ -92,6 +92,9 @@ export default {
       if (pathname === "/api/admin/cms/status" && request.method === "POST") {
         return await requireAdmin(request, env, (s) => handleCmsStatus(request, env, s));
       }
+      if (pathname === "/api/admin/cms/c360" && request.method === "GET") {
+        return await requireAdmin(request, env, (s) => handleCustomer360(env, s));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -977,6 +980,44 @@ function buildXlsx(headers, rows, sheetName) {
   ]);
 }
 
+/** One worksheet's XML body from a header + rows. */
+function sheetXml(headers, rows) {
+  let sd = "";
+  [headers, ...rows].forEach((row, ri) => {
+    sd += `<row r="${ri + 1}">`;
+    row.forEach((val, ci) => {
+      sd += `<c r="${colLetter(ci)}${ri + 1}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(val)}</t></is></c>`;
+    });
+    sd += `</row>`;
+  });
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sd}</sheetData></worksheet>`;
+}
+
+/** Build a multi-sheet .xlsx. `sheets` = [{ name, headers, rows }, ...]. */
+function buildXlsxMulti(sheets) {
+  const enc = new TextEncoder();
+  const used = new Set();
+  const named = sheets.map((s, i) => {
+    let name = (s.name || `Sheet${i + 1}`).replace(/[\\/?*\[\]:]/g, " ").slice(0, 31) || `Sheet${i + 1}`;
+    while (used.has(name.toLowerCase())) name = name.slice(0, 28) + "_" + (i + 1);
+    used.add(name.toLowerCase());
+    return { ...s, name };
+  });
+  const sheetTags = named.map((s, i) => `<sheet name="${xmlEsc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("");
+  const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetTags}</sheets></workbook>`;
+  const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${named.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}</Relationships>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${named.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`;
+  const files = [
+    { name: "[Content_Types].xml", data: enc.encode(ct) },
+    { name: "_rels/.rels", data: enc.encode(rels) },
+    { name: "xl/workbook.xml", data: enc.encode(wb) },
+    { name: "xl/_rels/workbook.xml.rels", data: enc.encode(wbRels) },
+  ];
+  named.forEach((s, i) => files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(sheetXml(s.headers, s.rows)) }));
+  return makePlainZip(files);
+}
+
 function wibFmt(iso) {
   if (!iso) return "";
   try { return new Date(iso).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }); } catch { return ""; }
@@ -1249,6 +1290,50 @@ async function handleCmsStatus(request, env, session) {
   ).bind(crypto.randomUUID(), id, oldStatus, status, now, by).run();
   await cmsAudit(env, by, "status:" + status, `lead:${id}`);
   return json({ ok: true });
+}
+
+/* --- Phase 6: Customer 360 export (multi-tab XLSX) ------------------------- */
+const C360_HEADERS = [
+  "Tanggal Submit (WIB)", "Nama", "Telepon", "Email", "NIK (masked)", "Kota",
+  "Jenis KPR", "Gaji/bln", "Plafon", "Tenor (th)",
+  "Grade Gaji", "Grade Plafon", "Grade Lokasi", "Skor", "Grade Keseluruhan",
+  "Sales Owner", "Status", "Jumlah Submit",
+];
+function c360Row(l) {
+  const statusLabel = (CMS_STATUSES.find((s) => s.key === l.status) || {}).label || l.status || "";
+  return [
+    wibFmt(l.created_at), l.nama || "", l.telepon || "", l.email || "", l.nik_masked || "", l.kota || "",
+    JENIS_KPR_LABEL[l.jenis_kpr] || l.jenis_kpr || "",
+    l.gaji_bulanan != null ? String(l.gaji_bulanan) : "",
+    l.plafon != null ? String(l.plafon) : "",
+    l.tenor_tahun != null ? String(l.tenor_tahun) : "",
+    l.grade_gaji || "", l.grade_plafon || "", l.grade_lokasi || "",
+    l.skor_komposit != null ? String(l.skor_komposit) : "", l.grade_keseluruhan || "",
+    l.sales_owner || "", statusLabel, l.submit_count != null ? String(l.submit_count) : "",
+  ];
+}
+const JENIS_KPR_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
+
+/** Build the Customer-360 workbook: Total + Primary + Second + Take Over tabs. */
+async function handleCustomer360(env, session) {
+  if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
+  const leads = (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC").all()).results || [];
+  const rowsOf = (arr) => arr.map(c360Row);
+  const sheets = [
+    { name: "Total", headers: C360_HEADERS, rows: rowsOf(leads) },
+    { name: "Primary", headers: C360_HEADERS, rows: rowsOf(leads.filter((l) => l.jenis_kpr === "primary")) },
+    { name: "Second", headers: C360_HEADERS, rows: rowsOf(leads.filter((l) => l.jenis_kpr === "second")) },
+    { name: "Take Over", headers: C360_HEADERS, rows: rowsOf(leads.filter((l) => l.jenis_kpr === "take_over")) },
+  ];
+  const xlsx = buildXlsxMulti(sheets);
+  await cmsAudit(env, session && session.u, "export", "customer360");
+  return new Response(xlsx, {
+    headers: {
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="Moggy_Customer360.xlsx"`,
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 /** Write an audit-log row (best-effort). */
