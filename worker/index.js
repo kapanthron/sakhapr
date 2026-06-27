@@ -80,6 +80,9 @@ export default {
       if (pathname === "/api/admin/cms/leads" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleCmsLeads(env));
       }
+      if (pathname === "/api/admin/cms/delete" && request.method === "POST") {
+        return await requireAdmin(request, env, (s) => handleCmsDelete(request, env, s));
+      }
       if (pathname === "/api/admin/file" && request.method === "GET") {
         return await requireAdmin(request, env, () => handleFile(url, env));
       }
@@ -885,7 +888,7 @@ async function requireAdmin(request, env, handler) {
   const token = readCookie(request, COOKIE_NAME);
   const session = await verifySession(env, token);
   if (!session) return json({ ok: false, error: "Tidak terautentikasi." }, 401);
-  return handler();
+  return handler(session); // existing handlers ignore the arg; CMS uses it for audit actor
 }
 
 /* --- Admin: data ----------------------------------------------------------- */
@@ -1063,6 +1066,7 @@ async function cmsIngestLead(env, id, ts, form, meta) {
     ["chatlog", f.chatlog],
     ["prescreen_xls", f.prescreen],
     ["pariksa_pdf", f.report],
+    ["ektp", f.ektp],            // full eKTP image (uncropped), as requested by owner
     ["pasfoto", f.pasfoto],
   ];
   for (const [jenis, name] of fileRows) {
@@ -1083,6 +1087,32 @@ async function handleCmsLeads(env) {
   const byLead = {};
   for (const fl of files) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
   return json({ ok: true, leads: leads.map((l) => ({ ...l, files: byLead[l.id] || [] })) });
+}
+
+/** Write an audit-log row (best-effort). */
+async function cmsAudit(env, actor, aksi, target) {
+  try {
+    await env.DB.prepare("INSERT INTO audit_log (id,actor,aksi,target,at) VALUES (?,?,?,?,?)")
+      .bind(crypto.randomUUID(), actor || "admin", aksi, target, new Date().toISOString()).run();
+  } catch { /* never block on audit */ }
+}
+
+/** Delete a CMS lead: its R2 files + D1 rows, logged to audit_log. */
+async function handleCmsDelete(request, env, session) {
+  if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
+  const { id } = await request.json().catch(() => ({}));
+  if (!id || /[^a-zA-Z0-9-]/.test(String(id))) return json({ ok: false, error: "ID tidak valid." }, 400);
+
+  // Remove every stored object under leads/<id>/ (eKTP, pas foto, pdf, txt, meta).
+  let deleted = 0;
+  const listed = await env.BUCKET.list({ prefix: `leads/${id}/` });
+  for (const o of listed.objects) { await env.BUCKET.delete(o.key); deleted++; }
+
+  await env.DB.prepare("DELETE FROM lead_files WHERE lead_id = ?").bind(id).run();
+  await env.DB.prepare("DELETE FROM status_history WHERE lead_id = ?").bind(id).run();
+  await env.DB.prepare("DELETE FROM leads WHERE id = ?").bind(id).run();
+  await cmsAudit(env, session && session.u, "delete", `lead:${id}`);
+  return json({ ok: true, deleted });
 }
 
 /** Plain (unencrypted, STORE) ZIP — used to assemble the .xlsx package. */
