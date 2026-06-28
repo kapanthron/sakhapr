@@ -1,0 +1,50 @@
+flowchart TD
+    subgraph CUST["Sisi Nasabah (browser, data di memori)"]
+        A([Nasabah buka Moggy]) --> B{Chat Bahasa Indonesia<br/>Intent router}
+        B -->|Tanya produk/promo| C[RAG knowledge base<br/>AI jawab grounded<br/>+ disclaimer bukan keputusan kredit]
+        B -->|Hitung angsuran/cashback| D[Kalkulator deterministik]
+        B -->|Siap ajukan| E[Prescreen interview<br/>nama, HP, email, penghasilan,<br/>pekerjaan, plafon, tenor, kota]
+        C --> B
+        D --> B
+        E --> F[Consent eKTP<br/>checkbox TIDAK auto-tik + link PDF privasi]
+        F -->|consent ditik| G[Upload eKTP]
+        G --> H[AI OCR Vision<br/>Gemini ke on-prem Qwen2.5-VL<br/>ekstrak NIK + field + kotak pas foto]
+        H --> I[Validator NIK deterministik<br/>struktur/konsistensi + crop pas foto]
+        I --> J[[Kirim paket: prescreen + eKTP<br/>+ laporan NIK.pdf + chatlog + pas foto]]
+    end
+    J --> K[/POST /api/submit/]
+    subgraph BE["Backend (Worker ke on-prem Node.js)"]
+        K --> L[(R2/MinIO: simpan file)]
+        K --> M{D1/PostgreSQL tersedia?}
+        M -->|tidak| N[Fallback: email paket ZIP terproteksi]
+        M -->|ya| O[CMS Ingest]
+        O --> P[Dedup telepon/email<br/>flag DUPLICATE xN]
+        O --> Q[Qualification flags<br/>gaji, plafon, restruktur, TO sertifikat]
+        O --> R[Scoring: grade gaji/plafon/lokasi<br/>skor komposit, grade keseluruhan]
+        O --> S[Sales assignment by kota<br/>AS / HB / RB / ER]
+        O --> T[SLA: Task Call jatuh tempo 30 mnt]
+    end
+    subgraph AUTO["Otomasi (Cron tiap 5 menit)"]
+        T --> U{Call/WA lewat & belum selesai?}
+        U -->|ya| V[Reminder email ke sales owner]
+        W[Jumat 15:00 WIB] --> X[Sweep mingguan lead tanpa update]
+    end
+    subgraph ADMIN["Super Page (login + MFA-ready + audit log)"]
+        Y[Pipeline 10 status + status_history]
+        Z[Kelola dokumen: unduh / hapus per file]
+        AA[Export Customer-360 .xlsx 4 tab<br/>+ rekap bulanan + pas foto JPG]
+        AB[Dashboard BI: big number + grafik]
+        AC[(Audit log: download/delete/status/auth)]
+    end
+    O --> Y
+    L --> Z
+    O --> AA
+    O --> AB
+    Z --> AC
+    Y --> AC
+    classDef cust fill:#E8F5F4,stroke:#0E7C7B,color:#063;
+    classDef be fill:#FFF4E0,stroke:#C9871F,color:#5a3;
+    classDef admin fill:#EEF1FF,stroke:#3b4cca,color:#223;
+    class A,B,C,D,E,F,G,H,I,J cust;
+    class K,L,M,N,O,P,Q,R,S,T be;
+    class Y,Z,AA,AB,AC admin;
