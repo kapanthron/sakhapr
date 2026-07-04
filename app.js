@@ -439,10 +439,10 @@ async function handleKbMessage(text) {
     addContinuationChips();
     return;
   }
-  // "Apa itu KPR FLX?" -> deterministic explainer + the three Ringkasan Informasi Produk PDFs.
+  // "Apa itu KPR FLX?" -> deterministic explainer (generic product info from the
+  // knowledge base). Product-summary PDFs were removed; the explainer stands alone.
   if (FLEXI_RE.test(text) && !RATE_RE.test(text)) {
     addMessage("bot", t("flexi_explain"));
-    renderRiplayLinks();
     showPromoLinksIfRelevant(text);
     addContinuationChips();
     return;
@@ -552,18 +552,8 @@ function renderDocLinks(introText, items) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-/* --- KPR FLX explainer + Ringkasan Informasi Produk product-summary PDFs --------------------- */
-const RIPLAY_DOCS = [
-  { file: "docs/riplay/kpr-flexi-primary.pdf", labelId: "Ringkasan Informasi Produk KPR FLX PRI", labelEn: "Ringkasan Informasi Produk KPR FLX PRI" },
-  { file: "docs/riplay/kpr-flexi-secondary.pdf", labelId: "Ringkasan Informasi Produk KPR FLX 2ND", labelEn: "Ringkasan Informasi Produk KPR FLX 2ND" },
-  { file: "docs/riplay/kpr-flexi-take-over.pdf", labelId: "Ringkasan Informasi Produk KPR FLX TO", labelEn: "Ringkasan Informasi Produk KPR FLX TO" },
-];
-const FLEXI_RE = /kpr\s*flexi|flexi|riplay/i;
-
-function renderRiplayLinks() {
-  const en = getLang() === "en";
-  renderDocLinks(en ? "Product Information Summary:" : "Ringkasan Informasi Produk & Layanan:", RIPLAY_DOCS);
-}
+/* --- KPR FLX explainer (generic product info from the knowledge base) ------- */
+const FLEXI_RE = /kpr\s*flexi|flexi/i;
 
 
 /** An empty bot bubble showing "typing…" dots, to be filled as the reply streams. */

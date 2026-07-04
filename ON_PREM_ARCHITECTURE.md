@@ -144,7 +144,7 @@ cross-checks. This mirrors today's "Gemini + local validator" design, fully loca
 | **multilingual-e5-large** | Alternative dense embeddings | Solid multilingual |
 | **bge-reranker-v2-m3** | Optional reranker for top-k precision | Adds quality on ambiguous queries |
 
-**RAG flow:** chunk `knowledge_base.json` (programs, rates, RIPLAY, promo terms)
+**RAG flow:** chunk `knowledge_base.json` (programs, rates, product summaries, promo terms)
 → embed with BGE-M3 → store in **pgvector** → at query time retrieve top-k →
 feed as grounded context to the chat LLM. This keeps answers anchored to the
 Bank's approved product facts (and is trivial to update when programs change).
