@@ -42,9 +42,9 @@
 */
 
 :root {
-  /* Brand tokens — UOB blue */
-  --teal: #0b4ea2;        /* UOB primary blue (buttons, links, accents) */
-  --teal-dark: #002f6c;   /* UOB navy (hover, banner border) */
+  /* Brand tokens — the Bank blue */
+  --teal: #0b4ea2;        /* the Bank primary blue (buttons, links, accents) */
+  --teal-dark: #002f6c;   /* the Bank navy (hover, banner border) */
   --teal-tint: #e8f0fb;   /* light blue (bot bubbles, highlights) */
   --cream: #f2f5f9;       /* page background (light blue-grey) */
   --cream-2: #eef1f6;     /* user bubble / subtle surfaces */
