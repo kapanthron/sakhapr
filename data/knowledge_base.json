@@ -155,7 +155,7 @@
         "formula": "Instrumen Keuangan BI 12 Bulan + 2.50% per annum (efektif)",
         "type": "Floating",
         "current_estimate_percent": 10.41,
-        "current_estimate_note": "SRBI 6.91% per 29 Mei 2026 + 2.50%. Estimasi, berubah setiap penyesuaian benchmark."
+        "current_estimate_note": "SRBI 7.91% per 29 Mei 2026 + 2.50%. Estimasi, berubah setiap penyesuaian benchmark."
       },
       "installment_from": 1251450,
       "key_features": [
@@ -221,7 +221,7 @@
         "Rukan"
       ],
       "interest": {
-        "formula": "Mulai 4.50% per annum (efektif), Fixed 3 Tahun",
+        "formula": "Mulai 5.50% per annum (efektif), Fixed 3 Tahun",
         "type": "Fixed lalu Floating",
         "starting_rate_percent": 5.5
       },
@@ -285,7 +285,7 @@
         "Rukan"
       ],
       "interest": {
-        "formula": "Mulai 4.50% per annum (efektif), Fixed 3 Tahun",
+        "formula": "Mulai 5.50% per annum (efektif), Fixed 3 Tahun",
         "type": "Fixed lalu Floating",
         "starting_rate_percent": 5.5
       },
@@ -672,7 +672,7 @@
     },
     "interest_rate_resolver": {
       "note": "Setelah masa fixed berakhir, bunga menjadi floating sesuai tier.",
-      "flexi_primary_current": "SRBI (6.91% per 29 Mei 2026) + 2.50% = sekitar 9.41%.",
+      "flexi_primary_current": "SRBI (7.91% per 29 Mei 2026) + 2.50% = sekitar 10.41%.",
       "floating_tiers_percent": {
         "Floating Counter Rate": 14.99,
         "Prime Floating": 13.0,
@@ -760,7 +760,7 @@
         "Berapa suku bunga KPR the Bank?",
         "Bunga fixed berapa?"
       ],
-      "answer": "Untuk PRI, mulai dari 3.99% fix 3 tahun, 5.35% fix 5 tahun, atau skema fix berjenjang 7 tahun mulai 2.99%. Untuk 2ND, mulai 4.50% fix 3 tahun atau 5.50% fix 5 tahun. KPR FLX PRI memakai SRBI 12 bulan + 2.50% (sekitar 9.41% per akhir Mei 2026). Setelah masa fixed, bunga menjadi floating. Angka dapat berubah, cek website the Bank untuk yang terbaru."
+      "answer": "Untuk PRI, mulai dari 4.99% fix 3 tahun, 6.35% fix 5 tahun, atau skema fix berjenjang 7 tahun mulai 3.99%. Untuk 2ND, mulai 5.50% fix 3 tahun atau 6.50% fix 5 tahun. KPR FLX PRI memakai SRBI 12 bulan + 2.50% (sekitar 10.41% per akhir Mei 2026). Setelah masa fixed, bunga menjadi floating. Angka dapat berubah, cek website the Bank untuk yang terbaru."
     },
     {
       "intent": "pelunasan",
