@@ -397,22 +397,37 @@ function geminiContents(history, message) {
   return contents;
 }
 
+// Gemini 2.5/3.x "Flash" models run a hidden "thinking" pass by default, which
+// delays the first visible token by several seconds. thinkingBudget:0 turns it
+// off so chat streams immediately. Older models reject the field (HTTP 400); the
+// first time that happens we remember it and stop sending it.
+let GEMINI_THINKCFG_OK = true;
+function chatGenConfig(thinkOff) {
+  const cfg = { maxOutputTokens: 2048, temperature: 0.3 };
+  if (thinkOff) cfg.thinkingConfig = { thinkingBudget: 0 };
+  return cfg;
+}
+
 /** Stream Gemini tokens to the client as plain text (SSE -> text). */
 async function streamGemini(env, sys, history, message) {
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: sys }] },
-    contents: geminiContents(history, message),
-    generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
-  });
-  const open = (model) => fetch(
+  const open = (model, thinkOff) => fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
-    { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY }, body }
+    { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: sys }] },
+        contents: geminiContents(history, message),
+        generationConfig: chatGenConfig(thinkOff),
+      }) }
   );
   let model = await pickGeminiModel(env);
-  let upstream = await open(model);
+  let upstream = await open(model, GEMINI_THINKCFG_OK);
+  if (GEMINI_THINKCFG_OK && upstream.status === 400) { // model doesn't support thinkingConfig
+    GEMINI_THINKCFG_OK = false;
+    upstream = await open(model, false);
+  }
   if (isRateLimited(upstream.status)) {
     const fb = await pickGeminiFallback(env);
-    if (fb && fb !== model) { model = fb; upstream = await open(fb); }
+    if (fb && fb !== model) { model = fb; upstream = await open(fb, GEMINI_THINKCFG_OK); }
   }
   if (!upstream.ok || !upstream.body) {
     throw new Error(`Gemini stream HTTP ${upstream.status}: ${(await upstream.text().catch(() => "")).slice(0, 120)}`);
@@ -550,7 +565,7 @@ async function callGemini(env, sys, history, message) {
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: sys }] },
     contents,
-    generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
+    generationConfig: chatGenConfig(GEMINI_THINKCFG_OK),
   });
 
   const { data } = await geminiGenerate(env, body);
