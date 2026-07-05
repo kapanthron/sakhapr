@@ -157,7 +157,7 @@
         "current_estimate_percent": 10.41,
         "current_estimate_note": "SRBI 7.91% per 29 Mei 2026 + 2.50%. Estimasi, berubah setiap penyesuaian benchmark."
       },
-      "installment_from": 1251450,
+      "installment_from": 1362050,
       "key_features": [
         "Angsuran per bulan untuk pembelian properti di developer kerjasama the Bank.",
         "Porsi bunga berkurang karena memperhitungkan 80% saldo harian tabungan yang dihubungkan ke fasilitas KPR, sehingga saldo pinjaman lebih cepat berkurang atau lunas.",
@@ -225,7 +225,7 @@
         "type": "Fixed lalu Floating",
         "starting_rate_percent": 5.5
       },
-      "installment_from": 760050,
+      "installment_from": 851700,
       "key_features": [
         "Angsuran per bulan untuk pembiayaan pembelian properti secondary.",
         "Angsuran ringan dan terjangkau sampai dengan 360 kali.",
@@ -289,7 +289,7 @@
         "type": "Fixed lalu Floating",
         "starting_rate_percent": 5.5
       },
-      "installment_from": 949050,
+      "installment_from": 1031850,
       "key_features": [
         "Angsuran per bulan untuk pengambilalihan fasilitas KPR nasabah dari bank lain.",
         "Angsuran lebih terjangkau dengan tenor sampai 20 tahun.",
