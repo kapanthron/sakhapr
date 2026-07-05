@@ -63,3 +63,8 @@ MAIL_TO = "hendrik.panthron@gmail.com"
 #                      is used instead of ADMIN_PASS; then delete ADMIN_PASS from
 #                      [vars] above so no plaintext password lives in the repo.
 #                      Generate: printf 'poc2026#' | shasum -a 256
+#   ADMIN_RESET_CODE - enables the "Lupa / reset kata sandi?" button on the login
+#                      page. When set, entering this code clears the stored admin
+#                      password (app_auth) so a new one can be set on next login.
+#                      Keep it strong and private. If unset, the button is inert
+#                      and you reset via the D1 console instead.

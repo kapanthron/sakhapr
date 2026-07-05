@@ -482,7 +482,26 @@ async function handleKbMessage(text) {
     renderAnswer(detRes);
   }
   showPromoLinksIfRelevant(text);
+  showDocChecklistIfRelevant(text);
   addContinuationChips();
+}
+
+/* --- Document requirements checklist PDF ----------------------------------- */
+const DOC_CHECKLIST = {
+  file: "docs/checklist/checklist-dokumen-kpr.pdf",
+  labelId: "Checklist Dokumen Persyaratan KPR (PDF)",
+  labelEn: "KPR Document Requirements Checklist (PDF)",
+  download: true,
+};
+const DOC_TRIGGER = /dokumen|persyaratan|syarat|berkas|kelengkapan|checklist|document|requirement|apa saja yang (?:harus|perlu) disiapkan/i;
+
+function showDocChecklistIfRelevant(userText) {
+  if (!DOC_TRIGGER.test(String(userText || ""))) return;
+  const en = getLang() === "en";
+  renderDocLinks(
+    en ? "Download the document checklist (PDF):" : "Unduh checklist dokumen persyaratan (PDF):",
+    [DOC_CHECKLIST]
+  );
 }
 
 /* --- Promo / program PDF links --------------------------------------------- */
@@ -543,8 +562,12 @@ function renderDocLinks(introText, items) {
     const a = document.createElement("a");
     a.className = "promo-links__item";
     a.href = p.file + "?v=" + DOC_VERSION; // cache-bust so updated PDFs are fetched fresh
-    a.target = "_blank";
-    a.rel = "noopener";
+    if (p.download) {
+      a.download = p.file.split("/").pop(); // force download instead of navigating
+    } else {
+      a.target = "_blank";
+      a.rel = "noopener";
+    }
     a.textContent = "📄 " + (en ? p.labelEn : p.labelId);
     el.appendChild(a);
   }

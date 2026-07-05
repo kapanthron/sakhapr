@@ -612,3 +612,9 @@ table.checks th { color: var(--ink-soft); font-weight: 600; }
   .brand__name { font-size: 18px; }
   .msg { max-width: 92%; }
 }
+
+/* --- Login reset (Phase 8: forgot password) ------------------------------- */
+.login-reset { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.login-reset__box { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; max-width: 340px; }
+.login-reset__box input { padding: 7px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.btn--small { font-size: 12px; padding: 4px 10px; }

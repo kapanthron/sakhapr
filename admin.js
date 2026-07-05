@@ -263,6 +263,28 @@ async function login() {
   await loadLeads();
 }
 
+async function resetPasswordViaCode() {
+  const code = $("resetCode").value;
+  if (!code) { $("resetStatus").textContent = "Masukkan kode reset."; return; }
+  $("resetStatus").textContent = "Memproses…";
+  try {
+    const r = await fetch("/api/admin/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) {
+      $("resetCode").value = "";
+      $("resetStatus").textContent = "Kata sandi direset. Sekarang login dengan ID yang sama dan tetapkan kata sandi baru (min 8 karakter).";
+    } else {
+      $("resetStatus").textContent = d.error || "Gagal reset.";
+    }
+  } catch (e) {
+    $("resetStatus").textContent = "Gagal reset: " + e.message;
+  }
+}
+
 /* --- CMS (Phase 1: lead list from D1) -------------------------------------- */
 
 const JENIS_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
@@ -873,6 +895,8 @@ $("emailTestBtn").addEventListener("click", testEmail);
 $("aiTestBtn").addEventListener("click", testAi);
 $("loginBtn").addEventListener("click", login);
 $("loginForm").addEventListener("submit", (e) => { e.preventDefault(); login(); });
+$("forgotBtn").addEventListener("click", () => { $("resetBox").hidden = !$("resetBox").hidden; });
+$("resetBtn").addEventListener("click", resetPasswordViaCode);
 $("refreshBtn").addEventListener("click", loadLeads);
 $("tabLeads").addEventListener("click", showLeads);
 $("tabPariksa").addEventListener("click", showPariksa);
