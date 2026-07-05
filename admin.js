@@ -263,25 +263,24 @@ async function login() {
   await loadLeads();
 }
 
-async function resetPasswordViaCode() {
-  const code = $("resetCode").value;
-  if (!code) { $("resetStatus").textContent = "Masukkan kode reset."; return; }
-  $("resetStatus").textContent = "Memproses…";
+async function resetPassword() {
+  const btn = $("resetBtn");
+  btn.disabled = true;
+  $("resetStatus").textContent = "Mengirim kata sandi sementara…";
   try {
-    const r = await fetch("/api/admin/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    });
+    const r = await fetch("/api/admin/reset-password", { method: "POST" });
     const d = await r.json().catch(() => ({}));
     if (r.ok && d.ok) {
-      $("resetCode").value = "";
-      $("resetStatus").textContent = "Kata sandi direset. Sekarang login dengan ID yang sama dan tetapkan kata sandi baru (min 8 karakter).";
+      $("resetStatus").textContent =
+        `Kata sandi sementara sudah dikirim ke ${d.sentTo || "email admin"}. ` +
+        `Cek email, login dengan kata sandi itu, lalu ganti di "Ubah kata sandi".`;
     } else {
       $("resetStatus").textContent = d.error || "Gagal reset.";
+      btn.disabled = false;
     }
   } catch (e) {
     $("resetStatus").textContent = "Gagal reset: " + e.message;
+    btn.disabled = false;
   }
 }
 
@@ -896,7 +895,7 @@ $("aiTestBtn").addEventListener("click", testAi);
 $("loginBtn").addEventListener("click", login);
 $("loginForm").addEventListener("submit", (e) => { e.preventDefault(); login(); });
 $("forgotBtn").addEventListener("click", () => { $("resetBox").hidden = !$("resetBox").hidden; });
-$("resetBtn").addEventListener("click", resetPasswordViaCode);
+$("resetBtn").addEventListener("click", resetPassword);
 $("refreshBtn").addEventListener("click", loadLeads);
 $("tabLeads").addEventListener("click", showLeads);
 $("tabPariksa").addEventListener("click", showPariksa);

@@ -55,11 +55,11 @@
         <button type="button" id="forgotBtn" class="btn btn--ghost btn--small">Lupa / reset kata sandi?</button>
         <div id="resetBox" class="login-reset__box" hidden>
           <p class="ektp__disclaimer">
-            Masukkan <strong>kode reset</strong> (secret <code>ADMIN_RESET_CODE</code>).
-            Setelah reset, login lagi dengan ID yang sama dan tetapkan kata sandi baru.
+            Kata sandi <strong>sementara acak</strong> akan dikirim ke email admin terdaftar.
+            Login dengan kata sandi sementara itu, lalu ganti lewat tombol
+            <strong>Ubah kata sandi</strong>.
           </p>
-          <input id="resetCode" type="password" placeholder="Kode reset" autocomplete="off" />
-          <button type="button" id="resetBtn" class="btn btn--primary btn--small">Reset kata sandi</button>
+          <button type="button" id="resetBtn" class="btn btn--primary btn--small">Kirim kata sandi sementara ke email</button>
           <div id="resetStatus" class="ektp__status" aria-live="polite"></div>
         </div>
       </div>

@@ -956,33 +956,69 @@ async function ensureAuthTable(env) {
   ).run();
 }
 
+/** A readable random password (no ambiguous 0/O/1/l/I) of `len` chars. */
+function randomPassword(len = 12) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(len));
+  let out = "";
+  for (let i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
+
+/** Mask an email for display, e.g. hendrik.panthron@gmail.com -> he***n@gmail.com */
+function maskEmail(addr) {
+  const [u, d] = String(addr || "").split("@");
+  if (!d) return addr || "";
+  const head = u.length <= 2 ? u : u.slice(0, 2) + "***" + u.slice(-1);
+  return `${head}@${d}`;
+}
+
 /**
- * Reset (clear) the admin password so it can be set again on the next login.
- * This is the lockout-recovery path — it is NOT behind requireAdmin (the admin
- * has forgotten the password), so it is gated by a reset code kept as the secret
- * env.ADMIN_RESET_CODE and rate-limited. If that secret is not set, the button
- * is inert and the admin uses the D1 console instead.
+ * Reset the admin password by generating a random temporary password, storing
+ * its hash, and emailing the plaintext ONLY to the fixed admin mailbox (MAIL_TO).
+ * This is the lockout-recovery path — it is NOT behind requireAdmin, but since
+ * the temporary password is delivered only to the owner's inbox, triggering it
+ * cannot grant access to anyone else. Rate-limited to curb abuse. After logging
+ * in with the temp password, the admin changes it via "Ubah kata sandi".
  */
 async function handleResetPassword(request, env) {
   const ip = clientIp(request);
-  if (!rateLimit("reset:" + ip, 5, 10 * 60 * 1000)) {
+  if (!rateLimit("reset:" + ip, 4, 15 * 60 * 1000)) {
     return json({ ok: false, error: "Terlalu banyak percobaan reset. Coba lagi nanti." }, 429);
   }
   if (!env.DB) return json({ ok: false, error: "Penyimpanan kata sandi (D1) belum dikonfigurasi." }, 503);
-  if (!env.ADMIN_RESET_CODE) {
-    return json({ ok: false, error: "Reset lewat tombol belum diaktifkan. Set secret ADMIN_RESET_CODE di Cloudflare, atau reset lewat D1 console." }, 400);
-  }
-  const { code } = await request.json().catch(() => ({}));
-  if (!timingSafeEqual(String(code || ""), String(env.ADMIN_RESET_CODE))) {
-    return json({ ok: false, error: "Kode reset salah." }, 401);
+  if (!env.RESEND_API_KEY) {
+    return json({ ok: false, error: "Email belum dikonfigurasi (RESEND_API_KEY), jadi kata sandi sementara tidak bisa dikirim. Reset lewat D1 console." }, 400);
   }
   const adminUser = env.ADMIN_USER || "panthronpoc";
+  const to = env.MAIL_TO || "hendrik.panthron@gmail.com";
+  const temp = randomPassword(12);
+
+  // Email the temp password FIRST; only persist the new hash if delivery works,
+  // so a failed send never locks the admin out.
+  const sent = await sendPlainEmail(env, to,
+    "Moggy Super Page — kata sandi sementara",
+    `Permintaan reset kata sandi Super Page (ID: ${adminUser}).\n\n` +
+    `Kata sandi sementara: ${temp}\n\n` +
+    `Login di /super dengan ID ${adminUser} dan kata sandi sementara di atas, ` +
+    `lalu segera ganti lewat tombol "Ubah kata sandi".\n\n` +
+    `Jika Anda tidak meminta reset ini, abaikan email ini — kata sandi lama sudah tidak berlaku, gunakan yang sementara ini.`);
+  if (sent.status !== "sent") {
+    return json({ ok: false, error: "Gagal mengirim email kata sandi sementara: " + (sent.error || sent.status) }, 502);
+  }
+
   try {
     await ensureAuthTable(env);
-    await env.DB.prepare("DELETE FROM app_auth WHERE id = ?").bind(adminUser).run();
-  } catch { /* table may not exist yet; nothing to clear */ }
-  await cmsAudit(env, adminUser, "password_reset", "via_reset_code");
-  return json({ ok: true });
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      "INSERT INTO app_auth (id,pass_sha256,created_at,updated_at) VALUES (?,?,?,?) " +
+      "ON CONFLICT(id) DO UPDATE SET pass_sha256 = excluded.pass_sha256, updated_at = excluded.updated_at"
+    ).bind(adminUser, await sha256hex(temp), now, now).run();
+  } catch (e) {
+    return json({ ok: false, error: "Gagal menyimpan kata sandi sementara: " + String((e && e.message) || e) }, 500);
+  }
+  await cmsAudit(env, adminUser, "password_reset", "temp_emailed");
+  return json({ ok: true, sentTo: maskEmail(to) });
 }
 
 /** Change the admin password (requires an authenticated session). */
