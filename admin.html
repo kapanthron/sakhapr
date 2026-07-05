@@ -50,6 +50,19 @@
       </form>
       <button type="button" id="loginBtn" class="btn btn--primary">Masuk</button>
       <div id="loginStatus" class="ektp__status" aria-live="polite"></div>
+
+      <div class="login-reset">
+        <button type="button" id="forgotBtn" class="btn btn--ghost btn--small">Lupa / reset kata sandi?</button>
+        <div id="resetBox" class="login-reset__box" hidden>
+          <p class="ektp__disclaimer">
+            Masukkan <strong>kode reset</strong> (secret <code>ADMIN_RESET_CODE</code>).
+            Setelah reset, login lagi dengan ID yang sama dan tetapkan kata sandi baru.
+          </p>
+          <input id="resetCode" type="password" placeholder="Kode reset" autocomplete="off" />
+          <button type="button" id="resetBtn" class="btn btn--primary btn--small">Reset kata sandi</button>
+          <div id="resetStatus" class="ektp__status" aria-live="polite"></div>
+        </div>
+      </div>
     </section>
 
     <!-- Leads -->

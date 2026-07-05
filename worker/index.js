@@ -104,6 +104,9 @@ export default {
       if (pathname === "/api/admin/set-password" && request.method === "POST") {
         return await requireAdmin(request, env, (s) => handleSetPassword(request, env, s));
       }
+      if (pathname === "/api/admin/reset-password" && request.method === "POST") {
+        return await handleResetPassword(request, env);
+      }
       if (pathname === "/api/admin/cms/file-delete" && request.method === "POST") {
         return await requireAdmin(request, env, (s) => handleCmsFileDelete(request, env, s));
       }
@@ -951,6 +954,35 @@ async function ensureAuthTable(env) {
   await env.DB.prepare(
     "CREATE TABLE IF NOT EXISTS app_auth (id TEXT PRIMARY KEY, pass_sha256 TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT)"
   ).run();
+}
+
+/**
+ * Reset (clear) the admin password so it can be set again on the next login.
+ * This is the lockout-recovery path — it is NOT behind requireAdmin (the admin
+ * has forgotten the password), so it is gated by a reset code kept as the secret
+ * env.ADMIN_RESET_CODE and rate-limited. If that secret is not set, the button
+ * is inert and the admin uses the D1 console instead.
+ */
+async function handleResetPassword(request, env) {
+  const ip = clientIp(request);
+  if (!rateLimit("reset:" + ip, 5, 10 * 60 * 1000)) {
+    return json({ ok: false, error: "Terlalu banyak percobaan reset. Coba lagi nanti." }, 429);
+  }
+  if (!env.DB) return json({ ok: false, error: "Penyimpanan kata sandi (D1) belum dikonfigurasi." }, 503);
+  if (!env.ADMIN_RESET_CODE) {
+    return json({ ok: false, error: "Reset lewat tombol belum diaktifkan. Set secret ADMIN_RESET_CODE di Cloudflare, atau reset lewat D1 console." }, 400);
+  }
+  const { code } = await request.json().catch(() => ({}));
+  if (!timingSafeEqual(String(code || ""), String(env.ADMIN_RESET_CODE))) {
+    return json({ ok: false, error: "Kode reset salah." }, 401);
+  }
+  const adminUser = env.ADMIN_USER || "panthronpoc";
+  try {
+    await ensureAuthTable(env);
+    await env.DB.prepare("DELETE FROM app_auth WHERE id = ?").bind(adminUser).run();
+  } catch { /* table may not exist yet; nothing to clear */ }
+  await cmsAudit(env, adminUser, "password_reset", "via_reset_code");
+  return json({ ok: true });
 }
 
 /** Change the admin password (requires an authenticated session). */
