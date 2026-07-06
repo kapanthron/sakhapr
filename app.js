@@ -811,8 +811,9 @@ async function submitEktp() {
       chatlog: buildChatLogBlob(),
       pasfoto: store.ektp.pasfoto || null,
       meta: {
-        product: store.product || "",
-        productName: PRODUCT_NAMES[store.product] || store.product || "",
+        // Fall back to the prescreen set's product_id so jenis_kpr is never blank.
+        product: store.product || (session && session.productId) || "",
+        productName: PRODUCT_NAMES[store.product] || store.product || (session && session.label) || "",
         prescreenLabel: session ? session.label : "",
         prescreenStatus: session && session.isComplete() ? "selesai" : "",
         nikVerdict: (verdict && verdict.verdict) || "",

@@ -1466,7 +1466,7 @@ function c360Row(l) {
     l.sales_owner || "", statusLabel, l.submit_count != null ? String(l.submit_count) : "",
   ];
 }
-const JENIS_KPR_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
+const JENIS_KPR_LABEL = { primary: "KPR PRI", second: "KPR SEC", take_over: "KPR TO" };
 
 /** Build the Customer-360 workbook: Total + Primary + Second + Take Over tabs. */
 async function handleCustomer360(env, session) {
@@ -1499,46 +1499,52 @@ const BI_SUBMITTED = new Set(["submitted"]);
 const BI_APPROVED = new Set(["approved", "approved_not_disbursed", "disbursed"]);
 const BI_DISBURSED = new Set(["disbursed"]);
 
-async function handleBi(env) {
+async function handleBi(env, owner) {
   if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
-  const leads = (await env.DB.prepare(
-    "SELECT created_at,is_duplicate,status,plafon FROM leads"
-  ).all()).results || [];
-  const metrics = (await env.DB.prepare(
-    "SELECT tipe, COUNT(*) AS n FROM sessions_metric GROUP BY tipe"
-  ).all()).results || [];
+  // When `owner` is set (sales view) the numbers are scoped to that sales owner.
+  const leads = owner
+    ? (await env.DB.prepare("SELECT created_at,is_duplicate,status,plafon FROM leads WHERE sales_owner = ?").bind(owner).all()).results || []
+    : (await env.DB.prepare("SELECT created_at,is_duplicate,status,plafon FROM leads").all()).results || [];
 
-  const metricBy = {};
-  for (const m of metrics) metricBy[m.tipe] = m.n;
-  const sesiChatbot = metricBy.chatbot || 0;
-  const sesiPrescreen = metricBy.prescreen_submit || 0;
+  // Session metrics are global (not per-owner); omit them for the sales view.
+  let sesiChatbot = 0, sesiPrescreen = 0;
+  if (!owner) {
+    const metrics = (await env.DB.prepare("SELECT tipe, COUNT(*) AS n FROM sessions_metric GROUP BY tipe").all()).results || [];
+    const metricBy = {};
+    for (const m of metrics) metricBy[m.tipe] = m.n;
+    sesiChatbot = metricBy.chatbot || 0;
+    sesiPrescreen = metricBy.prescreen_submit || 0;
+  }
   const sesiTotal = sesiChatbot + sesiPrescreen;
 
   const total = leads.length;
   const year = String(new Date().getFullYear());
   let ytd = 0, nasabah = 0, totalLimit = 0, submitAnalis = 0, approved = 0, rejected = 0, disbursed = 0;
-  const monthly = {}; // "YYYY-MM" -> { volume, nasabah }
+  const monthly = {}; // "YYYY-MM" -> { volume (Rupiah plafon), nasabah (unique count) }
   for (const l of leads) {
     const ym = wibYearMonth(l.created_at);
     if (ym.slice(0, 4) === year) ytd++;
     const unique = !l.is_duplicate;
     if (unique) nasabah++;
-    totalLimit += Number(l.plafon) || 0;
+    const plafon = Number(l.plafon) || 0;
+    totalLimit += plafon;
     if (BI_SUBMITTED.has(l.status)) submitAnalis++;
     if (BI_APPROVED.has(l.status)) approved++;
     if (l.status === "rejected") rejected++;
     if (BI_DISBURSED.has(l.status)) disbursed++;
     const slot = (monthly[ym] = monthly[ym] || { volume: 0, nasabah: 0 });
-    slot.volume++;
+    slot.volume += plafon;                // volume = nilai plafon (Rupiah), bukan jumlah lead
     if (unique) slot.nasabah++;
   }
   const pct = (n) => (total ? Math.round((n / total) * 1000) / 10 : 0);
   const decided = approved + rejected;
   const approvalRate = decided ? Math.round((approved / decided) * 1000) / 10 : 0;
+  const takeUpRate = pct(disbursed); // aplikasi disbursed / total leads masuk
   const series = Object.keys(monthly).sort().map((ym) => ({ ym, ...monthly[ym] }));
 
   return json({
     ok: true,
+    scope: owner || "all",
     bigNumbers: {
       sesiTotal, sesiChatbot, sesiPrescreen,
       ytdLeads: ytd,
@@ -1546,6 +1552,7 @@ async function handleBi(env) {
       submitAnalis, submitAnalisPct: pct(submitAnalis),
       approved, rejected, approvalRate,
       disbursed, disbursedPct: pct(disbursed),
+      takeUpRate, totalLeads: total,
     },
     series,
   });

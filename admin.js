@@ -286,7 +286,7 @@ async function resetPassword() {
 
 /* --- CMS (Phase 1: lead list from D1) -------------------------------------- */
 
-const JENIS_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
+const JENIS_LABEL = { primary: "KPR PRI", second: "KPR SEC", take_over: "KPR TO" };
 const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", ektp: "eKTP penuh", pasfoto: "Pas foto (.jpg)" };
 const SALES_LABEL = { AS: "AS", HB: "HB", RB: "RB", ER: "ER (eskalasi)" };
 function gradeChip(g) {
@@ -296,6 +296,14 @@ function gradeChip(g) {
 }
 
 function rupiah(n) { return n ? "Rp" + Number(n).toLocaleString("id-ID") : "-"; }
+function rupiahShort(n) {
+  n = Number(n) || 0;
+  if (n >= 1e12) return "Rp" + (n / 1e12).toFixed(1).replace(/\.0$/, "") + "T";
+  if (n >= 1e9) return "Rp" + (n / 1e9).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1e6) return "Rp" + (n / 1e6).toFixed(1).replace(/\.0$/, "") + "jt";
+  if (n >= 1e3) return "Rp" + Math.round(n / 1e3) + "rb";
+  return "Rp" + n;
+}
 
 async function loadCms() {
   $("cmsStatus").textContent = "Memuat…";
@@ -352,14 +360,17 @@ function renderBigNumbers(b) {
     bigNumCard("Total limit pengajuan", rupiah(b.totalLimit)) +
     bigNumCard("Sedang di analis", b.submitAnalis, `${b.submitAnalisPct}% dari lead`) +
     bigNumCard("Approval rate", `${b.approvalRate}%`, `${b.approved} approved / ${b.rejected} rejected`) +
-    bigNumCard("Disbursed", b.disbursed, `${b.disbursedPct}% dari lead`);
+    bigNumCard("Disbursed", b.disbursed, `${b.disbursedPct}% dari lead`) +
+    bigNumCard("Take up rate", `${b.takeUpRate}%`, `${b.disbursed} disbursed / ${b.totalLeads} lead masuk`);
 }
 
 function renderBiChart() {
   const host = $("biChart");
   host.textContent = "";
   if (!biSeries.length) { host.innerHTML = `<p class="ektp__disclaimer">Belum ada data lead.</p>`; return; }
-  const vals = biSeries.map((s) => (biMetric === "nasabah" ? s.nasabah : s.volume));
+  const isVol = biMetric !== "nasabah";
+  const vals = biSeries.map((s) => (isVol ? s.volume : s.nasabah));
+  const label = (v) => (isVol ? rupiahShort(v) : String(v));
   const max = Math.max(1, ...vals);
   const W = 640, H = 220, padL = 32, padB = 28, padT = 10, padR = 10;
   const innerW = W - padL - padR, innerH = H - padT - padB;
@@ -373,7 +384,7 @@ function renderBiChart() {
     const y = padT + innerH - h;
     bars +=
       `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="bi-bar"></rect>` +
-      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" class="bi-bar__val">${v}</text>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" class="bi-bar__val">${escapeHtml(label(v))}</text>` +
       `<text x="${(x + bw / 2).toFixed(1)}" y="${(H - 8).toFixed(1)}" text-anchor="middle" class="bi-axis">${escapeHtml(s.ym)}</text>`;
   });
   host.innerHTML =
