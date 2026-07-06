@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moggy — Sales</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="pdpa-banner" role="region" aria-label="Sales">
+    <span class="pdpa-banner__icon" aria-hidden="true">&#128100;</span>
+    <p class="pdpa-banner__text">
+      Portal Sales Moggy. Anda hanya melihat lead pada wilayah Anda. Data pribadi
+      diproses sesuai <strong>UU No. 27 Tahun 2022</strong>. Akses tercatat.
+    </p>
+  </header>
+
+  <main class="app">
+    <div class="app__topbar">
+      <div class="brand">
+        <span class="brand__name">Moggy</span>
+        <span class="brand__sub" id="salesSub">Sales</span>
+      </div>
+      <div class="app__topbar-actions">
+        <button id="pwdChangeBtn" type="button" class="btn btn--ghost" hidden>Ubah kata sandi</button>
+        <button id="logoutBtn" type="button" class="btn btn--ghost" hidden>Keluar</button>
+      </div>
+    </div>
+
+    <!-- Login -->
+    <section class="ektp" id="loginView" hidden>
+      <h2 class="ektp__title">Masuk Portal Sales</h2>
+      <p class="ektp__disclaimer">
+        Gunakan ID Anda (mis. <strong>AS2026</strong>) dan kata sandi sementara
+        (mis. <strong>ASpass#</strong>) pada login pertama, lalu ganti lewat
+        <strong>Ubah kata sandi</strong>.
+      </p>
+      <form id="loginForm" class="debug__grid" autocomplete="off">
+        <label>ID <input id="loginUser" type="text" autocomplete="username" /></label>
+        <label>Kata sandi <input id="loginPass" type="password" autocomplete="current-password" /></label>
+      </form>
+      <button type="button" id="loginBtn" class="btn btn--primary">Masuk</button>
+      <div id="loginStatus" class="ektp__status" aria-live="polite"></div>
+    </section>
+
+    <!-- Sales dashboard + leads -->
+    <section id="salesView" hidden>
+      <div class="app__topbar">
+        <h2 class="ektp__title ektp__title--flush">Dashboard Saya</h2>
+        <button id="refreshBtn" type="button" class="btn btn--ghost">Muat ulang</button>
+      </div>
+      <div id="biStatus" class="ektp__status" aria-live="polite"></div>
+      <div class="bi-bignums" id="biBigNums"></div>
+      <div class="bi-chart">
+        <div class="dash__head">
+          <h3 class="dash__title">Pergerakan lead per bulan</h3>
+          <div class="dash__filter" id="biChartToggle">
+            <button type="button" data-metric="volume" class="btn btn--ghost is-active">Volume</button>
+            <button type="button" data-metric="nasabah" class="btn btn--ghost">Jumlah nasabah</button>
+          </div>
+        </div>
+        <div id="biChart" class="bi-chart__canvas"></div>
+      </div>
+
+      <div class="app__topbar" style="margin-top:14px">
+        <h2 class="ektp__title ektp__title--flush">Lead Saya</h2>
+      </div>
+      <div id="leadsStatus" class="ektp__status" aria-live="polite"></div>
+      <div id="leadsList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="sales.js"></script>
+</body>
+</html>

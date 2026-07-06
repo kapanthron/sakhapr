@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS status_history (
   status_lama TEXT,
   status_baru TEXT,
   changed_at TEXT NOT NULL,
-  changed_by TEXT
+  changed_by TEXT,
+  keterangan TEXT
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (

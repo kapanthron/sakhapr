@@ -102,10 +102,23 @@ export default {
         return await requireAdmin(request, env, (s) => handleFile(url, env, s));
       }
       if (pathname === "/api/admin/set-password" && request.method === "POST") {
-        return await requireAdmin(request, env, (s) => handleSetPassword(request, env, s));
+        return await requireAuth(request, env, (s) => handleSetPassword(request, env, s));
       }
       if (pathname === "/api/admin/reset-password" && request.method === "POST") {
         return await handleResetPassword(request, env);
+      }
+      // Sales portal (scoped to the logged-in sales owner).
+      if (pathname === "/api/sales/leads" && request.method === "GET") {
+        return await requireSales(request, env, (s) => handleSalesLeads(env, s.owner));
+      }
+      if (pathname === "/api/sales/status" && request.method === "POST") {
+        return await requireSales(request, env, (s) => handleSalesStatus(request, env, s));
+      }
+      if (pathname === "/api/sales/bi" && request.method === "GET") {
+        return await requireSales(request, env, (s) => handleBi(env, s.owner));
+      }
+      if (pathname === "/api/sales/me" && request.method === "GET") {
+        return await requireSales(request, env, (s) => json({ ok: true, user: s.u, owner: s.owner }));
       }
       if (pathname === "/api/admin/cms/file-delete" && request.method === "POST") {
         return await requireAdmin(request, env, (s) => handleCmsFileDelete(request, env, s));
@@ -115,6 +128,9 @@ export default {
       }
       if (pathname === "/admin" || pathname === "/super") {
         return env.ASSETS.fetch(new Request(new URL("/admin.html", url), request));
+      }
+      if (pathname === "/sales") {
+        return env.ASSETS.fetch(new Request(new URL("/sales.html", url), request));
       }
     } catch (err) {
       return json({ ok: false, error: String(err && err.message || err) }, 500);
@@ -139,26 +155,27 @@ async function handleSubmit(request, env) {
   }
   const form = await request.formData();
   const prescreen = form.get("prescreen"); // File (.txt)
-  const ektp = form.get("ektp"); // File (image)
   const report = form.get("report"); // File (.pdf)
   const chatlog = form.get("chatlog"); // File (.txt), optional
-  const pasfoto = form.get("pasfoto"); // File (.jpg, auto-cropped face), optional
+  // Privacy: the eKTP scan and face photo are NOT uploaded. We receive the
+  // extracted eKTP fields as text and store only that.
+  const ektpFields = parseJsonObj(form.get("ektpData"));
 
-  if (!(prescreen && ektp && report)) {
-    return json({ ok: false, error: "Paket tidak lengkap (prescreen, ektp, report wajib)." }, 400);
+  if (!(prescreen && report)) {
+    return json({ ok: false, error: "Paket tidak lengkap (prescreen, report wajib)." }, 400);
   }
 
   const id = crypto.randomUUID();
   const ts = new Date().toISOString();
   const prefix = `leads/${id}/`;
-  const ektpName = `ektp${extFromType(ektp.type)}`;
 
-  // Store the three files in R2.
+  // Store the text artefacts in R2 (no eKTP image, no pas foto).
+  const ektpText = ektpDataText(ektpFields, form.get("nik"));
   await env.BUCKET.put(prefix + "prescreen.txt", await prescreen.arrayBuffer(), {
     httpMetadata: { contentType: "text/plain; charset=utf-8" },
   });
-  await env.BUCKET.put(prefix + ektpName, await ektp.arrayBuffer(), {
-    httpMetadata: { contentType: ektp.type || "application/octet-stream" },
+  await env.BUCKET.put(prefix + "ektp_data.txt", ektpText, {
+    httpMetadata: { contentType: "text/plain; charset=utf-8" },
   });
   await env.BUCKET.put(prefix + "laporan_nik.pdf", await report.arrayBuffer(), {
     httpMetadata: { contentType: "application/pdf" },
@@ -166,12 +183,6 @@ async function handleSubmit(request, env) {
   if (chatlog) {
     await env.BUCKET.put(prefix + "chatlog.txt", await chatlog.arrayBuffer(), {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
-    });
-  }
-  const hasPasfoto = pasfoto && typeof pasfoto.arrayBuffer === "function";
-  if (hasPasfoto) {
-    await env.BUCKET.put(prefix + "pasfoto.jpg", await pasfoto.arrayBuffer(), {
-      httpMetadata: { contentType: "image/jpeg" },
     });
   }
 
@@ -199,10 +210,9 @@ async function handleSubmit(request, env) {
     },
     files: {
       prescreen: "prescreen.txt",
-      ektp: ektpName,
+      ektp_data: "ektp_data.txt",
       report: "laporan_nik.pdf",
       ...(chatlog ? { chatlog: "chatlog.txt" } : {}),
-      ...(hasPasfoto ? { pasfoto: "pasfoto.jpg" } : {}),
     },
     email: { to: env.MAIL_TO || "", status: "pending", at: null, providerId: null, error: null },
   };
@@ -221,7 +231,7 @@ async function handleSubmit(request, env) {
   }
   meta.email = cmsIngested
     ? { to: "", status: "cms", at: ts, providerId: null, error: null }
-    : await sendEmail(env, meta, { prescreen, ektp, report, chatlog, ektpName, pasfoto: hasPasfoto ? pasfoto : null });
+    : await sendEmail(env, meta, { prescreen, report, chatlog, ektpText });
 
   await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
     httpMetadata: { contentType: "application/json" },
@@ -582,10 +592,13 @@ const OCR_PROMPT =
   "Anda pembaca KTP-el (eKTP) Indonesia yang teliti. Dari gambar KTP berikut, " +
   "baca dan kembalikan HANYA satu objek JSON valid (tanpa teks lain), dengan kunci:\n" +
   '{"nik":"","nama":"","tempat_lahir":"","tanggal_lahir":"","jenis_kelamin":"",' +
-  '"provinsi":"","kabupaten_kota":"","kecamatan":"","photo_box":[]}\n' +
+  '"status_perkawinan":"","provinsi":"","kabupaten_kota":"","kecamatan":"",' +
+  '"tanggal_pembuatan":"","photo_box":[]}\n' +
   "Aturan: nik = TEPAT 16 digit angka (baca cermat, jangan menambah/menghilangkan digit). " +
   "tanggal_lahir format dd-mm-yyyy. jenis_kelamin = \"LAKI-LAKI\" atau \"PEREMPUAN\". " +
+  "status_perkawinan sesuai kartu (mis. \"BELUM KAWIN\", \"KAWIN\", \"CERAI HIDUP\", \"CERAI MATI\"). " +
   "provinsi/kabupaten_kota/kecamatan sesuai teks pada kartu (HURUF KAPITAL). " +
+  "tanggal_pembuatan = tanggal yang tercetak di bawah pas foto / tanda tangan (tanggal pembuatan KTP), format dd-mm-yyyy bila ada. " +
   "photo_box = kotak pas foto wajah pada kartu sebagai [ymin,xmin,ymax,xmax] " +
   "ternormalisasi 0-1000 (relatif terhadap seluruh gambar). " +
   "Jika sebuah nilai tidak terbaca, isi string kosong (untuk photo_box: array kosong).";
@@ -804,16 +817,14 @@ async function sendEmail(env, meta, files) {
   }
 
   try {
+    const enc = new TextEncoder();
     const attachments = [
       { name: "prescreen.txt", data: new Uint8Array(await files.prescreen.arrayBuffer()) },
-      { name: files.ektpName, data: new Uint8Array(await files.ektp.arrayBuffer()) },
+      { name: "ektp_data.txt", data: enc.encode(files.ektpText || "") },
       { name: "laporan_nik.pdf", data: new Uint8Array(await files.report.arrayBuffer()) },
     ];
     if (files.chatlog) {
       attachments.push({ name: "chatlog.txt", data: new Uint8Array(await files.chatlog.arrayBuffer()) });
-    }
-    if (files.pasfoto) {
-      attachments.push({ name: "pasfoto.jpg", data: new Uint8Array(await files.pasfoto.arrayBuffer()) });
     }
     // Bundle every file into one password-protected ZIP for safer transit.
     const zip = makeEncryptedZip(attachments, ZIP_PASSWORD);
@@ -829,7 +840,7 @@ async function sendEmail(env, meta, files) {
         `Verdict NIK : ${meta.nikVerdict || "-"}\n` +
         `Lead ID     : ${meta.id}\n\n` +
         `Lampiran: ${zipName} (ZIP terproteksi kata sandi) berisi transkrip prescreen, ` +
-        `gambar eKTP, laporan skrining NIK${files.pasfoto ? ", pas foto" : ""}.\n` +
+        `data eKTP (teks), dan laporan skrining NIK. Foto fisik eKTP tidak disimpan/dikirim.\n` +
         `Kata sandi ZIP sesuai kebijakan internal the Bank.\n` +
         `Catatan: skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan kredit.`,
       attachments: [{ filename: zipName, content: abToBase64(zip) }],
@@ -905,6 +916,12 @@ async function handleEmailTest(env) {
 
 /* --- Admin: auth ----------------------------------------------------------- */
 
+// Sales accounts (Phase: sales portal). id = <initials>2026, initial password =
+// <initials>pass# (changed on first login onwards). The owner code matches the
+// scoring/assignment codes (AS/ER/HB/RB).
+const SALES_ACCOUNTS = { AS2026: "AS", ER2026: "ER", HB2026: "HB", RB2026: "RB" };
+function salesInitialPass(owner) { return `${owner}pass#`; }
+
 async function handleLogin(request, env) {
   const ip = clientIp(request);
   if (!rateLimit("login:" + ip, 8, 10 * 60 * 1000)) {
@@ -914,39 +931,49 @@ async function handleLogin(request, env) {
   const u = String(user || "");
   const p = String(pass || "");
   const adminUser = env.ADMIN_USER || "panthronpoc";
-  if (!timingSafeEqual(u, adminUser)) {
+
+  // Resolve role + owner from the username.
+  let role = null, owner = null, initialPass = null;
+  if (timingSafeEqual(u, adminUser)) {
+    role = "admin";
+  } else if (SALES_ACCOUNTS[u]) {
+    role = "sales"; owner = SALES_ACCOUNTS[u]; initialPass = salesInitialPass(owner);
+  } else {
     return json({ ok: false, error: "Kredensial salah." }, 401);
   }
 
-  // Phase 8: the password is set on first login and stored (hashed) in D1, so no
-  // password lives in the repo. Falls back to env credentials only if D1 is absent.
+  // The password is set on first login and stored (hashed) in D1, so no password
+  // lives in the repo. Admins choose their own (min 8); sales use the seeded temp
+  // password on first login, then can change it. Env fallback is admin-only.
   if (env.DB) {
-    let firstLogin = false;
     try {
       await ensureAuthTable(env);
-      const row = await env.DB.prepare("SELECT pass_sha256 FROM app_auth WHERE id = ?").bind(adminUser).first();
+      const row = await env.DB.prepare("SELECT pass_sha256 FROM app_auth WHERE id = ?").bind(u).first();
+      let firstLogin = false;
       if (!row) {
-        if (p.length < 8) {
-          return json({ ok: false, firstLogin: true, error: "Login pertama: tetapkan kata sandi minimal 8 karakter." }, 400);
+        if (role === "admin") {
+          if (p.length < 8) return json({ ok: false, firstLogin: true, error: "Login pertama: tetapkan kata sandi minimal 8 karakter." }, 400);
+        } else if (!timingSafeEqual(p, initialPass)) {
+          return json({ ok: false, error: "Kredensial salah." }, 401);
         }
         const now = new Date().toISOString();
         await env.DB.prepare("INSERT INTO app_auth (id,pass_sha256,created_at) VALUES (?,?,?)")
-          .bind(adminUser, await sha256hex(p), now).run();
-        await cmsAudit(env, adminUser, "password_set", "first_login");
+          .bind(u, await sha256hex(p), now).run();
+        await cmsAudit(env, u, "password_set", "first_login");
         firstLogin = true;
       } else if (!timingSafeEqual((await sha256hex(p)).toLowerCase(), String(row.pass_sha256).toLowerCase())) {
         return json({ ok: false, error: "Kredensial salah." }, 401);
       }
-      const token = await makeSession(env, adminUser);
-      return json({ ok: true, firstLogin }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
+      const token = await makeSession(env, u, role, owner);
+      return json({ ok: true, firstLogin, role, owner }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
     } catch (e) {
-      // Fall through to env-based auth if the D1 path fails unexpectedly.
+      // Fall through to env-based auth (admin only) if the D1 path fails.
     }
   }
 
-  if (!(await checkPassword(env, p))) return json({ ok: false, error: "Kredensial salah." }, 401);
-  const token = await makeSession(env, adminUser);
-  return json({ ok: true }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
+  if (role !== "admin" || !(await checkPassword(env, p))) return json({ ok: false, error: "Kredensial salah." }, 401);
+  const token = await makeSession(env, adminUser, "admin", null);
+  return json({ ok: true, role: "admin" }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
 }
 
 /** Create the app_auth table if it does not exist yet (first-login bootstrap). */
@@ -1060,7 +1087,24 @@ async function requireAdmin(request, env, handler) {
   const token = readCookie(request, COOKIE_NAME);
   const session = await verifySession(env, token);
   if (!session) return json({ ok: false, error: "Tidak terautentikasi." }, 401);
+  if (session.role && session.role !== "admin") return json({ ok: false, error: "Akses admin diperlukan." }, 403);
   return handler(session); // existing handlers ignore the arg; CMS uses it for audit actor
+}
+
+/** Require a sales session; passes the session (with .owner) to the handler. */
+async function requireSales(request, env, handler) {
+  const session = await verifySession(env, readCookie(request, COOKIE_NAME));
+  if (!session || session.role !== "sales" || !session.owner) {
+    return json({ ok: false, error: "Tidak terautentikasi." }, 401);
+  }
+  return handler(session);
+}
+
+/** Require any authenticated user (admin or sales) — used for self password change. */
+async function requireAuth(request, env, handler) {
+  const session = await verifySession(env, readCookie(request, COOKIE_NAME));
+  if (!session) return json({ ok: false, error: "Tidak terautentikasi." }, 401);
+  return handler(session);
 }
 
 /* --- Admin: data ----------------------------------------------------------- */
@@ -1244,6 +1288,27 @@ function maskNik(nik) {
   return d.length === 16 ? d.slice(0, 6) + "******" + d.slice(12) : "";
 }
 
+/** Format the extracted eKTP fields as a human-readable text file (no image). */
+function ektpDataText(f, nikOverride) {
+  f = f || {};
+  const nik = digitsOnly(nikOverride || f.nik || "");
+  const L = [];
+  L.push("DATA eKTP (diekstrak sebagai teks — gambar fisik tidak disimpan)");
+  L.push("=".repeat(56));
+  L.push(`Nama lengkap        : ${f.nama || "-"}`);
+  L.push(`NIK                 : ${nik || "-"}`);
+  L.push(`Tempat/Tgl lahir    : ${(f.tempat_lahir || "-")}, ${(f.tanggal_lahir || "-")}`);
+  L.push(`Jenis kelamin       : ${f.jenis_kelamin || "-"}`);
+  L.push(`Status perkawinan   : ${f.status_perkawinan || "-"}`);
+  L.push(`Provinsi            : ${f.provinsi || "-"}`);
+  L.push(`Kabupaten / Kota    : ${f.kabupaten_kota || "-"}`);
+  if (f.kecamatan) L.push(`Kecamatan           : ${f.kecamatan}`);
+  L.push(`Tanggal pembuatan   : ${f.tanggal_pembuatan || "-"}`);
+  L.push("");
+  L.push("Catatan: hanya data teks yang disimpan; foto fisik eKTP dan pas foto tidak disimpan (UU PDP — minimalisasi data).");
+  return L.join("\n");
+}
+
 function jenisKprFromProduct(product) {
   if (product === "kpr_flexi_primary") return "primary";
   if (product === "kpr_secondary") return "second";
@@ -1375,8 +1440,7 @@ async function cmsIngestLead(env, id, ts, form, meta) {
     ["chatlog", f.chatlog],
     ["prescreen_xls", f.prescreen],
     ["pariksa_pdf", f.report],
-    ["ektp", f.ektp],            // full eKTP image (uncropped), as requested by owner
-    ["pasfoto", f.pasfoto],
+    ["ektp_data", f.ektp_data],  // eKTP fields as text (no image stored)
   ];
   for (const [jenis, name] of fileRows) {
     if (!name) continue;
@@ -1389,21 +1453,36 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   ).bind(crypto.randomUUID(), "prescreen_submit", ts).run();
 }
 
-async function handleCmsLeads(env) {
-  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
-  const leads = (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC LIMIT 500").all()).results || [];
+/** Build the leads payload (files + status history), optionally scoped to one
+ *  sales owner. Shared by the admin CMS and the sales portal. */
+async function cmsLeadsPayload(env, owner) {
+  const leads = owner
+    ? (await env.DB.prepare("SELECT * FROM leads WHERE sales_owner = ? ORDER BY created_at DESC LIMIT 500").bind(owner).all()).results || []
+    : (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC LIMIT 500").all()).results || [];
   const files = (await env.DB.prepare("SELECT lead_id,jenis,r2_key FROM lead_files").all()).results || [];
   const hist = (await env.DB.prepare(
-    "SELECT lead_id,status_lama,status_baru,changed_at,changed_by FROM status_history ORDER BY changed_at ASC"
+    "SELECT lead_id,status_lama,status_baru,changed_at,changed_by,keterangan FROM status_history ORDER BY changed_at ASC"
   ).all()).results || [];
+  const ids = new Set(leads.map((l) => l.id));
   const byLead = {}, histByLead = {};
-  for (const fl of files) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
-  for (const h of hist) (histByLead[h.lead_id] = histByLead[h.lead_id] || []).push(h);
-  return json({
+  for (const fl of files) if (ids.has(fl.lead_id)) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
+  for (const h of hist) if (ids.has(h.lead_id)) (histByLead[h.lead_id] = histByLead[h.lead_id] || []).push(h);
+  return {
     ok: true,
     statuses: CMS_STATUSES,
     leads: leads.map((l) => ({ ...l, files: byLead[l.id] || [], history: histByLead[l.id] || [] })),
-  });
+  };
+}
+
+async function handleCmsLeads(env) {
+  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
+  return json(await cmsLeadsPayload(env, null));
+}
+
+/** Sales portal: leads scoped to the logged-in sales owner. */
+async function handleSalesLeads(env, owner) {
+  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
+  return json(await cmsLeadsPayload(env, owner));
 }
 
 /* --- Phase 5: pipeline statuses (exact keys + labels from the brief) -------- */
@@ -1423,27 +1502,44 @@ const CMS_STATUS_KEYS = new Set(CMS_STATUSES.map((s) => s.key));
 // Terminal stages: SLA reminders stop once a lead reaches one of these.
 const CMS_TERMINAL = new Set(["disbursed", "drop_process", "rejected", "deal_other_bank"]);
 
-/** Update a lead's pipeline status and record the change in status_history. */
-async function handleCmsStatus(request, env, session) {
+/**
+ * Apply a pipeline status change + free-text note, recorded in status_history.
+ * When `ownerGuard` is set (sales), the change is refused unless the lead belongs
+ * to that sales owner. Shared by the admin CMS and the sales portal.
+ */
+async function applyStatusChange(env, id, status, by, keterangan, ownerGuard) {
   if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
-  const { id, status } = await request.json().catch(() => ({}));
   if (!id || /[^a-zA-Z0-9-]/.test(String(id))) return json({ ok: false, error: "ID tidak valid." }, 400);
   if (!CMS_STATUS_KEYS.has(status)) return json({ ok: false, error: "Status tidak dikenal." }, 400);
 
-  const row = (await env.DB.prepare("SELECT status FROM leads WHERE id = ?").bind(id).first());
+  const row = await env.DB.prepare("SELECT status, sales_owner FROM leads WHERE id = ?").bind(id).first();
   if (!row) return json({ ok: false, error: "Lead tidak ditemukan." }, 404);
+  if (ownerGuard && row.sales_owner !== ownerGuard) return json({ ok: false, error: "Lead ini bukan milik Anda." }, 403);
+
+  const note = String(keterangan || "").slice(0, 1000);
   const oldStatus = row.status || null;
-  if (oldStatus === status) return json({ ok: true, unchanged: true });
+  if (oldStatus === status && !note) return json({ ok: true, unchanged: true });
 
   const now = new Date().toISOString();
-  const by = (session && session.u) || "admin";
   await env.DB.prepare("UPDATE leads SET status = ?, last_activity_at = ? WHERE id = ?")
     .bind(status, now, id).run();
   await env.DB.prepare(
-    "INSERT INTO status_history (id,lead_id,status_lama,status_baru,changed_at,changed_by) VALUES (?,?,?,?,?,?)"
-  ).bind(crypto.randomUUID(), id, oldStatus, status, now, by).run();
+    "INSERT INTO status_history (id,lead_id,status_lama,status_baru,changed_at,changed_by,keterangan) VALUES (?,?,?,?,?,?,?)"
+  ).bind(crypto.randomUUID(), id, oldStatus, status, now, by, note || null).run();
   await cmsAudit(env, by, "status:" + status, `lead:${id}`);
   return json({ ok: true });
+}
+
+/** Admin: change any lead's status (+ optional keterangan). */
+async function handleCmsStatus(request, env, session) {
+  const { id, status, keterangan } = await request.json().catch(() => ({}));
+  return applyStatusChange(env, id, status, (session && session.u) || "admin", keterangan, null);
+}
+
+/** Sales: change one of THEIR leads' status (+ optional keterangan). */
+async function handleSalesStatus(request, env, session) {
+  const { id, status, keterangan } = await request.json().catch(() => ({}));
+  return applyStatusChange(env, id, status, session.u, keterangan, session.owner);
 }
 
 /* --- Phase 6: Customer 360 export (multi-tab XLSX) ------------------------- */
@@ -1466,7 +1562,7 @@ function c360Row(l) {
     l.sales_owner || "", statusLabel, l.submit_count != null ? String(l.submit_count) : "",
   ];
 }
-const JENIS_KPR_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
+const JENIS_KPR_LABEL = { primary: "KPR PRI", second: "KPR SEC", take_over: "KPR TO" };
 
 /** Build the Customer-360 workbook: Total + Primary + Second + Take Over tabs. */
 async function handleCustomer360(env, session) {
@@ -1499,46 +1595,52 @@ const BI_SUBMITTED = new Set(["submitted"]);
 const BI_APPROVED = new Set(["approved", "approved_not_disbursed", "disbursed"]);
 const BI_DISBURSED = new Set(["disbursed"]);
 
-async function handleBi(env) {
+async function handleBi(env, owner) {
   if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
-  const leads = (await env.DB.prepare(
-    "SELECT created_at,is_duplicate,status,plafon FROM leads"
-  ).all()).results || [];
-  const metrics = (await env.DB.prepare(
-    "SELECT tipe, COUNT(*) AS n FROM sessions_metric GROUP BY tipe"
-  ).all()).results || [];
+  // When `owner` is set (sales view) the numbers are scoped to that sales owner.
+  const leads = owner
+    ? (await env.DB.prepare("SELECT created_at,is_duplicate,status,plafon FROM leads WHERE sales_owner = ?").bind(owner).all()).results || []
+    : (await env.DB.prepare("SELECT created_at,is_duplicate,status,plafon FROM leads").all()).results || [];
 
-  const metricBy = {};
-  for (const m of metrics) metricBy[m.tipe] = m.n;
-  const sesiChatbot = metricBy.chatbot || 0;
-  const sesiPrescreen = metricBy.prescreen_submit || 0;
+  // Session metrics are global (not per-owner); omit them for the sales view.
+  let sesiChatbot = 0, sesiPrescreen = 0;
+  if (!owner) {
+    const metrics = (await env.DB.prepare("SELECT tipe, COUNT(*) AS n FROM sessions_metric GROUP BY tipe").all()).results || [];
+    const metricBy = {};
+    for (const m of metrics) metricBy[m.tipe] = m.n;
+    sesiChatbot = metricBy.chatbot || 0;
+    sesiPrescreen = metricBy.prescreen_submit || 0;
+  }
   const sesiTotal = sesiChatbot + sesiPrescreen;
 
   const total = leads.length;
   const year = String(new Date().getFullYear());
   let ytd = 0, nasabah = 0, totalLimit = 0, submitAnalis = 0, approved = 0, rejected = 0, disbursed = 0;
-  const monthly = {}; // "YYYY-MM" -> { volume, nasabah }
+  const monthly = {}; // "YYYY-MM" -> { volume (Rupiah plafon), nasabah (unique count) }
   for (const l of leads) {
     const ym = wibYearMonth(l.created_at);
     if (ym.slice(0, 4) === year) ytd++;
     const unique = !l.is_duplicate;
     if (unique) nasabah++;
-    totalLimit += Number(l.plafon) || 0;
+    const plafon = Number(l.plafon) || 0;
+    totalLimit += plafon;
     if (BI_SUBMITTED.has(l.status)) submitAnalis++;
     if (BI_APPROVED.has(l.status)) approved++;
     if (l.status === "rejected") rejected++;
     if (BI_DISBURSED.has(l.status)) disbursed++;
     const slot = (monthly[ym] = monthly[ym] || { volume: 0, nasabah: 0 });
-    slot.volume++;
+    slot.volume += plafon;                // volume = nilai plafon (Rupiah), bukan jumlah lead
     if (unique) slot.nasabah++;
   }
   const pct = (n) => (total ? Math.round((n / total) * 1000) / 10 : 0);
   const decided = approved + rejected;
   const approvalRate = decided ? Math.round((approved / decided) * 1000) / 10 : 0;
+  const takeUpRate = pct(disbursed); // aplikasi disbursed / total leads masuk
   const series = Object.keys(monthly).sort().map((ym) => ({ ym, ...monthly[ym] }));
 
   return json({
     ok: true,
+    scope: owner || "all",
     bigNumbers: {
       sesiTotal, sesiChatbot, sesiPrescreen,
       ytdLeads: ytd,
@@ -1546,6 +1648,7 @@ async function handleBi(env) {
       submitAnalis, submitAnalisPct: pct(submitAnalis),
       approved, rejected, approvalRate,
       disbursed, disbursedPct: pct(disbursed),
+      takeUpRate, totalLeads: total,
     },
     series,
   });
@@ -1846,8 +1949,10 @@ function sessionSecret(env) {
   return env.SESSION_SECRET || "sakhapr-dev-secret-change-me";
 }
 
-async function makeSession(env, user) {
-  const payload = b64url(strToBytes(JSON.stringify({ u: user, exp: Date.now() + SESSION_TTL_MS })));
+async function makeSession(env, user, role, owner) {
+  const payload = b64url(strToBytes(JSON.stringify({
+    u: user, role: role || "admin", owner: owner || null, exp: Date.now() + SESSION_TTL_MS,
+  })));
   const sig = b64url(await hmac(sessionSecret(env), payload));
   return `${payload}.${sig}`;
 }

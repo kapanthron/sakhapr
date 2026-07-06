@@ -122,8 +122,7 @@ function renderLeads(leads) {
     for (const [label, name] of [
       ["Prescreen (.txt)", files.prescreen],
       ["Log chat (.txt)", files.chatlog],
-      ["eKTP", files.ektp],
-      ["Pas foto (.jpg)", files.pasfoto],
+      ["Data eKTP (.txt)", files.ektp_data],
       ["Laporan NIK (.pdf)", files.report],
       ["meta.json", "meta.json"],
     ]) {
@@ -286,8 +285,8 @@ async function resetPassword() {
 
 /* --- CMS (Phase 1: lead list from D1) -------------------------------------- */
 
-const JENIS_LABEL = { primary: "Primary", second: "Second", take_over: "Take Over" };
-const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", ektp: "eKTP penuh", pasfoto: "Pas foto (.jpg)" };
+const JENIS_LABEL = { primary: "KPR PRI", second: "KPR SEC", take_over: "KPR TO" };
+const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", ektp_data: "Data eKTP (.txt)" };
 const SALES_LABEL = { AS: "AS", HB: "HB", RB: "RB", ER: "ER (eskalasi)" };
 function gradeChip(g) {
   if (g === "A+" || g === "A") return "chip--ok";
@@ -296,6 +295,14 @@ function gradeChip(g) {
 }
 
 function rupiah(n) { return n ? "Rp" + Number(n).toLocaleString("id-ID") : "-"; }
+function rupiahShort(n) {
+  n = Number(n) || 0;
+  if (n >= 1e12) return "Rp" + (n / 1e12).toFixed(1).replace(/\.0$/, "") + "T";
+  if (n >= 1e9) return "Rp" + (n / 1e9).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1e6) return "Rp" + (n / 1e6).toFixed(1).replace(/\.0$/, "") + "jt";
+  if (n >= 1e3) return "Rp" + Math.round(n / 1e3) + "rb";
+  return "Rp" + n;
+}
 
 async function loadCms() {
   $("cmsStatus").textContent = "Memuat…";
@@ -352,14 +359,17 @@ function renderBigNumbers(b) {
     bigNumCard("Total limit pengajuan", rupiah(b.totalLimit)) +
     bigNumCard("Sedang di analis", b.submitAnalis, `${b.submitAnalisPct}% dari lead`) +
     bigNumCard("Approval rate", `${b.approvalRate}%`, `${b.approved} approved / ${b.rejected} rejected`) +
-    bigNumCard("Disbursed", b.disbursed, `${b.disbursedPct}% dari lead`);
+    bigNumCard("Disbursed", b.disbursed, `${b.disbursedPct}% dari lead`) +
+    bigNumCard("Take up rate", `${b.takeUpRate}%`, `${b.disbursed} disbursed / ${b.totalLeads} lead masuk`);
 }
 
 function renderBiChart() {
   const host = $("biChart");
   host.textContent = "";
   if (!biSeries.length) { host.innerHTML = `<p class="ektp__disclaimer">Belum ada data lead.</p>`; return; }
-  const vals = biSeries.map((s) => (biMetric === "nasabah" ? s.nasabah : s.volume));
+  const isVol = biMetric !== "nasabah";
+  const vals = biSeries.map((s) => (isVol ? s.volume : s.nasabah));
+  const label = (v) => (isVol ? rupiahShort(v) : String(v));
   const max = Math.max(1, ...vals);
   const W = 640, H = 220, padL = 32, padB = 28, padT = 10, padR = 10;
   const innerW = W - padL - padR, innerH = H - padT - padB;
@@ -373,7 +383,7 @@ function renderBiChart() {
     const y = padT + innerH - h;
     bars +=
       `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="bi-bar"></rect>` +
-      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" class="bi-bar__val">${v}</text>` +
+      `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" class="bi-bar__val">${escapeHtml(label(v))}</text>` +
       `<text x="${(x + bw / 2).toFixed(1)}" y="${(H - 8).toFixed(1)}" text-anchor="middle" class="bi-axis">${escapeHtml(s.ym)}</text>`;
   });
   host.innerHTML =
@@ -468,9 +478,20 @@ function renderCmsLeads(leads) {
       if (s.key === l.status) o.selected = true;
       sel.appendChild(o);
     }
-    sel.addEventListener("change", () => updateCmsStatus(l.id, sel.value, sel));
     lbl.appendChild(sel);
     pipe.appendChild(lbl);
+
+    const note = document.createElement("textarea");
+    note.className = "sales-note";
+    note.rows = 2;
+    note.placeholder = "Keterangan (opsional) saat ubah status…";
+    pipe.appendChild(note);
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "btn btn--primary btn--small";
+    save.textContent = "Simpan status";
+    save.addEventListener("click", () => updateCmsStatus(l.id, sel.value, note.value, save));
+    pipe.appendChild(save);
 
     const hist = (l.history || []).slice().reverse();
     if (hist.length) {
@@ -481,7 +502,8 @@ function renderCmsLeads(leads) {
         li.innerHTML =
           `<span class="mono">${escapeHtml(fmtTime(e.changed_at))}</span> — ` +
           `${escapeHtml(statusLabel(e.status_lama) || "(awal)")} → <strong>${escapeHtml(statusLabel(e.status_baru))}</strong>` +
-          (e.changed_by ? ` <span class="cms-history__by">oleh ${escapeHtml(e.changed_by)}</span>` : "");
+          (e.changed_by ? ` <span class="cms-history__by">oleh ${escapeHtml(e.changed_by)}</span>` : "") +
+          (e.keterangan ? `<br><span class="cms-history__note">“${escapeHtml(e.keterangan)}”</span>` : "");
         h.appendChild(li);
       }
       pipe.appendChild(h);
@@ -503,8 +525,8 @@ function renderCmsLeads(leads) {
 
     const dl = document.createElement("div");
     dl.className = "chips";
-    // Show files in a stable order (eKTP penuh first so it's easy to find).
-    const order = ["ektp", "pasfoto", "prescreen_xls", "pariksa_pdf", "chatlog"];
+    // Show files in a stable order (eKTP data first so it's easy to find).
+    const order = ["ektp_data", "prescreen_xls", "pariksa_pdf", "chatlog"];
     const files = (l.files || []).slice().sort((a, b) => order.indexOf(a.jenis) - order.indexOf(b.jenis));
     for (const f of files) {
       const group = document.createElement("span");
@@ -631,20 +653,20 @@ async function callCmsTask(id, action) {
   }
 }
 
-async function updateCmsStatus(id, status, sel) {
-  if (sel) sel.disabled = true;
+async function updateCmsStatus(id, status, keterangan, btn) {
+  if (btn) btn.disabled = true;
   try {
     const r = await fetch("/api/admin/cms/status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, status, keterangan }),
     });
     if (r.ok) { loadCms(); return; }
     alert("Gagal ubah status: " + ((await r.json().catch(() => ({}))).error || r.status));
   } catch (e) {
     alert("Gagal ubah status: " + e.message);
   }
-  if (sel) sel.disabled = false;
+  if (btn) btn.disabled = false;
 }
 
 async function runSla() {

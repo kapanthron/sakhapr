@@ -713,12 +713,14 @@ function setupEktp() {
         const g = await geminiOcr(file);
         nik = (g.fields && g.fields.nik) || "";
         geminiBox = g.photo_box || null;
+        store.ektp.fields = (g && g.fields) || {}; // keep all eKTP text fields
       } catch (errAi) {
         console.warn("[Moggy] Gemini OCR unavailable, using on-device OCR:", errAi);
         const { fields, photo } = await runOcr(file, (m) => {
           ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
         });
         nik = fields.nik || "";
+        store.ektp.fields = fields || {};
         store.ektp.pasfoto = photo || null;
       }
       ektp.nik.value = nik;
@@ -804,15 +806,18 @@ async function submitEktp() {
 
     ektp.status.textContent = t("ektp_forwarding");
     const session = flow.session || store.prescreen;
+    // Privacy: do NOT upload the eKTP scan or the face photo. Send the extracted
+    // eKTP text fields instead, so no physical photo is stored server-side.
+    const ektpFields = Object.assign({}, store.ektp.fields || {}, { nik: store.ektp.nik || (store.ektp.fields && store.ektp.fields.nik) || "" });
     const result = await submitLead({
       prescreen: store.files.fileA,
-      ektp: file,
       report: reportBlob,
       chatlog: buildChatLogBlob(),
-      pasfoto: store.ektp.pasfoto || null,
+      ektpData: JSON.stringify(ektpFields),
       meta: {
-        product: store.product || "",
-        productName: PRODUCT_NAMES[store.product] || store.product || "",
+        // Fall back to the prescreen set's product_id so jenis_kpr is never blank.
+        product: store.product || (session && session.productId) || "",
+        productName: PRODUCT_NAMES[store.product] || store.product || (session && session.label) || "",
         prescreenLabel: session ? session.label : "",
         prescreenStatus: session && session.isComplete() ? "selesai" : "",
         nikVerdict: (verdict && verdict.verdict) || "",

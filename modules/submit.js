@@ -1,24 +1,23 @@
 /* ============================================================================
    modules/submit.js  —  forward the lead package to the backend
-   Sends the three files (prescreen .txt, eKTP image, NIK report .pdf) plus
-   metadata to the Worker's /api/submit endpoint as multipart/form-data. The
-   Worker stores them in R2 and emails them to the recipient.
+   Sends prescreen (.txt), the NIK report (.pdf), and the eKTP data as TEXT
+   (extracted fields, NOT the scanned image) plus metadata to /api/submit as
+   multipart/form-data. No physical eKTP photo is uploaded or stored (privacy).
    ============================================================================ */
 
 /**
- * @param {{prescreen:Blob, ektp:Blob, report:Blob, meta:object}} parts
+ * @param {{prescreen:Blob, report:Blob, ektpData:string, meta:object}} parts
  * @returns {Promise<{ok:boolean, id:string, email:string}>}
  */
-export async function submitLead({ prescreen, ektp, report, chatlog, pasfoto, meta }) {
-  if (!prescreen || !ektp || !report) {
+export async function submitLead({ prescreen, report, chatlog, ektpData, meta }) {
+  if (!prescreen || !report) {
     throw new Error("Berkas tidak lengkap untuk dikirim.");
   }
   const form = new FormData();
   form.append("prescreen", prescreen, "prescreen.txt");
-  form.append("ektp", ektp, ektp.name || "ektp");
   form.append("report", report, "laporan_nik.pdf");
   if (chatlog) form.append("chatlog", chatlog, "chatlog.txt");
-  if (pasfoto) form.append("pasfoto", pasfoto, "pasfoto.jpg");
+  if (ektpData) form.append("ektpData", ektpData); // extracted eKTP fields as text
   for (const [k, v] of Object.entries(meta || {})) {
     form.append(k, v == null ? "" : String(v));
   }

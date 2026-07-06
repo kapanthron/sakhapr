@@ -150,3 +150,27 @@ with who and when.
 > and confirm a `delete · file:leads/<id>/<file>` row appears.
 
 No DB migration needed (`sessions_metric` already exists from Phase 1).
+
+## Sales portal (`/sales`)
+
+Each sales owner has a scoped portal at **`/sales`** — their leads only, a mini BI
+dashboard for their data, and pipeline status updates with a free-text note.
+
+**Accounts** (initial temporary passwords, changed on first login via *Ubah kata
+sandi*):
+
+| ID | Password sementara | Owner |
+|---|---|---|
+| `AS2026` | `ASpass#` | AS |
+| `ER2026` | `ERpass#` | ER |
+| `HB2026` | `HBpass#` | HB |
+| `RB2026` | `RBpass#` | RB |
+
+- Leads are filtered by `sales_owner`, so each sales sees **only their own** leads.
+- Status changes (and the **keterangan** free-text note) write to
+  `status_history` in the same D1 — visible to the admin CMS too.
+- Sales cannot reach admin endpoints (role-gated); admins cannot be scoped to a
+  sales owner.
+
+**Migration:** run `cms/migrations/0004_status_keterangan.sql` once to add the
+`keterangan` column to `status_history` (or recreate from `schema.sql`).
