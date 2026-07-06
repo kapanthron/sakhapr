@@ -676,9 +676,11 @@ async function geminiVisionOcr(env, b64, mime) {
     tempat_lahir: String(parsed.tempat_lahir || "").trim(),
     tanggal_lahir: String(parsed.tanggal_lahir || "").trim(),
     jenis_kelamin: /perempuan/i.test(sex) ? "PEREMPUAN" : /laki/i.test(sex) ? "LAKI-LAKI" : "",
+    status_perkawinan: String(parsed.status_perkawinan || "").trim().toUpperCase(),
     provinsi: String(parsed.provinsi || "").trim(),
     kabupaten_kota: String(parsed.kabupaten_kota || "").trim(),
     kecamatan: String(parsed.kecamatan || "").trim(),
+    tanggal_pembuatan: String(parsed.tanggal_pembuatan || "").trim(),
   };
   const pb = Array.isArray(parsed.photo_box) && parsed.photo_box.length === 4
     ? parsed.photo_box.map((n) => Number(n))
@@ -1304,7 +1306,7 @@ function ektpDataText(f, nikOverride) {
   f = f || {};
   const nik = digitsOnly(nikOverride || f.nik || "");
   const L = [];
-  L.push("DATA eKTP (diekstrak sebagai teks — gambar fisik tidak disimpan)");
+  L.push("DATA eKTP (diekstrak sebagai teks - gambar fisik tidak disimpan)");
   L.push("=".repeat(56));
   L.push(`Nama lengkap        : ${f.nama || "-"}`);
   L.push(`NIK                 : ${nik || "-"}`);
@@ -1316,7 +1318,7 @@ function ektpDataText(f, nikOverride) {
   if (f.kecamatan) L.push(`Kecamatan           : ${f.kecamatan}`);
   L.push(`Tanggal pembuatan   : ${f.tanggal_pembuatan || "-"}`);
   L.push("");
-  L.push("Catatan: hanya data teks yang disimpan; foto fisik eKTP dan pas foto tidak disimpan (UU PDP — minimalisasi data).");
+  L.push("Catatan: scan penuh eKTP tidak disimpan (UU PDP - minimalisasi data); yang disimpan hanya data teks ini dan pas foto.");
   return L.join("\n");
 }
 
@@ -1465,6 +1467,16 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   ).bind(crypto.randomUUID(), "prescreen_submit", ts).run();
 }
 
+/** Self-heal: add status_history.keterangan if the DB predates migration 0004.
+ *  Runs at most once per isolate; a duplicate-column error is ignored. */
+let KETERANGAN_ENSURED = false;
+async function ensureKeteranganColumn(env) {
+  if (KETERANGAN_ENSURED) return;
+  try { await env.DB.prepare("ALTER TABLE status_history ADD COLUMN keterangan TEXT").run(); }
+  catch { /* already exists */ }
+  KETERANGAN_ENSURED = true;
+}
+
 /** Build the leads payload (files + status history), optionally scoped to one
  *  sales owner. Shared by the admin CMS and the sales portal. */
 async function cmsLeadsPayload(env, owner) {
@@ -1472,9 +1484,18 @@ async function cmsLeadsPayload(env, owner) {
     ? (await env.DB.prepare("SELECT * FROM leads WHERE sales_owner = ? ORDER BY created_at DESC LIMIT 500").bind(owner).all()).results || []
     : (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC LIMIT 500").all()).results || [];
   const files = (await env.DB.prepare("SELECT lead_id,jenis,r2_key FROM lead_files").all()).results || [];
-  const hist = (await env.DB.prepare(
-    "SELECT lead_id,status_lama,status_baru,changed_at,changed_by,keterangan FROM status_history ORDER BY changed_at ASC"
-  ).all()).results || [];
+  let hist;
+  try {
+    hist = (await env.DB.prepare(
+      "SELECT lead_id,status_lama,status_baru,changed_at,changed_by,keterangan FROM status_history ORDER BY changed_at ASC"
+    ).all()).results || [];
+  } catch (e) {
+    if (!/no such column/i.test(String((e && e.message) || e))) throw e;
+    await ensureKeteranganColumn(env); // DB predates migration 0004 — add it now
+    hist = (await env.DB.prepare(
+      "SELECT lead_id,status_lama,status_baru,changed_at,changed_by,keterangan FROM status_history ORDER BY changed_at ASC"
+    ).all()).results || [];
+  }
   const ids = new Set(leads.map((l) => l.id));
   const byLead = {}, histByLead = {};
   for (const fl of files) if (ids.has(fl.lead_id)) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
@@ -1535,9 +1556,16 @@ async function applyStatusChange(env, id, status, by, keterangan, ownerGuard) {
   const now = new Date().toISOString();
   await env.DB.prepare("UPDATE leads SET status = ?, last_activity_at = ? WHERE id = ?")
     .bind(status, now, id).run();
-  await env.DB.prepare(
+  const insertHist = () => env.DB.prepare(
     "INSERT INTO status_history (id,lead_id,status_lama,status_baru,changed_at,changed_by,keterangan) VALUES (?,?,?,?,?,?,?)"
   ).bind(crypto.randomUUID(), id, oldStatus, status, now, by, note || null).run();
+  try {
+    await insertHist();
+  } catch (e) {
+    if (!/no such column/i.test(String((e && e.message) || e))) throw e;
+    await ensureKeteranganColumn(env); // DB predates migration 0004
+    await insertHist();
+  }
   await cmsAudit(env, by, "status:" + status, `lead:${id}`);
   return json({ ok: true });
 }
