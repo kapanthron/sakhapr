@@ -139,26 +139,27 @@ async function handleSubmit(request, env) {
   }
   const form = await request.formData();
   const prescreen = form.get("prescreen"); // File (.txt)
-  const ektp = form.get("ektp"); // File (image)
   const report = form.get("report"); // File (.pdf)
   const chatlog = form.get("chatlog"); // File (.txt), optional
-  const pasfoto = form.get("pasfoto"); // File (.jpg, auto-cropped face), optional
+  // Privacy: the eKTP scan and face photo are NOT uploaded. We receive the
+  // extracted eKTP fields as text and store only that.
+  const ektpFields = parseJsonObj(form.get("ektpData"));
 
-  if (!(prescreen && ektp && report)) {
-    return json({ ok: false, error: "Paket tidak lengkap (prescreen, ektp, report wajib)." }, 400);
+  if (!(prescreen && report)) {
+    return json({ ok: false, error: "Paket tidak lengkap (prescreen, report wajib)." }, 400);
   }
 
   const id = crypto.randomUUID();
   const ts = new Date().toISOString();
   const prefix = `leads/${id}/`;
-  const ektpName = `ektp${extFromType(ektp.type)}`;
 
-  // Store the three files in R2.
+  // Store the text artefacts in R2 (no eKTP image, no pas foto).
+  const ektpText = ektpDataText(ektpFields, form.get("nik"));
   await env.BUCKET.put(prefix + "prescreen.txt", await prescreen.arrayBuffer(), {
     httpMetadata: { contentType: "text/plain; charset=utf-8" },
   });
-  await env.BUCKET.put(prefix + ektpName, await ektp.arrayBuffer(), {
-    httpMetadata: { contentType: ektp.type || "application/octet-stream" },
+  await env.BUCKET.put(prefix + "ektp_data.txt", ektpText, {
+    httpMetadata: { contentType: "text/plain; charset=utf-8" },
   });
   await env.BUCKET.put(prefix + "laporan_nik.pdf", await report.arrayBuffer(), {
     httpMetadata: { contentType: "application/pdf" },
@@ -166,12 +167,6 @@ async function handleSubmit(request, env) {
   if (chatlog) {
     await env.BUCKET.put(prefix + "chatlog.txt", await chatlog.arrayBuffer(), {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
-    });
-  }
-  const hasPasfoto = pasfoto && typeof pasfoto.arrayBuffer === "function";
-  if (hasPasfoto) {
-    await env.BUCKET.put(prefix + "pasfoto.jpg", await pasfoto.arrayBuffer(), {
-      httpMetadata: { contentType: "image/jpeg" },
     });
   }
 
@@ -199,10 +194,9 @@ async function handleSubmit(request, env) {
     },
     files: {
       prescreen: "prescreen.txt",
-      ektp: ektpName,
+      ektp_data: "ektp_data.txt",
       report: "laporan_nik.pdf",
       ...(chatlog ? { chatlog: "chatlog.txt" } : {}),
-      ...(hasPasfoto ? { pasfoto: "pasfoto.jpg" } : {}),
     },
     email: { to: env.MAIL_TO || "", status: "pending", at: null, providerId: null, error: null },
   };
@@ -221,7 +215,7 @@ async function handleSubmit(request, env) {
   }
   meta.email = cmsIngested
     ? { to: "", status: "cms", at: ts, providerId: null, error: null }
-    : await sendEmail(env, meta, { prescreen, ektp, report, chatlog, ektpName, pasfoto: hasPasfoto ? pasfoto : null });
+    : await sendEmail(env, meta, { prescreen, report, chatlog, ektpText });
 
   await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
     httpMetadata: { contentType: "application/json" },
@@ -582,10 +576,13 @@ const OCR_PROMPT =
   "Anda pembaca KTP-el (eKTP) Indonesia yang teliti. Dari gambar KTP berikut, " +
   "baca dan kembalikan HANYA satu objek JSON valid (tanpa teks lain), dengan kunci:\n" +
   '{"nik":"","nama":"","tempat_lahir":"","tanggal_lahir":"","jenis_kelamin":"",' +
-  '"provinsi":"","kabupaten_kota":"","kecamatan":"","photo_box":[]}\n' +
+  '"status_perkawinan":"","provinsi":"","kabupaten_kota":"","kecamatan":"",' +
+  '"tanggal_pembuatan":"","photo_box":[]}\n' +
   "Aturan: nik = TEPAT 16 digit angka (baca cermat, jangan menambah/menghilangkan digit). " +
   "tanggal_lahir format dd-mm-yyyy. jenis_kelamin = \"LAKI-LAKI\" atau \"PEREMPUAN\". " +
+  "status_perkawinan sesuai kartu (mis. \"BELUM KAWIN\", \"KAWIN\", \"CERAI HIDUP\", \"CERAI MATI\"). " +
   "provinsi/kabupaten_kota/kecamatan sesuai teks pada kartu (HURUF KAPITAL). " +
+  "tanggal_pembuatan = tanggal yang tercetak di bawah pas foto / tanda tangan (tanggal pembuatan KTP), format dd-mm-yyyy bila ada. " +
   "photo_box = kotak pas foto wajah pada kartu sebagai [ymin,xmin,ymax,xmax] " +
   "ternormalisasi 0-1000 (relatif terhadap seluruh gambar). " +
   "Jika sebuah nilai tidak terbaca, isi string kosong (untuk photo_box: array kosong).";
@@ -804,16 +801,14 @@ async function sendEmail(env, meta, files) {
   }
 
   try {
+    const enc = new TextEncoder();
     const attachments = [
       { name: "prescreen.txt", data: new Uint8Array(await files.prescreen.arrayBuffer()) },
-      { name: files.ektpName, data: new Uint8Array(await files.ektp.arrayBuffer()) },
+      { name: "ektp_data.txt", data: enc.encode(files.ektpText || "") },
       { name: "laporan_nik.pdf", data: new Uint8Array(await files.report.arrayBuffer()) },
     ];
     if (files.chatlog) {
       attachments.push({ name: "chatlog.txt", data: new Uint8Array(await files.chatlog.arrayBuffer()) });
-    }
-    if (files.pasfoto) {
-      attachments.push({ name: "pasfoto.jpg", data: new Uint8Array(await files.pasfoto.arrayBuffer()) });
     }
     // Bundle every file into one password-protected ZIP for safer transit.
     const zip = makeEncryptedZip(attachments, ZIP_PASSWORD);
@@ -829,7 +824,7 @@ async function sendEmail(env, meta, files) {
         `Verdict NIK : ${meta.nikVerdict || "-"}\n` +
         `Lead ID     : ${meta.id}\n\n` +
         `Lampiran: ${zipName} (ZIP terproteksi kata sandi) berisi transkrip prescreen, ` +
-        `gambar eKTP, laporan skrining NIK${files.pasfoto ? ", pas foto" : ""}.\n` +
+        `data eKTP (teks), dan laporan skrining NIK. Foto fisik eKTP tidak disimpan/dikirim.\n` +
         `Kata sandi ZIP sesuai kebijakan internal the Bank.\n` +
         `Catatan: skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan kredit.`,
       attachments: [{ filename: zipName, content: abToBase64(zip) }],
@@ -1244,6 +1239,27 @@ function maskNik(nik) {
   return d.length === 16 ? d.slice(0, 6) + "******" + d.slice(12) : "";
 }
 
+/** Format the extracted eKTP fields as a human-readable text file (no image). */
+function ektpDataText(f, nikOverride) {
+  f = f || {};
+  const nik = digitsOnly(nikOverride || f.nik || "");
+  const L = [];
+  L.push("DATA eKTP (diekstrak sebagai teks — gambar fisik tidak disimpan)");
+  L.push("=".repeat(56));
+  L.push(`Nama lengkap        : ${f.nama || "-"}`);
+  L.push(`NIK                 : ${nik || "-"}`);
+  L.push(`Tempat/Tgl lahir    : ${(f.tempat_lahir || "-")}, ${(f.tanggal_lahir || "-")}`);
+  L.push(`Jenis kelamin       : ${f.jenis_kelamin || "-"}`);
+  L.push(`Status perkawinan   : ${f.status_perkawinan || "-"}`);
+  L.push(`Provinsi            : ${f.provinsi || "-"}`);
+  L.push(`Kabupaten / Kota    : ${f.kabupaten_kota || "-"}`);
+  if (f.kecamatan) L.push(`Kecamatan           : ${f.kecamatan}`);
+  L.push(`Tanggal pembuatan   : ${f.tanggal_pembuatan || "-"}`);
+  L.push("");
+  L.push("Catatan: hanya data teks yang disimpan; foto fisik eKTP dan pas foto tidak disimpan (UU PDP — minimalisasi data).");
+  return L.join("\n");
+}
+
 function jenisKprFromProduct(product) {
   if (product === "kpr_flexi_primary") return "primary";
   if (product === "kpr_secondary") return "second";
@@ -1375,8 +1391,7 @@ async function cmsIngestLead(env, id, ts, form, meta) {
     ["chatlog", f.chatlog],
     ["prescreen_xls", f.prescreen],
     ["pariksa_pdf", f.report],
-    ["ektp", f.ektp],            // full eKTP image (uncropped), as requested by owner
-    ["pasfoto", f.pasfoto],
+    ["ektp_data", f.ektp_data],  // eKTP fields as text (no image stored)
   ];
   for (const [jenis, name] of fileRows) {
     if (!name) continue;

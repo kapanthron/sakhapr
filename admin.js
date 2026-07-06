@@ -122,8 +122,7 @@ function renderLeads(leads) {
     for (const [label, name] of [
       ["Prescreen (.txt)", files.prescreen],
       ["Log chat (.txt)", files.chatlog],
-      ["eKTP", files.ektp],
-      ["Pas foto (.jpg)", files.pasfoto],
+      ["Data eKTP (.txt)", files.ektp_data],
       ["Laporan NIK (.pdf)", files.report],
       ["meta.json", "meta.json"],
     ]) {
@@ -287,7 +286,7 @@ async function resetPassword() {
 /* --- CMS (Phase 1: lead list from D1) -------------------------------------- */
 
 const JENIS_LABEL = { primary: "KPR PRI", second: "KPR SEC", take_over: "KPR TO" };
-const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", ektp: "eKTP penuh", pasfoto: "Pas foto (.jpg)" };
+const CMS_FILE_LABEL = { chatlog: "Log chat", prescreen_xls: "Prescreen", pariksa_pdf: "Laporan NIK (.pdf)", ektp_data: "Data eKTP (.txt)" };
 const SALES_LABEL = { AS: "AS", HB: "HB", RB: "RB", ER: "ER (eskalasi)" };
 function gradeChip(g) {
   if (g === "A+" || g === "A") return "chip--ok";
@@ -514,8 +513,8 @@ function renderCmsLeads(leads) {
 
     const dl = document.createElement("div");
     dl.className = "chips";
-    // Show files in a stable order (eKTP penuh first so it's easy to find).
-    const order = ["ektp", "pasfoto", "prescreen_xls", "pariksa_pdf", "chatlog"];
+    // Show files in a stable order (eKTP data first so it's easy to find).
+    const order = ["ektp_data", "prescreen_xls", "pariksa_pdf", "chatlog"];
     const files = (l.files || []).slice().sort((a, b) => order.indexOf(a.jenis) - order.indexOf(b.jenis));
     for (const f of files) {
       const group = document.createElement("span");
