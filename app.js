@@ -806,14 +806,15 @@ async function submitEktp() {
 
     ektp.status.textContent = t("ektp_forwarding");
     const session = flow.session || store.prescreen;
-    // Privacy: do NOT upload the eKTP scan or the face photo. Send the extracted
-    // eKTP text fields instead, so no physical photo is stored server-side.
+    // Privacy: do NOT upload the full eKTP scan. Send the extracted eKTP text
+    // fields instead. The pas foto (cropped face) is kept for identification.
     const ektpFields = Object.assign({}, store.ektp.fields || {}, { nik: store.ektp.nik || (store.ektp.fields && store.ektp.fields.nik) || "" });
     const result = await submitLead({
       prescreen: store.files.fileA,
       report: reportBlob,
       chatlog: buildChatLogBlob(),
       ektpData: JSON.stringify(ektpFields),
+      pasfoto: store.ektp.pasfoto || null,
       meta: {
         // Fall back to the prescreen set's product_id so jenis_kpr is never blank.
         product: store.product || (session && session.productId) || "",
