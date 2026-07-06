@@ -808,7 +808,18 @@ async function submitEktp() {
     const session = flow.session || store.prescreen;
     // Privacy: do NOT upload the full eKTP scan. Send the extracted eKTP text
     // fields instead. The pas foto (cropped face) is kept for identification.
-    const ektpFields = Object.assign({}, store.ektp.fields || {}, { nik: store.ektp.nik || (store.ektp.fields && store.ektp.fields.nik) || "" });
+    // If the first read fell back to on-device OCR (few fields), retry Gemini
+    // once now — the rate limit has usually recovered by submit time.
+    let f0 = store.ektp.fields || {};
+    if (store.ektp.image && !(f0.nama && f0.kabupaten_kota && f0.status_perkawinan)) {
+      try {
+        const g2 = await geminiOcr(store.ektp.image, 15000);
+        const f2 = (g2 && g2.fields) || {};
+        for (const [k, v] of Object.entries(f2)) if (v && !f0[k]) f0[k] = v;
+        store.ektp.fields = f0;
+      } catch { /* keep whatever we have */ }
+    }
+    const ektpFields = Object.assign({}, f0, { nik: store.ektp.nik || f0.nik || "" });
     const result = await submitLead({
       prescreen: store.files.fileA,
       report: reportBlob,
