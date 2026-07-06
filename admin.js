@@ -478,9 +478,20 @@ function renderCmsLeads(leads) {
       if (s.key === l.status) o.selected = true;
       sel.appendChild(o);
     }
-    sel.addEventListener("change", () => updateCmsStatus(l.id, sel.value, sel));
     lbl.appendChild(sel);
     pipe.appendChild(lbl);
+
+    const note = document.createElement("textarea");
+    note.className = "sales-note";
+    note.rows = 2;
+    note.placeholder = "Keterangan (opsional) saat ubah status…";
+    pipe.appendChild(note);
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "btn btn--primary btn--small";
+    save.textContent = "Simpan status";
+    save.addEventListener("click", () => updateCmsStatus(l.id, sel.value, note.value, save));
+    pipe.appendChild(save);
 
     const hist = (l.history || []).slice().reverse();
     if (hist.length) {
@@ -491,7 +502,8 @@ function renderCmsLeads(leads) {
         li.innerHTML =
           `<span class="mono">${escapeHtml(fmtTime(e.changed_at))}</span> — ` +
           `${escapeHtml(statusLabel(e.status_lama) || "(awal)")} → <strong>${escapeHtml(statusLabel(e.status_baru))}</strong>` +
-          (e.changed_by ? ` <span class="cms-history__by">oleh ${escapeHtml(e.changed_by)}</span>` : "");
+          (e.changed_by ? ` <span class="cms-history__by">oleh ${escapeHtml(e.changed_by)}</span>` : "") +
+          (e.keterangan ? `<br><span class="cms-history__note">“${escapeHtml(e.keterangan)}”</span>` : "");
         h.appendChild(li);
       }
       pipe.appendChild(h);
@@ -641,20 +653,20 @@ async function callCmsTask(id, action) {
   }
 }
 
-async function updateCmsStatus(id, status, sel) {
-  if (sel) sel.disabled = true;
+async function updateCmsStatus(id, status, keterangan, btn) {
+  if (btn) btn.disabled = true;
   try {
     const r = await fetch("/api/admin/cms/status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, status, keterangan }),
     });
     if (r.ok) { loadCms(); return; }
     alert("Gagal ubah status: " + ((await r.json().catch(() => ({}))).error || r.status));
   } catch (e) {
     alert("Gagal ubah status: " + e.message);
   }
-  if (sel) sel.disabled = false;
+  if (btn) btn.disabled = false;
 }
 
 async function runSla() {

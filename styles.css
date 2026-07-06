@@ -618,3 +618,8 @@ table.checks th { color: var(--ink-soft); font-weight: 600; }
 .login-reset__box { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; max-width: 340px; }
 .login-reset__box input { padding: 7px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .btn--small { font-size: 12px; padding: 4px 10px; }
+
+/* --- Sales portal + status note ------------------------------------------- */
+.sales-note { width: 100%; margin-top: 6px; font-family: var(--font-text); font-size: 13px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); resize: vertical; }
+.cms-history__note { color: #444; font-style: italic; }
+.cms-pipe .btn--small { margin-top: 6px; }

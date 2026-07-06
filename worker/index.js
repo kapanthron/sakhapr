@@ -102,10 +102,23 @@ export default {
         return await requireAdmin(request, env, (s) => handleFile(url, env, s));
       }
       if (pathname === "/api/admin/set-password" && request.method === "POST") {
-        return await requireAdmin(request, env, (s) => handleSetPassword(request, env, s));
+        return await requireAuth(request, env, (s) => handleSetPassword(request, env, s));
       }
       if (pathname === "/api/admin/reset-password" && request.method === "POST") {
         return await handleResetPassword(request, env);
+      }
+      // Sales portal (scoped to the logged-in sales owner).
+      if (pathname === "/api/sales/leads" && request.method === "GET") {
+        return await requireSales(request, env, (s) => handleSalesLeads(env, s.owner));
+      }
+      if (pathname === "/api/sales/status" && request.method === "POST") {
+        return await requireSales(request, env, (s) => handleSalesStatus(request, env, s));
+      }
+      if (pathname === "/api/sales/bi" && request.method === "GET") {
+        return await requireSales(request, env, (s) => handleBi(env, s.owner));
+      }
+      if (pathname === "/api/sales/me" && request.method === "GET") {
+        return await requireSales(request, env, (s) => json({ ok: true, user: s.u, owner: s.owner }));
       }
       if (pathname === "/api/admin/cms/file-delete" && request.method === "POST") {
         return await requireAdmin(request, env, (s) => handleCmsFileDelete(request, env, s));
@@ -115,6 +128,9 @@ export default {
       }
       if (pathname === "/admin" || pathname === "/super") {
         return env.ASSETS.fetch(new Request(new URL("/admin.html", url), request));
+      }
+      if (pathname === "/sales") {
+        return env.ASSETS.fetch(new Request(new URL("/sales.html", url), request));
       }
     } catch (err) {
       return json({ ok: false, error: String(err && err.message || err) }, 500);
@@ -900,6 +916,12 @@ async function handleEmailTest(env) {
 
 /* --- Admin: auth ----------------------------------------------------------- */
 
+// Sales accounts (Phase: sales portal). id = <initials>2026, initial password =
+// <initials>pass# (changed on first login onwards). The owner code matches the
+// scoring/assignment codes (AS/ER/HB/RB).
+const SALES_ACCOUNTS = { AS2026: "AS", ER2026: "ER", HB2026: "HB", RB2026: "RB" };
+function salesInitialPass(owner) { return `${owner}pass#`; }
+
 async function handleLogin(request, env) {
   const ip = clientIp(request);
   if (!rateLimit("login:" + ip, 8, 10 * 60 * 1000)) {
@@ -909,39 +931,49 @@ async function handleLogin(request, env) {
   const u = String(user || "");
   const p = String(pass || "");
   const adminUser = env.ADMIN_USER || "panthronpoc";
-  if (!timingSafeEqual(u, adminUser)) {
+
+  // Resolve role + owner from the username.
+  let role = null, owner = null, initialPass = null;
+  if (timingSafeEqual(u, adminUser)) {
+    role = "admin";
+  } else if (SALES_ACCOUNTS[u]) {
+    role = "sales"; owner = SALES_ACCOUNTS[u]; initialPass = salesInitialPass(owner);
+  } else {
     return json({ ok: false, error: "Kredensial salah." }, 401);
   }
 
-  // Phase 8: the password is set on first login and stored (hashed) in D1, so no
-  // password lives in the repo. Falls back to env credentials only if D1 is absent.
+  // The password is set on first login and stored (hashed) in D1, so no password
+  // lives in the repo. Admins choose their own (min 8); sales use the seeded temp
+  // password on first login, then can change it. Env fallback is admin-only.
   if (env.DB) {
-    let firstLogin = false;
     try {
       await ensureAuthTable(env);
-      const row = await env.DB.prepare("SELECT pass_sha256 FROM app_auth WHERE id = ?").bind(adminUser).first();
+      const row = await env.DB.prepare("SELECT pass_sha256 FROM app_auth WHERE id = ?").bind(u).first();
+      let firstLogin = false;
       if (!row) {
-        if (p.length < 8) {
-          return json({ ok: false, firstLogin: true, error: "Login pertama: tetapkan kata sandi minimal 8 karakter." }, 400);
+        if (role === "admin") {
+          if (p.length < 8) return json({ ok: false, firstLogin: true, error: "Login pertama: tetapkan kata sandi minimal 8 karakter." }, 400);
+        } else if (!timingSafeEqual(p, initialPass)) {
+          return json({ ok: false, error: "Kredensial salah." }, 401);
         }
         const now = new Date().toISOString();
         await env.DB.prepare("INSERT INTO app_auth (id,pass_sha256,created_at) VALUES (?,?,?)")
-          .bind(adminUser, await sha256hex(p), now).run();
-        await cmsAudit(env, adminUser, "password_set", "first_login");
+          .bind(u, await sha256hex(p), now).run();
+        await cmsAudit(env, u, "password_set", "first_login");
         firstLogin = true;
       } else if (!timingSafeEqual((await sha256hex(p)).toLowerCase(), String(row.pass_sha256).toLowerCase())) {
         return json({ ok: false, error: "Kredensial salah." }, 401);
       }
-      const token = await makeSession(env, adminUser);
-      return json({ ok: true, firstLogin }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
+      const token = await makeSession(env, u, role, owner);
+      return json({ ok: true, firstLogin, role, owner }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
     } catch (e) {
-      // Fall through to env-based auth if the D1 path fails unexpectedly.
+      // Fall through to env-based auth (admin only) if the D1 path fails.
     }
   }
 
-  if (!(await checkPassword(env, p))) return json({ ok: false, error: "Kredensial salah." }, 401);
-  const token = await makeSession(env, adminUser);
-  return json({ ok: true }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
+  if (role !== "admin" || !(await checkPassword(env, p))) return json({ ok: false, error: "Kredensial salah." }, 401);
+  const token = await makeSession(env, adminUser, "admin", null);
+  return json({ ok: true, role: "admin" }, 200, { "Set-Cookie": cookie(COOKIE_NAME, token, SESSION_TTL_MS) });
 }
 
 /** Create the app_auth table if it does not exist yet (first-login bootstrap). */
@@ -1055,7 +1087,24 @@ async function requireAdmin(request, env, handler) {
   const token = readCookie(request, COOKIE_NAME);
   const session = await verifySession(env, token);
   if (!session) return json({ ok: false, error: "Tidak terautentikasi." }, 401);
+  if (session.role && session.role !== "admin") return json({ ok: false, error: "Akses admin diperlukan." }, 403);
   return handler(session); // existing handlers ignore the arg; CMS uses it for audit actor
+}
+
+/** Require a sales session; passes the session (with .owner) to the handler. */
+async function requireSales(request, env, handler) {
+  const session = await verifySession(env, readCookie(request, COOKIE_NAME));
+  if (!session || session.role !== "sales" || !session.owner) {
+    return json({ ok: false, error: "Tidak terautentikasi." }, 401);
+  }
+  return handler(session);
+}
+
+/** Require any authenticated user (admin or sales) — used for self password change. */
+async function requireAuth(request, env, handler) {
+  const session = await verifySession(env, readCookie(request, COOKIE_NAME));
+  if (!session) return json({ ok: false, error: "Tidak terautentikasi." }, 401);
+  return handler(session);
 }
 
 /* --- Admin: data ----------------------------------------------------------- */
@@ -1404,21 +1453,36 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   ).bind(crypto.randomUUID(), "prescreen_submit", ts).run();
 }
 
-async function handleCmsLeads(env) {
-  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
-  const leads = (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC LIMIT 500").all()).results || [];
+/** Build the leads payload (files + status history), optionally scoped to one
+ *  sales owner. Shared by the admin CMS and the sales portal. */
+async function cmsLeadsPayload(env, owner) {
+  const leads = owner
+    ? (await env.DB.prepare("SELECT * FROM leads WHERE sales_owner = ? ORDER BY created_at DESC LIMIT 500").bind(owner).all()).results || []
+    : (await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC LIMIT 500").all()).results || [];
   const files = (await env.DB.prepare("SELECT lead_id,jenis,r2_key FROM lead_files").all()).results || [];
   const hist = (await env.DB.prepare(
-    "SELECT lead_id,status_lama,status_baru,changed_at,changed_by FROM status_history ORDER BY changed_at ASC"
+    "SELECT lead_id,status_lama,status_baru,changed_at,changed_by,keterangan FROM status_history ORDER BY changed_at ASC"
   ).all()).results || [];
+  const ids = new Set(leads.map((l) => l.id));
   const byLead = {}, histByLead = {};
-  for (const fl of files) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
-  for (const h of hist) (histByLead[h.lead_id] = histByLead[h.lead_id] || []).push(h);
-  return json({
+  for (const fl of files) if (ids.has(fl.lead_id)) (byLead[fl.lead_id] = byLead[fl.lead_id] || []).push(fl);
+  for (const h of hist) if (ids.has(h.lead_id)) (histByLead[h.lead_id] = histByLead[h.lead_id] || []).push(h);
+  return {
     ok: true,
     statuses: CMS_STATUSES,
     leads: leads.map((l) => ({ ...l, files: byLead[l.id] || [], history: histByLead[l.id] || [] })),
-  });
+  };
+}
+
+async function handleCmsLeads(env) {
+  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
+  return json(await cmsLeadsPayload(env, null));
+}
+
+/** Sales portal: leads scoped to the logged-in sales owner. */
+async function handleSalesLeads(env, owner) {
+  if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
+  return json(await cmsLeadsPayload(env, owner));
 }
 
 /* --- Phase 5: pipeline statuses (exact keys + labels from the brief) -------- */
@@ -1438,27 +1502,44 @@ const CMS_STATUS_KEYS = new Set(CMS_STATUSES.map((s) => s.key));
 // Terminal stages: SLA reminders stop once a lead reaches one of these.
 const CMS_TERMINAL = new Set(["disbursed", "drop_process", "rejected", "deal_other_bank"]);
 
-/** Update a lead's pipeline status and record the change in status_history. */
-async function handleCmsStatus(request, env, session) {
+/**
+ * Apply a pipeline status change + free-text note, recorded in status_history.
+ * When `ownerGuard` is set (sales), the change is refused unless the lead belongs
+ * to that sales owner. Shared by the admin CMS and the sales portal.
+ */
+async function applyStatusChange(env, id, status, by, keterangan, ownerGuard) {
   if (!env.DB) return json({ ok: false, error: "CMS belum dikonfigurasi." }, 503);
-  const { id, status } = await request.json().catch(() => ({}));
   if (!id || /[^a-zA-Z0-9-]/.test(String(id))) return json({ ok: false, error: "ID tidak valid." }, 400);
   if (!CMS_STATUS_KEYS.has(status)) return json({ ok: false, error: "Status tidak dikenal." }, 400);
 
-  const row = (await env.DB.prepare("SELECT status FROM leads WHERE id = ?").bind(id).first());
+  const row = await env.DB.prepare("SELECT status, sales_owner FROM leads WHERE id = ?").bind(id).first();
   if (!row) return json({ ok: false, error: "Lead tidak ditemukan." }, 404);
+  if (ownerGuard && row.sales_owner !== ownerGuard) return json({ ok: false, error: "Lead ini bukan milik Anda." }, 403);
+
+  const note = String(keterangan || "").slice(0, 1000);
   const oldStatus = row.status || null;
-  if (oldStatus === status) return json({ ok: true, unchanged: true });
+  if (oldStatus === status && !note) return json({ ok: true, unchanged: true });
 
   const now = new Date().toISOString();
-  const by = (session && session.u) || "admin";
   await env.DB.prepare("UPDATE leads SET status = ?, last_activity_at = ? WHERE id = ?")
     .bind(status, now, id).run();
   await env.DB.prepare(
-    "INSERT INTO status_history (id,lead_id,status_lama,status_baru,changed_at,changed_by) VALUES (?,?,?,?,?,?)"
-  ).bind(crypto.randomUUID(), id, oldStatus, status, now, by).run();
+    "INSERT INTO status_history (id,lead_id,status_lama,status_baru,changed_at,changed_by,keterangan) VALUES (?,?,?,?,?,?,?)"
+  ).bind(crypto.randomUUID(), id, oldStatus, status, now, by, note || null).run();
   await cmsAudit(env, by, "status:" + status, `lead:${id}`);
   return json({ ok: true });
+}
+
+/** Admin: change any lead's status (+ optional keterangan). */
+async function handleCmsStatus(request, env, session) {
+  const { id, status, keterangan } = await request.json().catch(() => ({}));
+  return applyStatusChange(env, id, status, (session && session.u) || "admin", keterangan, null);
+}
+
+/** Sales: change one of THEIR leads' status (+ optional keterangan). */
+async function handleSalesStatus(request, env, session) {
+  const { id, status, keterangan } = await request.json().catch(() => ({}));
+  return applyStatusChange(env, id, status, session.u, keterangan, session.owner);
 }
 
 /* --- Phase 6: Customer 360 export (multi-tab XLSX) ------------------------- */
@@ -1868,8 +1949,10 @@ function sessionSecret(env) {
   return env.SESSION_SECRET || "sakhapr-dev-secret-change-me";
 }
 
-async function makeSession(env, user) {
-  const payload = b64url(strToBytes(JSON.stringify({ u: user, exp: Date.now() + SESSION_TTL_MS })));
+async function makeSession(env, user, role, owner) {
+  const payload = b64url(strToBytes(JSON.stringify({
+    u: user, role: role || "admin", owner: owner || null, exp: Date.now() + SESSION_TTL_MS,
+  })));
   const sig = b64url(await hmac(sessionSecret(env), payload));
   return `${payload}.${sig}`;
 }
