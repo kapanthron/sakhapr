@@ -157,8 +157,9 @@ async function handleSubmit(request, env) {
   const prescreen = form.get("prescreen"); // File (.txt)
   const report = form.get("report"); // File (.pdf)
   const chatlog = form.get("chatlog"); // File (.txt), optional
-  // Privacy: the eKTP scan and face photo are NOT uploaded. We receive the
-  // extracted eKTP fields as text and store only that.
+  const pasfoto = form.get("pasfoto"); // File (.jpg, cropped face), optional
+  // Privacy: the FULL eKTP scan is NOT uploaded. We receive the extracted eKTP
+  // fields as text and store only that. The pas foto (cropped face) is kept.
   const ektpFields = parseJsonObj(form.get("ektpData"));
 
   if (!(prescreen && report)) {
@@ -169,7 +170,7 @@ async function handleSubmit(request, env) {
   const ts = new Date().toISOString();
   const prefix = `leads/${id}/`;
 
-  // Store the text artefacts in R2 (no eKTP image, no pas foto).
+  // Store the text artefacts in R2 (eKTP data as text; NO full eKTP scan).
   const ektpText = ektpDataText(ektpFields, form.get("nik"));
   await env.BUCKET.put(prefix + "prescreen.txt", await prescreen.arrayBuffer(), {
     httpMetadata: { contentType: "text/plain; charset=utf-8" },
@@ -183,6 +184,12 @@ async function handleSubmit(request, env) {
   if (chatlog) {
     await env.BUCKET.put(prefix + "chatlog.txt", await chatlog.arrayBuffer(), {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
+    });
+  }
+  const hasPasfoto = pasfoto && typeof pasfoto.arrayBuffer === "function";
+  if (hasPasfoto) {
+    await env.BUCKET.put(prefix + "pasfoto.jpg", await pasfoto.arrayBuffer(), {
+      httpMetadata: { contentType: "image/jpeg" },
     });
   }
 
@@ -213,6 +220,7 @@ async function handleSubmit(request, env) {
       ektp_data: "ektp_data.txt",
       report: "laporan_nik.pdf",
       ...(chatlog ? { chatlog: "chatlog.txt" } : {}),
+      ...(hasPasfoto ? { pasfoto: "pasfoto.jpg" } : {}),
     },
     email: { to: env.MAIL_TO || "", status: "pending", at: null, providerId: null, error: null },
   };
@@ -231,7 +239,7 @@ async function handleSubmit(request, env) {
   }
   meta.email = cmsIngested
     ? { to: "", status: "cms", at: ts, providerId: null, error: null }
-    : await sendEmail(env, meta, { prescreen, report, chatlog, ektpText });
+    : await sendEmail(env, meta, { prescreen, report, chatlog, ektpText, pasfoto: hasPasfoto ? pasfoto : null });
 
   await env.BUCKET.put(prefix + "meta.json", JSON.stringify(meta, null, 2), {
     httpMetadata: { contentType: "application/json" },
@@ -826,6 +834,9 @@ async function sendEmail(env, meta, files) {
     if (files.chatlog) {
       attachments.push({ name: "chatlog.txt", data: new Uint8Array(await files.chatlog.arrayBuffer()) });
     }
+    if (files.pasfoto) {
+      attachments.push({ name: "pasfoto.jpg", data: new Uint8Array(await files.pasfoto.arrayBuffer()) });
+    }
     // Bundle every file into one password-protected ZIP for safer transit.
     const zip = makeEncryptedZip(attachments, ZIP_PASSWORD);
     const zipName = `Moggy_${meta.ref || meta.id}.zip`;
@@ -840,7 +851,7 @@ async function sendEmail(env, meta, files) {
         `Verdict NIK : ${meta.nikVerdict || "-"}\n` +
         `Lead ID     : ${meta.id}\n\n` +
         `Lampiran: ${zipName} (ZIP terproteksi kata sandi) berisi transkrip prescreen, ` +
-        `data eKTP (teks), dan laporan skrining NIK. Foto fisik eKTP tidak disimpan/dikirim.\n` +
+        `data eKTP (teks), laporan skrining NIK${files.pasfoto ? ", pas foto" : ""}. Scan penuh eKTP tidak disimpan/dikirim.\n` +
         `Kata sandi ZIP sesuai kebijakan internal the Bank.\n` +
         `Catatan: skrining NIK hanya alat bantu struktur/konsistensi, bukan keputusan kredit.`,
       attachments: [{ filename: zipName, content: abToBase64(zip) }],
@@ -1440,7 +1451,8 @@ async function cmsIngestLead(env, id, ts, form, meta) {
     ["chatlog", f.chatlog],
     ["prescreen_xls", f.prescreen],
     ["pariksa_pdf", f.report],
-    ["ektp_data", f.ektp_data],  // eKTP fields as text (no image stored)
+    ["ektp_data", f.ektp_data],  // eKTP fields as text (full scan not stored)
+    ["pasfoto", f.pasfoto],      // cropped face photo (kept for identification)
   ];
   for (const [jenis, name] of fileRows) {
     if (!name) continue;
