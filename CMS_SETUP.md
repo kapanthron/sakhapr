@@ -1,10 +1,10 @@
-# Moggy CMS — setup (Phase 1)
+# Morby CMS — setup (Phase 1)
 
 The CMS stores leads in **Cloudflare D1** (a database) + **R2** (the files).
 Like R2 earlier, **D1 must be created in your Cloudflare account before the
 binding can go live**. The code is already deployed and safely guarded: until
 D1 is connected, leads keep flowing the old way (email). Once D1 is connected,
-Moggy switches to **CMS-only** ingestion automatically.
+Morby switches to **CMS-only** ingestion automatically.
 
 > **PDPA/Security TODO:** the CMS stores personal data permanently. The DPIA and
 > a retention policy must be revised before real applicant data is processed.
@@ -30,7 +30,7 @@ Moggy switches to **CMS-only** ingestion automatically.
 
 ## After it's connected — how to verify (Phase 1 test)
 
-1. Open Moggy, run a full flow (chat → prescreen → upload eKTP → **Kirim**).
+1. Open Morby, run a full flow (chat → prescreen → upload eKTP → **Kirim**).
 2. Open **`/super` → CMS** tab → click **Muat ulang**.
    - You should see **1 lead row** with name/phone/email/city, masked NIK, and
    - **the file links** (Log chat, Prescreen, Laporan NIK, Pas foto).

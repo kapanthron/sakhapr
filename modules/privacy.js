@@ -1,6 +1,6 @@
 /* ============================================================================
    modules/privacy.js
-   Privacy-first core for Moggy.
+   Privacy-first core for Morby.
 
    Responsibilities (Phase 1):
    - Hold ALL personal data in memory only. No localStorage, sessionStorage,
@@ -100,7 +100,7 @@ export function assertNoPersistentStorage() {
   try { if (document.cookie && document.cookie.trim().length > 0) problems.push("cookies"); } catch { /* */ }
   if (problems.length) {
     console.warn(
-      "[Moggy privacy] Unexpected persistent storage detected:",
+      "[Morby privacy] Unexpected persistent storage detected:",
       problems.join(", "),
       "— personal data must stay in memory only."
     );
@@ -117,7 +117,7 @@ export function assertNoPersistentStorage() {
 export function cspSelfCheck() {
   if (location.protocol === "file:") {
     console.info(
-      "[Moggy privacy] Opened via file:// — the HTTP CSP from `_headers` is " +
+      "[Morby privacy] Opened via file:// — the HTTP CSP from `_headers` is " +
       "not applied locally. This is fine for a quick look; deploy to Cloudflare " +
       "Pages (or serve over HTTP) to exercise the real CSP."
     );

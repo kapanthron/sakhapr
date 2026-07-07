@@ -1,5 +1,5 @@
 /* ============================================================================
-   admin.js  —  Super Admin client for Moggy
+   admin.js  —  Super Admin client for Morby
    Talks to the Worker admin API. Auth is server-checked: the session cookie is
    HttpOnly, so this script never sees the password after login. Download links
    are plain same-origin anchors; the cookie rides along automatically.

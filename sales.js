@@ -1,5 +1,5 @@
 /* ============================================================================
-   sales.js — Moggy Sales portal (/sales)
+   sales.js — Morby Sales portal (/sales)
    A scoped CMS for a single sales owner: their leads only, a mini BI dashboard,
    and pipeline status updates with a free-text note. Talks to /api/sales/*.
    ============================================================================ */

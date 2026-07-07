@@ -1,5 +1,5 @@
 /* ============================================================================
-   app.js — Moggy orchestrator
+   app.js — Morby orchestrator
    Phase 1: wires the shell together. It renders chat messages, handles the
    composer, drives the "Hapus semua data" (Clear all data) button, and keeps an
    on-screen indicator of whether any data is held in memory.
@@ -190,7 +190,7 @@ function addSuggestions() {
       const q = t(qKey);
       row.remove();
       addMessage("user", q);
-      handleKbMessage(q).catch((e) => console.error("[Moggy] suggestion failed:", e));
+      handleKbMessage(q).catch((e) => console.error("[Morby] suggestion failed:", e));
     });
     row.appendChild(btn);
   }
@@ -246,7 +246,7 @@ async function offerPrescreen(setId) {
   try {
     await loadPrescreen();
   } catch (err) {
-    console.error("[Moggy] prescreen load failed:", err);
+    console.error("[Morby] prescreen load failed:", err);
     addMessage("bot", t("prescreen_load_fail"));
     return;
   }
@@ -471,7 +471,7 @@ async function handleKbMessage(text) {
       chatLog.scrollTop = chatLog.scrollHeight;
     }, getLang());
   } catch (err) {
-    console.warn("[Moggy] LLM stream failed:", err.message);
+    console.warn("[Morby] LLM stream failed:", err.message);
   }
   if (full.trim()) {
     bubble.innerHTML = mdToHtml(full);
@@ -618,7 +618,7 @@ composer.addEventListener("submit", async (e) => {
       await handleKbMessage(text);
     }
   } catch (err) {
-    console.error("[Moggy] message handling failed:", err);
+    console.error("[Morby] message handling failed:", err);
     addMessage("bot", t("data_load_fail"));
   }
 });
@@ -715,7 +715,7 @@ function setupEktp() {
         geminiBox = g.photo_box || null;
         store.ektp.fields = (g && g.fields) || {}; // keep all eKTP text fields
       } catch (errAi) {
-        console.warn("[Moggy] Gemini OCR unavailable, using on-device OCR:", errAi);
+        console.warn("[Morby] Gemini OCR unavailable, using on-device OCR:", errAi);
         const { fields, photo } = await runOcr(file, (m) => {
           ektp.status.textContent = t("ektp_read_progress", { status: m.status, pct: Math.round((m.progress || 0) * 100) });
         });
@@ -735,7 +735,7 @@ function setupEktp() {
         }
       }).catch(() => {});
     } catch (err) {
-      console.error("[Moggy] NIK OCR failed:", err);
+      console.error("[Morby] NIK OCR failed:", err);
       ektp.nik.value = "";
       ektp.status.textContent = t("ektp_ocr_fail");
       validateNikField();
@@ -760,9 +760,9 @@ function validateNikField() {
 
 /** Build the chat conversation log text from the in-memory messages. */
 function buildChatLogText() {
-  const L = ["Moggy — Log Chat", "=".repeat(40), `Tanggal: ${nowWIB()}`, ""];
+  const L = ["Morby — Log Chat", "=".repeat(40), `Tanggal: ${nowWIB()}`, ""];
   for (const m of store.messages) {
-    L.push(`[${m.role === "user" ? "Nasabah" : "Moggy"}] ${m.text}`);
+    L.push(`[${m.role === "user" ? "Nasabah" : "Morby"}] ${m.text}`);
   }
   return L.join("\n");
 }
@@ -853,7 +853,7 @@ async function submitEktp() {
       { persist: false }
     );
   } catch (err) {
-    console.error("[Moggy] submit failed:", err);
+    console.error("[Morby] submit failed:", err);
     ektp.status.textContent = t("ektp_fail");
     ektp.send.disabled = false;
     ektp.file.disabled = false;
@@ -893,7 +893,7 @@ function setupSimulation() {
 
   el.facility.addEventListener("change", () => { populate().catch(() => {}); });
   el.run.addEventListener("click", () => runSimulation(el).catch((e) => {
-    console.error("[Moggy] sim failed:", e);
+    console.error("[Morby] sim failed:", e);
     el.result.textContent = t("sim_fail");
   }));
   populate().catch(() => { el.result.textContent = t("sim_load_fail"); });

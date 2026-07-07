@@ -1,4 +1,4 @@
-# Cloudflare Worker — Moggy backend (static assets + API + R2 storage).
+# Cloudflare Worker — Morby backend (static assets + API + R2 storage).
 #
 # This is now a real Worker (not assets-only): worker/index.js handles /api/*
 # and /admin, and serves the static site via the ASSETS binding. Lead packages
@@ -52,7 +52,7 @@ MAIL_TO = "hendrik.panthron@gmail.com"
 #                      can deliver only to the email that OWNS the Resend account,
 #                      so MAIL_TO must be your Resend signup email. No domain needed.
 #   MAIL_FROM        - (optional) a verified sender on your own domain, e.g.
-#                      "Moggy <noreply@yourdomain.com>". Needed only to send to
+#                      "Morby <noreply@yourdomain.com>". Needed only to send to
 #                      addresses other than your own / from your brand domain.
 #   GEMINI_API_KEY   - free Google AI Studio key; powers /api/chat AND the eKTP
 #                      OCR (/api/ocr). GEMINI_MODEL optionally pins the primary

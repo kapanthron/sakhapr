@@ -1,6 +1,6 @@
-# Moggy — On-Premise End-to-End Architecture & Self-Hosted Model Design
+# Morby — On-Premise End-to-End Architecture & Self-Hosted Model Design
 
-**Goal:** run Moggy entirely on the Bank's **own on-prem servers** — no customer
+**Goal:** run Morby entirely on the Bank's **own on-prem servers** — no customer
 data (eKTP/NIK, chat, leads) ever leaves the internal network. This removes the
 audit's two most serious findings (cross-border transfer + third-party AI
 training) and satisfies PP71/OJK data-localization.
@@ -20,7 +20,7 @@ plane.
 1. **Data stays onshore & in-network.** AI inference (chat + eKTP OCR) runs on
    local GPUs. Storage and DB are local. Email (if used) goes through the Bank's
    own mail gateway.
-2. **Same app logic, swapped infrastructure.** Moggy's code is plain JS with very
+2. **Same app logic, swapped infrastructure.** Morby's code is plain JS with very
    few Cloudflare-specific calls — only 5 seams change (assets, object store, DB,
    AI, email).
 3. **Defense in depth + least privilege.** Network zoning (DMZ → app → AI →
@@ -43,7 +43,7 @@ plane.
                                  │ mTLS
             ┌────────────────────┴─────────────────────┐
             │           Zone 1: APPLICATION             │
-            │  - Moggy app (Node.js) — ports Worker     │   2+ replicas, stateless
+            │  - Morby app (Node.js) — ports Worker     │   2+ replicas, stateless
             │    logic: /api/*, /super, static assets   │
             │  - Identity/MFA: Keycloak (OIDC) or AD    │
             │  - Scheduler: SLA cron (systemd/node-cron)│
@@ -129,7 +129,7 @@ answer with RAG (next section) and the "bukan keputusan kredit" guardrail.
 | **PaddleOCR** (classical, non-LLM) | — | ★★ detector+recognizer, fast | CPU/GPU small | Great for fixed eKTP layout; pair with rules |
 
 **Recommendation:** **Qwen2.5-VL-7B** as primary eKTP reader (prompt it to return
-the exact JSON Moggy already expects: NIK, nama, TTL, jenis kelamin, alamat,
+the exact JSON Morby already expects: NIK, nama, TTL, jenis kelamin, alamat,
 provinsi/kab/kec, plus the face-photo bounding box). Then **always run the
 existing deterministic NIK validator** (`validateNik.js`) on the output — the AI
 proposes, the validator disposes. If accuracy on hard scans needs more, step up
@@ -268,6 +268,6 @@ grow to Resilient as volume/criticality rise.
 
 ---
 
-*Internal engineering design for the Moggy on-prem deployment. All components are
+*Internal engineering design for the Morby on-prem deployment. All components are
 open-source and run inside the Bank's network. Final model choice should be
 confirmed by an accuracy/concurrency benchmark on your hardware.*

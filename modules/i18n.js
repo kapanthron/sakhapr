@@ -20,7 +20,7 @@ const DICT = {
     data_none: "Tidak ada data tersimpan.",
     data_some: "Data tersimpan di memori ({n} pesan).",
     greeting:
-      "Halo! Saya Moggy, the Bank Mortgage Buddy untuk KPR the Bank Indonesia. Saya bisa menjawab pertanyaan seputar KPR, " +
+      "Halo! Saya Morby, the Bank Mortgage Buddy untuk KPR the Bank Indonesia. Saya bisa menjawab pertanyaan seputar KPR, " +
       "membantu memilih produk yang tepat, dan menjalankan prescreen awal. Silakan tanya apa saja, " +
       "atau pilih salah satu di bawah.",
     sug_takeover_l: "Take over KPR",
@@ -151,7 +151,7 @@ const DICT = {
     data_none: "No data stored.",
     data_some: "Data stored in memory ({n} messages).",
     greeting:
-      "Hi! I'm Moggy, your the Bank Mortgage Buddy for KPR at the Bank Indonesia. I can answer mortgage (KPR) questions, " +
+      "Hi! I'm Morby, your the Bank Mortgage Buddy for KPR at the Bank Indonesia. I can answer mortgage (KPR) questions, " +
       "help you pick the right product, and run an initial prescreen. Ask me anything, or pick one below.",
     sug_takeover_l: "Take over",
     sug_takeover_q: "I want to take over my mortgage from another bank to the Bank. How, and what are the requirements?",

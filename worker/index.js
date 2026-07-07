@@ -1,5 +1,5 @@
 /* ============================================================================
-   worker/index.js  —  Moggy backend (Cloudflare Worker)
+   worker/index.js  —  Morby backend (Cloudflare Worker)
 
    Responsibilities:
    - Serve the static site via the ASSETS binding (and /admin -> admin.html).
@@ -314,7 +314,7 @@ async function handleDelete(request, env) {
 
 const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SYSTEM_PROMPT =
-  "Anda adalah Moggy (the Bank Mortgage Buddy), asisten KPR (Kredit Pemilikan Rumah) the Bank Indonesia. " +
+  "Anda adalah Morby (the Bank Mortgage Buddy), asisten KPR (Kredit Pemilikan Rumah) the Bank Indonesia. " +
   "Jawab HANYA berdasarkan FAKTA dari knowledge base di bawah. Gunakan Bahasa " +
   "Indonesia yang ramah, jelas, dan ringkas. JANGAN mengarang angka, suku bunga, " +
   "biaya, atau syarat yang tidak ada di FAKTA. Jika informasinya tidak tersedia, " +
@@ -819,7 +819,7 @@ async function sendEmail(env, meta, files) {
   // secret (RESEND_API_KEY): the test sender onboarding@resend.dev can deliver
   // to the email that owns the Resend account, with no domain verification.
   const to = env.MAIL_TO || "hendrik.panthron@gmail.com";
-  const from = env.MAIL_FROM || "Moggy <onboarding@resend.dev>";
+  const from = env.MAIL_FROM || "Morby <onboarding@resend.dev>";
   const at = new Date().toISOString();
   if (!env.RESEND_API_KEY) {
     return { to, status: "not_configured", at, providerId: null,
@@ -841,13 +841,13 @@ async function sendEmail(env, meta, files) {
     }
     // Bundle every file into one password-protected ZIP for safer transit.
     const zip = makeEncryptedZip(attachments, ZIP_PASSWORD);
-    const zipName = `Moggy_${meta.ref || meta.id}.zip`;
+    const zipName = `Morby_${meta.ref || meta.id}.zip`;
     const body = {
       from,
       to: [to],
-      subject: "Moggy lead + eKTP screening",
+      subject: "Morby lead + eKTP screening",
       text:
-        `Lead KPR dari Moggy.\n\n` +
+        `Lead KPR dari Morby.\n\n` +
         `Produk      : ${meta.productName || meta.product || "-"}\n` +
         `Prescreen   : ${meta.prescreenLabel || "-"} ${meta.prescreenStatus || ""}\n` +
         `Verdict NIK : ${meta.nikVerdict || "-"}\n` +
@@ -900,7 +900,7 @@ async function handleDiag(env) {
 /** Admin diagnostic: verify the Resend key by sending a real test email. */
 async function handleEmailTest(env) {
   const to = env.MAIL_TO || "hendrik.panthron@gmail.com";
-  const from = env.MAIL_FROM || "Moggy <onboarding@resend.dev>";
+  const from = env.MAIL_FROM || "Morby <onboarding@resend.dev>";
   if (!env.RESEND_API_KEY) {
     return json({ ok: false, configured: false, to, from, error: "RESEND_API_KEY belum diset." });
   }
@@ -911,8 +911,8 @@ async function handleEmailTest(env) {
       body: JSON.stringify({
         from,
         to: [to],
-        subject: "Moggy — tes konfigurasi email",
-        text: "Ini email tes dari Moggy. Jika Anda menerima pesan ini, RESEND_API_KEY sudah benar dan pengiriman lead akan bekerja.",
+        subject: "Morby — tes konfigurasi email",
+        text: "Ini email tes dari Morby. Jika Anda menerima pesan ini, RESEND_API_KEY sudah benar dan pengiriman lead akan bekerja.",
       }),
     });
     const txt = await res.text();
@@ -1037,7 +1037,7 @@ async function handleResetPassword(request, env) {
   // Email the temp password FIRST; only persist the new hash if delivery works,
   // so a failed send never locks the admin out.
   const sent = await sendPlainEmail(env, to,
-    "Moggy Super Page — kata sandi sementara",
+    "Morby Super Page — kata sandi sementara",
     `Permintaan reset kata sandi Super Page (ID: ${adminUser}).\n\n` +
     `Kata sandi sementara: ${temp}\n\n` +
     `Login di /super dengan ID ${adminUser} dan kata sandi sementara di atas, ` +
@@ -1279,7 +1279,7 @@ async function handleRecap(url, env) {
   const metas = await allMetas(env);
   const rows = metas.filter((m) => month === "all" || wibYearMonth(m.ts) === month).map(recapRow);
   const xlsx = buildXlsx(RECAP_HEADERS, rows, month === "all" ? "Semua" : month);
-  const fname = `Moggy_rekap_${month === "all" ? "semua" : month}.xlsx`;
+  const fname = `Morby_rekap_${month === "all" ? "semua" : month}.xlsx`;
   return new Response(xlsx, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1620,7 +1620,7 @@ async function handleCustomer360(env, session) {
   return new Response(xlsx, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="Moggy_Customer360.xlsx"`,
+      "Content-Disposition": `attachment; filename="Morby_Customer360.xlsx"`,
       "Cache-Control": "no-store",
     },
   });
@@ -1764,7 +1764,7 @@ function salesEmail(env, owner) {
 
 /** Send a plain text email (no attachments) via Resend. */
 async function sendPlainEmail(env, to, subject, text) {
-  const from = env.MAIL_FROM || "Moggy <onboarding@resend.dev>";
+  const from = env.MAIL_FROM || "Morby <onboarding@resend.dev>";
   if (!env.RESEND_API_KEY) return { to, status: "not_configured", error: "RESEND_API_KEY belum diset." };
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -1803,7 +1803,7 @@ async function runSlaSweep(env, opts = {}) {
   ).bind(nowIso).all()).results || [];
   for (const l of overdueCall) {
     const r = await sendPlainEmail(env, salesEmail(env, l.sales_owner),
-      `[Moggy CMS] SLA call lewat — ${l.nama || l.id} (${l.sales_owner || "?"})`,
+      `[Morby CMS] SLA call lewat — ${l.nama || l.id} (${l.sales_owner || "?"})`,
       `Task Call untuk lead berikut sudah melewati jatuh tempo dan belum ditandai selesai.\n\n` +
       `Nama   : ${l.nama || "-"}\nTelepon: ${l.telepon || "-"}\nKota   : ${l.kota || "-"}\n` +
       `Sales  : ${l.sales_owner || "-"}\nJatuh tempo call: ${l.call_due_at}\nLead ID: ${l.id}\n\n` +
@@ -1822,7 +1822,7 @@ async function runSlaSweep(env, opts = {}) {
   ).bind(nowIso).all()).results || [];
   for (const l of overdueWa) {
     const r = await sendPlainEmail(env, salesEmail(env, l.sales_owner),
-      `[Moggy CMS] SLA WA lewat — ${l.nama || l.id} (${l.sales_owner || "?"})`,
+      `[Morby CMS] SLA WA lewat — ${l.nama || l.id} (${l.sales_owner || "?"})`,
       `Task WA follow up untuk lead berikut sudah melewati jatuh tempo (1 jam setelah call) dan belum selesai.\n\n` +
       `Nama   : ${l.nama || "-"}\nTelepon: ${l.telepon || "-"}\nKota   : ${l.kota || "-"}\n` +
       `Sales  : ${l.sales_owner || "-"}\nJatuh tempo WA: ${l.wa_due_at}\nLead ID: ${l.id}\n\n` +
@@ -1849,14 +1849,14 @@ async function runSlaSweep(env, opts = {}) {
       for (const [owner, rows] of Object.entries(byOwner)) {
         const lines = rows.map((l) => `- ${l.nama || l.id} · ${l.telepon || "-"} · ${l.kota || "-"} · status ${l.status || "-"} · update terakhir ${l.last_activity_at || "?"}`);
         const r = await sendPlainEmail(env, salesEmail(env, owner),
-          `[Moggy CMS] Sweep mingguan — ${rows.length} lead tanpa update (${owner})`,
+          `[Morby CMS] Sweep mingguan — ${rows.length} lead tanpa update (${owner})`,
           `Lead berikut belum ada update dalam 7 hari terakhir. Mohon ditindaklanjuti.\n\n${lines.join("\n")}`);
         if (r.status === "sent") out.sent++;
         if (r.status === "not_configured") out.notConfigured = true;
       }
       // Digest copy to the admin mailbox.
       await sendPlainEmail(env, env.MAIL_TO || "hendrik.panthron@gmail.com",
-        `[Moggy CMS] Sweep mingguan — ${stale.length} lead tanpa update`,
+        `[Morby CMS] Sweep mingguan — ${stale.length} lead tanpa update`,
         `Total ${stale.length} lead tanpa update minggu ini. Reminder sudah dikirim ke masing-masing sales owner.`);
       for (const l of stale) {
         await env.DB.prepare("UPDATE leads SET weekly_reminder_at = ? WHERE id = ?").bind(nowIso, l.id).run();
