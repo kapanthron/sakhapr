@@ -9,7 +9,7 @@
    ============================================================================ */
 
 export const RECIPIENT = "hendrik.panthron@thebank.co.id";
-export const SUBJECT = "Moggy lead + eKTP screening";
+export const SUBJECT = "Morby lead + eKTP screening";
 
 /**
  * Compose the mailto: URL with a summary body and an attach reminder.
@@ -21,7 +21,7 @@ export function buildMailto(s) {
   const lines = [
     "Halo Tim the response team the Bank,",
     "",
-    "Berikut lead KPR dari Moggy beserta hasil skrining eKTP (PARIKSA).",
+    "Berikut lead KPR dari Morby beserta hasil skrining eKTP (PARIKSA).",
     "",
     `Produk           : ${s.productName || "(belum dipilih)"}`,
     `Prescreen        : ${s.prescreenLabel || "(tidak ada)"}${s.prescreenDone ? " — selesai" : ""}`,

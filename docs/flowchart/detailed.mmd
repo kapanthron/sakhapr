@@ -1,6 +1,6 @@
 flowchart TD
     subgraph CUST["Sisi Nasabah (browser, data di memori)"]
-        A([Nasabah buka Moggy]) --> B{Chat Bahasa Indonesia<br/>Intent router}
+        A([Nasabah buka Morby]) --> B{Chat Bahasa Indonesia<br/>Intent router}
         B -->|Tanya produk/promo| C[RAG knowledge base<br/>AI jawab grounded<br/>+ disclaimer bukan keputusan kredit]
         B -->|Hitung angsuran/cashback| D[Kalkulator deterministik]
         B -->|Siap ajukan| E[Prescreen interview<br/>nama, HP, email, penghasilan,<br/>pekerjaan, plafon, tenor, kota]

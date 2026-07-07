@@ -1,6 +1,6 @@
-# Moggy — Final End-to-End Review, PDP & Security Audit, and Investment Estimate
+# Morby — Final End-to-End Review, PDP & Security Audit, and Investment Estimate
 
-**Subject:** Moggy (the Bank Mortgage Buddy) — browser KPR assistant + eKTP/NIK
+**Subject:** Morby (the Bank Mortgage Buddy) — browser KPR assistant + eKTP/NIK
 prescreening (PARIKSA) + CMS (Phases 1–8).
 **Status of the artefact:** working **prototype / POC**.
 **Stated production target:** **on-premise servers + self-hosted ("own") AI**.
@@ -263,5 +263,5 @@ target concurrency and an eKTP-OCR accuracy benchmark.
 
 ---
 
-*Internal engineering review for the Moggy POC. Final compliance and procurement
+*Internal engineering review for the Morby POC. Final compliance and procurement
 decisions rest with the Bank's Legal, Compliance, DPO, and IT/Procurement.*

@@ -1,4 +1,4 @@
-# Moggy (the Bank Mortgage Buddy) — Data-Protection & Safety Audit
+# Morby (the Bank Mortgage Buddy) — Data-Protection & Safety Audit
 
 Scope: UU No. 27/2022 (Pelindungan Data Pribadi / **UU PDP**), and relevant
 **OJK** / **Bank Indonesia** expectations for a bank-operated digital service.
@@ -175,5 +175,5 @@ disclaimers.
 
 ---
 
-*Generated as an internal engineering review for the Moggy POC. Final compliance
+*Generated as an internal engineering review for the Morby POC. Final compliance
 determinations rest with the Bank Legal, Compliance, and the DPO.*

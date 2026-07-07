@@ -1,5 +1,5 @@
 -- ============================================================================
--- Moggy CMS — Cloudflare D1 schema (Phase 1 foundation)
+-- Morby CMS — Cloudflare D1 schema (Phase 1 foundation)
 -- Run this once against the D1 database (dashboard console or wrangler d1).
 -- TODO SECURITY/PDPA: this stores personal data permanently. Retention policy
 -- and the DPIA must be revised before real applicant data is processed.

@@ -1,4 +1,4 @@
-# Moggy — Flowcharts
+# Morby — Flowcharts
 
 Two diagrams (Mermaid). Render on GitHub/Notion, or paste into
 <https://mermaid.live> to export PNG/SVG for slides.
@@ -10,7 +10,7 @@ Two diagrams (Mermaid). Render on GitHub/Notion, or paste into
 ```mermaid
 flowchart TD
     subgraph CUST["👤 Sisi Nasabah (browser, data di memori)"]
-        A([Nasabah buka Moggy]) --> B{Chat Bahasa Indonesia<br/>Intent router}
+        A([Nasabah buka Morby]) --> B{Chat Bahasa Indonesia<br/>Intent router}
         B -->|Tanya produk/promo| C[RAG knowledge base<br/>→ AI jawab grounded<br/>+ disclaimer 'bukan keputusan kredit']
         B -->|Hitung angsuran/cashback| D[Kalkulator deterministik]
         B -->|Siap ajukan| E[Prescreen interview<br/>nama, HP, email, penghasilan,<br/>pekerjaan, plafon, tenor, kota, dll]
@@ -72,7 +72,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A([👤 Nasabah]) --> B["💬 Moggy<br/>Chat KPR + Skrining eKTP<br/>AI OCR + Validasi NIK"]
+    A([👤 Nasabah]) --> B["💬 Morby<br/>Chat KPR + Skrining eKTP<br/>AI OCR + Validasi NIK"]
     B --> C["🗂️ CMS<br/>Skor & Grade<br/>+ Assign Sales"]
     C --> D["📞 Pipeline Sales<br/>Status + SLA Reminder"]
     D --> E["📊 Dashboard BI<br/>& Export Excel/360°"]

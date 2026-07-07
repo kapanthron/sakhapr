@@ -57,7 +57,7 @@ export function buildNikReportPdf(result, opts = {}) {
   setColor(TEAL);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("Moggy — Laporan Skrining NIK (PARIKSA)", M, y);
+  doc.text("Morby — Laporan Skrining NIK (PARIKSA)", M, y);
   y += 20;
 
   setColor(SOFT);
@@ -159,7 +159,7 @@ export function buildNikReportPdf(result, opts = {}) {
   y += discLines.length * 12 + 6;
 
   const note = doc.splitTextToSize(
-    "Dokumen ini dihasilkan otomatis oleh Moggy di perangkat pengguna sebagai alat bantu skrining, bukan keputusan kredit.",
+    "Dokumen ini dihasilkan otomatis oleh Morby di perangkat pengguna sebagai alat bantu skrining, bukan keputusan kredit.",
     contentW
   );
   doc.text(note, M, y);

@@ -1,4 +1,4 @@
-# Moggy — Claude Code Build Prompts
+# Morby — Claude Code Build Prompts
 
 Paste the **master prompt once** at the start of each session, then paste **one phase prompt**.
 Build one phase per session and start a fresh session (re-pasting the master prompt) between
@@ -14,7 +14,7 @@ phases — this keeps each phase on a clean context budget.
 ## Master prompt (paste first, every session)
 
 ```
-You are building "Moggy", a privacy-first, browser-only GenAI mortgage assistant for the Bank
+You are building "Morby", a privacy-first, browser-only GenAI mortgage assistant for the Bank
 Indonesia KPR, with an embedded eKTP integrity module called PARIKSA. I am the product owner
 and I do not write code, so explain what each file does in plain language and never leave a
 step half done.
@@ -54,7 +54,7 @@ step half done.
   state. Do not try to build ahead.
 
 == ASSETS in data/ (treat values as verified facts) ==
-- knowledge_base.json  (Moggy master KB; quote figures exactly, use the calculators block for
+- knowledge_base.json  (Morby master KB; quote figures exactly, use the calculators block for
   any number, use decision_routing for product choice, append the matching disclaimer)
 - prescreen.json       (three prescreen sets: PRI, 2ND, TO)
 - wilayah_nik.json     (already-transformed region table — see token rules above)
@@ -152,7 +152,7 @@ Phase 6. Build modules/bundle.js and modules/sendDraft.js for Path A. bundle.js 
 (.txt), the eKTP image (file b), and file c (.pdf). If the total exceeds 5MB, downscale the eKTP
 image with a canvas until the bundle fits, and tell me the final size. sendDraft.js downloads the
 bundle and opens a prefilled mailto draft to hendrik.panthron@thebank.co.id with subject
-"Moggy lead + eKTP screening" and a body summarising product, prescreen status, and NIK
+"Morby lead + eKTP screening" and a body summarising product, prescreen status, and NIK
 verdict, plus a line reminding the sender to attach the downloaded bundle. After send, prompt
 Clear all data. How to test included.
 ```
