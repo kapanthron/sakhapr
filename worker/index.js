@@ -317,7 +317,7 @@ async function handleDelete(request, env) {
 
 const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SYSTEM_PROMPT =
-  "Anda adalah Morby (the Bank Mortgage Buddy), asisten KPR (Kredit Pemilikan Rumah) the Bank Indonesia. " +
+  "Anda adalah Morby Ver1.0 (the Bank Mortgage Buddy), asisten KPR (Kredit Pemilikan Rumah) the Bank Indonesia. " +
   "Jawab HANYA berdasarkan FAKTA dari knowledge base di bawah. Gunakan Bahasa " +
   "Indonesia yang ramah, jelas, dan ringkas. JANGAN mengarang angka, suku bunga, " +
   "biaya, atau syarat yang tidak ada di FAKTA. Jika informasinya tidak tersedia, " +
