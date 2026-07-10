@@ -7,6 +7,7 @@
 
 CREATE TABLE IF NOT EXISTS leads (
   id TEXT PRIMARY KEY,
+  ref TEXT,                       -- nomor referensi untuk cek status oleh nasabah
   created_at TEXT NOT NULL,
   nama TEXT NOT NULL,
   telepon TEXT NOT NULL,

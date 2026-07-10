@@ -416,7 +416,63 @@ function renderRateTable(kb) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+const REF_RE = /\b(\d{8}-\d{4}-\d{5})\b/;
+const STATUS_INTENT_RE = /\b(cek|check|lihat|pantau|tracking|lacak)\b.*\b(status|aplikasi|pengajuan|progres|progress)\b|status\s*(aplikasi|pengajuan|kpr)|application\s*status/i;
+
+/** Prominent highlighted box telling the customer to save their ref number. */
+function addRefHighlight(ref) {
+  const box = document.createElement("div");
+  box.className = "ref-highlight";
+  box.innerHTML =
+    `<div class="ref-highlight__label">${t("ref_save_label")}</div>` +
+    `<div class="ref-highlight__code mono">${ref.replace(/[<>&"]/g, "")}</div>` +
+    `<button type="button" class="btn btn--ghost btn--small ref-highlight__copy">${t("ref_copy")}</button>` +
+    `<div class="ref-highlight__hint">${t("ref_save_hint")}</div>`;
+  const btn = box.querySelector(".ref-highlight__copy");
+  btn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(ref); btn.textContent = t("ref_copied"); }
+    catch { btn.textContent = t("ref_copied"); }
+  });
+  chatLog.appendChild(box);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+/** Look up an application's status by ref number and render it in chat. */
+async function checkApplicationStatus(ref) {
+  addMessage("bot", t("status_checking", { ref }), { persist: false });
+  try {
+    const r = await fetch("/api/status?ref=" + encodeURIComponent(ref), { headers: { Accept: "application/json" } });
+    const d = await r.json().catch(() => ({}));
+    if (d.invalid) { addMessage("bot", t("status_invalid")); return; }
+    if (!d.ok) { addMessage("bot", t("status_error")); return; }
+    if (!d.found) { addMessage("bot", t("status_notfound", { ref })); return; }
+    const box = document.createElement("div");
+    box.className = "ref-highlight ref-highlight--status";
+    box.innerHTML =
+      `<div class="ref-highlight__label">${t("status_result_label", { ref: d.ref })}</div>` +
+      `<div class="ref-highlight__code">${escapeText(d.statusLabel)}</div>` +
+      `<div class="ref-highlight__hint">${escapeText(t("status_result_hint", { nama: d.nama || "-", jenis: d.jenis || "-" }))}</div>`;
+    chatLog.appendChild(box);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  } catch (e) {
+    addMessage("bot", t("status_error"));
+  }
+}
+
+function escapeText(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 async function handleKbMessage(text) {
+  // Application-status check: if the message contains a ref number, look it up.
+  const refMatch = String(text).match(REF_RE);
+  if (refMatch) { await checkApplicationStatus(refMatch[1]); addContinuationChips(); return; }
+  // Asked about status but no ref given -> ask for the ref number.
+  if (STATUS_INTENT_RE.test(text)) {
+    addMessage("bot", t("status_ask_ref"));
+    return;
+  }
+
   // Numeric questions go to the deterministic simulator, not the LLM.
   if (SIM_RE.test(text)) {
     addMessage("bot", t("sim_nudge"));
@@ -845,13 +901,12 @@ async function submitEktp() {
       },
     });
 
+    const ref = result.ref || result.id.slice(0, 8);
     store.ektp.submitted = result.id;
-    ektp.status.textContent = t("ektp_done", { ref: result.ref || result.id.slice(0, 8) });
-    addMessage(
-      "bot",
-      t("ektp_done_chat"),
-      { persist: false }
-    );
+    store.ektp.ref = ref;
+    ektp.status.textContent = t("ektp_done", { ref });
+    addMessage("bot", t("ektp_done_chat"), { persist: false });
+    addRefHighlight(ref); // prominent "save your ref number" box
   } catch (err) {
     console.error("[Morby] submit failed:", err);
     ektp.status.textContent = t("ektp_fail");

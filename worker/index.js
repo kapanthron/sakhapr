@@ -53,6 +53,9 @@ export default {
       if (pathname === "/api/ocr" && request.method === "POST") {
         return await handleOcr(request, env);
       }
+      if (pathname === "/api/status" && request.method === "GET") {
+        return await handleStatusLookup(url, env, request);
+      }
       if (pathname === "/api/session" && request.method === "POST") {
         return await handleSession(request, env);
       }
@@ -1417,12 +1420,13 @@ async function cmsIngestLead(env, id, ts, form, meta) {
   // the activity clock used by the weekly sweep.
   const callDue = new Date(Date.parse(ts) + 30 * 60 * 1000).toISOString();
 
+  await ensureRefColumn(env);
   await env.DB.prepare(
-    "INSERT INTO leads (id,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,tenor_tahun,kota,pernah_restruktur,to_sertifikat_siap,tier_lokasi,is_duplicate,submit_count,last_submit_at," +
+    "INSERT INTO leads (id,ref,created_at,nama,telepon,email,nik_masked,jenis_kpr,gaji_bulanan,plafon,tenor_tahun,kota,pernah_restruktur,to_sertifikat_siap,tier_lokasi,is_duplicate,submit_count,last_submit_at," +
     "grade_gaji,grade_plafon,grade_lokasi,skor_komposit,grade_keseluruhan,sales_owner,call_due_at,last_activity_at,status) " +
-    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'uncontacted')"
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'uncontacted')"
   ).bind(
-    id, ts,
+    id, meta.ref || null, ts,
     nama,
     tel,
     em,
@@ -1477,6 +1481,16 @@ async function ensureKeteranganColumn(env) {
   KETERANGAN_ENSURED = true;
 }
 
+// Self-heal: add leads.ref (used for the public status lookup) if the DB predates
+// that column. Runs at most once per isolate.
+let REF_ENSURED = false;
+async function ensureRefColumn(env) {
+  if (REF_ENSURED) return;
+  try { await env.DB.prepare("ALTER TABLE leads ADD COLUMN ref TEXT").run(); }
+  catch { /* already exists */ }
+  REF_ENSURED = true;
+}
+
 /** Build the leads payload (files + status history), optionally scoped to one
  *  sales owner. Shared by the admin CMS and the sales portal. */
 async function cmsLeadsPayload(env, owner) {
@@ -1516,6 +1530,42 @@ async function handleCmsLeads(env) {
 async function handleSalesLeads(env, owner) {
   if (!env.DB) return json({ ok: false, error: "CMS (Cloudflare D1) belum dikonfigurasi." }, 503);
   return json(await cmsLeadsPayload(env, owner));
+}
+
+/**
+ * Public application-status lookup by reference number. No auth: the ref number
+ * is given only to the applicant and is not easily guessable. Returns the
+ * first name + current pipeline status only (no phone/NIK/other PII).
+ */
+async function handleStatusLookup(url, env, request) {
+  if (!rateLimit("status:" + clientIp(request), 30, 60000)) {
+    return json({ ok: false, error: "Terlalu banyak permintaan. Coba lagi sebentar." }, 429);
+  }
+  if (!env.DB) return json({ ok: false, error: "Fitur cek status belum tersedia." }, 503);
+  const ref = String(url.searchParams.get("ref") || "").trim().toUpperCase();
+  if (!/^\d{8}-\d{4}-\d{5}$/.test(ref)) {
+    return json({ ok: false, invalid: true, error: "Format nomor referensi tidak valid." }, 400);
+  }
+  let row;
+  try {
+    row = await env.DB.prepare(
+      "SELECT nama, jenis_kpr, status, last_activity_at, created_at FROM leads WHERE ref = ? ORDER BY created_at DESC LIMIT 1"
+    ).bind(ref).first();
+  } catch (e) {
+    if (!/no such column/i.test(String((e && e.message) || e))) throw e;
+    await ensureRefColumn(env); // DB predates the ref column — nothing to find yet
+    row = null;
+  }
+  if (!row) return json({ ok: true, found: false });
+  const st = CMS_STATUSES.find((s) => s.key === row.status);
+  return json({
+    ok: true, found: true, ref,
+    nama: String(row.nama || "").trim().split(/\s+/)[0] || "",
+    jenis: JENIS_KPR_LABEL[row.jenis_kpr] || row.jenis_kpr || "",
+    statusKey: row.status,
+    statusLabel: st ? st.label : (row.status || "-"),
+    updatedAt: row.last_activity_at || row.created_at,
+  });
 }
 
 /* --- Phase 5: pipeline statuses (exact keys + labels from the brief) -------- */
