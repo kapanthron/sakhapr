@@ -135,6 +135,9 @@ export default {
       if (pathname === "/sales") {
         return env.ASSETS.fetch(new Request(new URL("/sales.html", url), request));
       }
+      if (pathname === "/calculator" || pathname === "/kalkulator") {
+        return env.ASSETS.fetch(new Request(new URL("/calculator.html", url), request));
+      }
     } catch (err) {
       return json({ ok: false, error: String(err && err.message || err) }, 500);
     }
