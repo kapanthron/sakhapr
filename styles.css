@@ -103,15 +103,29 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
 .pdpa-banner__text strong { font-weight: 700; }
 
 /* --- App layout ----------------------------------------------------------- */
+/* The app fills the viewport below the banner; only the middle region scrolls,
+   so the composer stays pinned at the bottom (focused chat, no drifting input). */
 .app {
   width: 100%;
   max-width: var(--maxw);
   margin: 0 auto;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  gap: 14px;
+  padding: 12px 16px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Scrollable middle region: chat transcript + (revealed) eKTP form. */
+.app__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .app__topbar {
@@ -136,15 +150,16 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
 .brand__sub { font-size: 12px; color: var(--ink-soft); }
 
 /* --- Chat ----------------------------------------------------------------- */
+/* The chat grows with its content inside .app__main (the scroll container), so
+   it no longer owns its own scrollbar. */
 .chat {
-  flex: 1;
-  min-height: 320px;
+  flex: 1 0 auto;
+  min-height: 200px;
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 16px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -223,7 +238,8 @@ code, kbd, samp, .mono, .nik { font-family: var(--font-mono); }
 .chip--action:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
 
 /* --- Composer ------------------------------------------------------------- */
-.composer { display: flex; gap: 8px; }
+.composer { display: flex; gap: 8px; flex: 0 0 auto; }
+.app__footer { flex: 0 0 auto; }
 .composer__input {
   flex: 1;
   font-family: var(--font-text);
@@ -641,3 +657,9 @@ table.checks th { color: var(--ink-soft); font-weight: 600; }
 .ref-highlight__code { font-size: 22px; font-weight: 700; letter-spacing: .02em; color: var(--ink); margin: 4px 0 6px; user-select: all; }
 .ref-highlight__hint { font-size: 12px; color: var(--ink-soft); margin-top: 6px; }
 .ref-highlight__copy { margin-top: 2px; }
+
+/* --- Calculator page + chat CTA ------------------------------------------- */
+.app--scroll { overflow-y: auto; }        /* calculator page scrolls normally */
+.calc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.calc-cta { align-self: flex-start; text-decoration: none; }
+a.chip { text-decoration: none; }

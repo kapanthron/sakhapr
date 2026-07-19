@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Morby Ver1.0 — Kalkulator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="vendor/jspdf/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <header class="pdpa-banner" role="region" aria-label="Kalkulator">
+    <span class="pdpa-banner__icon" aria-hidden="true">&#129518;</span>
+    <p class="pdpa-banner__text">
+      Kalkulator ini hanya <strong>simulasi</strong> dan <strong>tidak mengikat</strong>.
+      Angka final mengikuti analisa kredit dan Perjanjian Kredit the Bank.
+    </p>
+  </header>
+
+  <main class="app app--scroll">
+    <div class="app__topbar">
+      <div class="brand">
+        <span class="brand__name">Morby Ver1.0</span>
+        <span class="brand__sub" data-i18n="sim_title">Simulasi Angsuran &amp; Cashback</span>
+      </div>
+      <div class="app__topbar-actions">
+        <a class="btn btn--ghost" href="index.html" data-i18n="calc_back">← Kembali ke chat</a>
+        <button id="langToggle" type="button" class="btn btn--ghost" title="English / Bahasa Indonesia">EN</button>
+      </div>
+    </div>
+
+    <section class="ektp">
+      <p class="ektp__disclaimer" data-i18n="calc_intro">
+        Hitung estimasi angsuran bulanan dan potensi cashback. Semua angka bersifat simulasi dan tidak mengikat.
+      </p>
+
+      <div class="debug__grid">
+        <label><span data-i18n="sim_facility">Jenis fasilitas</span>
+          <select id="simFacility">
+            <option value="primary" data-i18n="fac_primary">KPR PRI</option>
+            <option value="secondary" data-i18n="fac_secondary">KPR 2ND</option>
+            <option value="take_over" data-i18n="fac_take_over">KPR TO</option>
+          </select>
+        </label>
+        <label><span data-i18n="sim_scheme">Skema bunga</span>
+          <select id="simScheme"></select>
+        </label>
+        <label><span data-i18n="sim_plafon">Plafon kredit (Rp)</span>
+          <input id="simPlafon" class="mono" type="text" inputmode="numeric" data-i18n-ph="plafon_ph" placeholder="900000000" />
+        </label>
+        <label><span data-i18n="sim_tenor">Tenor (tahun)</span>
+          <input id="simTenor" class="mono" type="number" min="1" max="30" data-i18n-ph="tenor_ph" placeholder="10" />
+        </label>
+        <label hidden><span data-i18n="sim_segment">Segmen (untuk cashback)</span>
+          <select id="simSegment">
+            <option value="" data-i18n="seg_new">New to Bank / lainnya</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="calc-actions">
+        <button type="button" id="simRun" class="btn btn--primary" data-i18n="sim_run">Hitung</button>
+        <button type="button" id="pdfBtn" class="btn btn--ghost" data-i18n="calc_download" hidden>Unduh PDF</button>
+      </div>
+
+      <div id="simResult" class="debug__result" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script type="module" src="calculator.js"></script>
+</body>
+</html>

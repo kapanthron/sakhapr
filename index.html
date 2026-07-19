@@ -33,16 +33,57 @@
         <span class="brand__sub" data-i18n="brand_sub">the Bank Mortgage Buddy &middot; PARIKSA</span>
       </div>
       <div class="app__topbar-actions">
+        <a id="calcLink" class="btn btn--ghost" href="calculator.html" title="Kalkulator angsuran & cashback" data-i18n="calc_link">Kalkulator</a>
         <button id="langToggle" type="button" class="btn btn--ghost" data-i18n="lang_toggle" title="English / Bahasa Indonesia">EN</button>
         <button id="applyNowBtn" type="button" class="btn btn--primary" data-i18n="apply_now">Ajukan Sekarang</button>
         <button id="clearAllBtn" type="button" class="btn btn--ghost" data-i18n="clear_data" title="Hapus seluruh data dari memori">Hapus data</button>
       </div>
     </div>
 
-    <!-- Chat transcript -->
-    <section id="chatLog" class="chat" aria-live="polite" aria-label="Percakapan"></section>
+    <!-- Scrollable middle region: chat + (revealed) eKTP form. The composer below
+         stays pinned so the input never scrolls away. -->
+    <div class="app__main" id="appMain">
+      <!-- Chat transcript -->
+      <section id="chatLog" class="chat" aria-live="polite" aria-label="Percakapan"></section>
 
-    <!-- Composer -->
+      <!-- eKTP upload + on-device ML identification (revealed after prescreen) -->
+      <section class="ektp" id="ektpSection" hidden>
+        <h2 class="ektp__title" data-i18n="ektp_title">Unggah eKTP</h2>
+        <p class="ektp__disclaimer" data-i18n="ektp_disclaimer">
+          Pastikan foto eKTP jelas (tidak blur), datanya benar, dan ukuran file maksimal 3 MB.
+        </p>
+
+        <label class="consent">
+          <input type="checkbox" id="ektpConsent" />
+          <span data-i18n-html="consent">
+            Apakah Anda setuju dan telah membaca
+            <a href="docs/pernyataan/persetujuan-nasabah.pdf" target="_blank" rel="noopener">Lembar Pernyataan Persetujuan Nasabah</a>
+            berikut?
+          </span>
+        </label>
+
+        <div class="ektp__upload">
+          <input type="file" id="ektpFile" accept="image/*" disabled />
+          <span class="ektp__hint" id="ektpHint" data-i18n="ektp_hint_off">Centang persetujuan untuk memilih foto eKTP.</span>
+        </div>
+
+        <img id="ektpPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
+
+        <div id="ektpNikWrap" class="ektp__nik" hidden>
+          <label><span data-i18n="nik_label">NIK (16 digit) — pastikan sudah benar sebelum mengirim</span>
+            <input id="ektpNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
+          </label>
+          <div id="ektpNikStatus" class="ektp__nikstatus" aria-live="polite"></div>
+        </div>
+
+        <div class="ektp__actions">
+          <button type="button" id="ektpSend" class="btn btn--primary" data-i18n="send" disabled>Kirim</button>
+        </div>
+        <div id="ektpStatus" class="ektp__status" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <!-- Composer (pinned) -->
     <form id="composer" class="composer" autocomplete="off">
       <label class="visually-hidden" for="composerInput">Ketik pertanyaan Anda</label>
       <input
@@ -60,80 +101,6 @@
       <span class="data-status" id="dataStatus" aria-live="polite" data-i18n="data_none">Tidak ada data tersimpan.</span>
       <span class="app__footnote" data-i18n="footnote">Data hanya disimpan di memori perangkat &middot; bukan keputusan kredit.</span>
     </footer>
-
-    <!-- Simulation: monthly installment + potential cashback (deterministic) -->
-    <details class="sim" id="simPanel">
-      <summary data-i18n="sim_title">Simulasi Angsuran &amp; Cashback</summary>
-      <div class="sim__body">
-        <p class="ektp__disclaimer" data-i18n="sim_disclaimer">
-          Estimasi memakai suku bunga dari knowledge base the Bank. Angka final mengikuti
-          analisa kredit dan Perjanjian Kredit.
-        </p>
-        <div class="debug__grid">
-          <label><span data-i18n="sim_facility">Jenis fasilitas</span>
-            <select id="simFacility">
-              <option value="primary" data-i18n="fac_primary">KPR PRI</option>
-              <option value="secondary" data-i18n="fac_secondary">KPR 2ND</option>
-              <option value="take_over" data-i18n="fac_take_over">KPR TO</option>
-            </select>
-          </label>
-          <label><span data-i18n="sim_scheme">Skema bunga</span>
-            <select id="simScheme"></select>
-          </label>
-          <label><span data-i18n="sim_plafon">Plafon kredit (Rp)</span>
-            <input id="simPlafon" class="mono" type="text" inputmode="numeric" data-i18n-ph="plafon_ph" placeholder="900000000" />
-          </label>
-          <label><span data-i18n="sim_tenor">Tenor (tahun)</span>
-            <input id="simTenor" class="mono" type="number" min="1" max="30" data-i18n-ph="tenor_ph" placeholder="10" />
-          </label>
-          <label hidden><span data-i18n="sim_segment">Segmen (untuk cashback)</span>
-            <select id="simSegment">
-              <option value="" data-i18n="seg_new">New to Bank / lainnya</option>
-              <option value="PV" data-i18n="seg_pv">the Bank Privilege (PV)</option>
-              <option value="WB" data-i18n="seg_wb">the Bank Wealth (WB)</option>
-            </select>
-          </label>
-        </div>
-        <button type="button" id="simRun" class="btn btn--primary" data-i18n="sim_run">Hitung</button>
-        <div id="simResult" class="debug__result" aria-live="polite"></div>
-      </div>
-    </details>
-
-    <!-- eKTP upload + on-device ML identification (revealed after prescreen) -->
-    <section class="ektp" id="ektpSection" hidden>
-      <h2 class="ektp__title" data-i18n="ektp_title">Unggah eKTP</h2>
-      <p class="ektp__disclaimer" data-i18n="ektp_disclaimer">
-        Pastikan foto eKTP jelas (tidak blur), datanya benar, dan ukuran file maksimal 3 MB.
-      </p>
-
-      <label class="consent">
-        <input type="checkbox" id="ektpConsent" />
-        <span data-i18n-html="consent">
-          Apakah Anda setuju dan telah membaca
-          <a href="docs/pernyataan/persetujuan-nasabah.pdf" target="_blank" rel="noopener">Lembar Pernyataan Persetujuan Nasabah</a>
-          berikut?
-        </span>
-      </label>
-
-      <div class="ektp__upload">
-        <input type="file" id="ektpFile" accept="image/*" disabled />
-        <span class="ektp__hint" id="ektpHint" data-i18n="ektp_hint_off">Centang persetujuan untuk memilih foto eKTP.</span>
-      </div>
-
-      <img id="ektpPreview" class="ektp__preview" alt="Pratinjau eKTP" hidden />
-
-      <div id="ektpNikWrap" class="ektp__nik" hidden>
-        <label><span data-i18n="nik_label">NIK (16 digit) — pastikan sudah benar sebelum mengirim</span>
-          <input id="ektpNik" class="mono" type="text" inputmode="numeric" maxlength="16" />
-        </label>
-        <div id="ektpNikStatus" class="ektp__nikstatus" aria-live="polite"></div>
-      </div>
-
-      <div class="ektp__actions">
-        <button type="button" id="ektpSend" class="btn btn--primary" data-i18n="send" disabled>Kirim</button>
-      </div>
-      <div id="ektpStatus" class="ektp__status" aria-live="polite"></div>
-    </section>
   </main>
 
   <script type="module" src="app.js"></script>

@@ -79,10 +79,17 @@ const flow = { mode: "idle", session: null };
 
 /* --- DOM handles ----------------------------------------------------------- */
 const chatLog = document.getElementById("chatLog");
+const appMain = document.getElementById("appMain"); // scroll container (chat + eKTP)
 const composer = document.getElementById("composer");
 const composerInput = document.getElementById("composerInput");
 const clearAllBtn = document.getElementById("clearAllBtn");
 const dataStatus = document.getElementById("dataStatus");
+
+/** Scroll the chat region to the newest message. */
+function scrollChatBottom() {
+  const el = appMain || chatLog;
+  el.scrollTop = el.scrollHeight;
+}
 
 /* --- Rendering ------------------------------------------------------------- */
 
@@ -126,7 +133,7 @@ function addMessage(role, text, opts = {}) {
   if (role === "bot") el.innerHTML = mdToHtml(text); // render Markdown tidily
   else el.textContent = text;
   chatLog.appendChild(el);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
 
   if (persist && role !== "system") {
     store.messages.push({ role, text, ts: Date.now() });
@@ -156,7 +163,7 @@ function addChips(options, onPick) {
     row.appendChild(btn);
   }
   chatLog.appendChild(row);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
 }
 
 /** Reflect whether memory currently holds any data, in the footer pill. */
@@ -195,7 +202,7 @@ function addSuggestions() {
     row.appendChild(btn);
   }
   chatLog.appendChild(row);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
 }
 
 function greet() {
@@ -230,7 +237,7 @@ function addChoiceChips(labels, values, onPick) {
     row.appendChild(btn);
   });
   chatLog.appendChild(row);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
 }
 
 /** Localised display for a question (text + choice option labels). */
@@ -413,7 +420,7 @@ function renderRateTable(kb) {
   card.appendChild(foot);
 
   chatLog.appendChild(card);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
 }
 
 const REF_RE = /\b(\d{8}-\d{4}-\d{5})\b/;
@@ -434,7 +441,7 @@ function addRefHighlight(ref) {
     catch { btn.textContent = t("ref_copied"); }
   });
   chatLog.appendChild(box);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
 }
 
 /** Look up an application's status by ref number and render it in chat. */
@@ -453,7 +460,7 @@ async function checkApplicationStatus(ref) {
       `<div class="ref-highlight__code">${escapeText(d.statusLabel)}</div>` +
       `<div class="ref-highlight__hint">${escapeText(t("status_result_hint", { nama: d.nama || "-", jenis: d.jenis || "-" }))}</div>`;
     chatLog.appendChild(box);
-    chatLog.scrollTop = chatLog.scrollHeight;
+    scrollChatBottom();
   } catch (e) {
     addMessage("bot", t("status_error"));
   }
@@ -473,11 +480,14 @@ async function handleKbMessage(text) {
     return;
   }
 
-  // Numeric questions go to the deterministic simulator, not the LLM.
+  // Numeric questions go to the deterministic simulator on its own page.
   if (SIM_RE.test(text)) {
     addMessage("bot", t("sim_nudge"));
-    const panel = document.getElementById("simPanel");
-    if (panel) { panel.open = true; panel.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    const link = document.createElement("a");
+    link.className = "chip chip--action calc-cta";
+    link.href = "calculator.html";
+    link.textContent = t("calc_open");
+    chatLog.appendChild(link);
     showPromoLinksIfRelevant(text);
     addContinuationChips();
     return;
@@ -524,7 +534,7 @@ async function handleKbMessage(text) {
     full = await streamLlm(text, recentHistory(), (partial) => {
       full = partial;
       bubble.innerHTML = mdToHtml(partial);
-      chatLog.scrollTop = chatLog.scrollHeight;
+      scrollChatBottom();
     }, getLang());
   } catch (err) {
     console.warn("[Morby] LLM stream failed:", err.message);
@@ -628,7 +638,7 @@ function renderDocLinks(introText, items) {
     el.appendChild(a);
   }
   chatLog.appendChild(el);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
 }
 
 /* --- KPR FLX explainer (generic product info from the knowledge base) ------- */
@@ -641,7 +651,7 @@ function addStreamingBubble() {
   el.className = "msg msg--bot";
   el.innerHTML = '<span class="typing"><span class="typing__dot"></span><span class="typing__dot"></span><span class="typing__dot"></span></span>';
   chatLog.appendChild(el);
-  chatLog.scrollTop = chatLog.scrollHeight;
+  scrollChatBottom();
   return el;
 }
 
