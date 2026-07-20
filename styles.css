@@ -623,6 +623,29 @@ table.checks th { color: var(--ink-soft); font-weight: 600; }
   border: 0;
 }
 
+/* Narrow screens: stack the topbar so the brand gets full width (title +
+   subheadline no longer squeezed) and the action buttons wrap instead of
+   overflowing off the right edge. */
+@media (max-width: 640px) {
+  .app__topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .brand { width: 100%; }
+  .brand__name { white-space: nowrap; }
+  .brand__sub { margin-top: 2px; }
+  .app__topbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .app__topbar-actions .btn { flex: 1 1 auto; white-space: nowrap; }
+  /* Language toggle stays compact rather than stretching across a row. */
+  .app__topbar-actions #langToggle { flex: 0 0 auto; }
+}
+
 @media (max-width: 480px) {
   .pdpa-banner { font-size: 12px; }
   .brand__name { font-size: 18px; }
