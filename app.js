@@ -91,6 +91,13 @@ function scrollChatBottom() {
   el.scrollTop = el.scrollHeight;
 }
 
+/** Scroll the chat region back to the very top (used for the opening greeting,
+ *  so the "Halo, saya Morby…" welcome is never cut off on first load). */
+function scrollChatTop() {
+  const el = appMain || chatLog;
+  el.scrollTop = 0;
+}
+
 /* --- Rendering ------------------------------------------------------------- */
 
 /**
@@ -208,6 +215,10 @@ function addSuggestions() {
 function greet() {
   addMessage("bot", t("greeting"), { persist: false });
   addSuggestions();
+  // Keep the opening greeting anchored at the top; the user scrolls down when
+  // they want to. (addMessage/addSuggestions auto-scroll to the bottom, which
+  // would otherwise cut off the top of the long welcome message.)
+  scrollChatTop();
 }
 
 /* --- Composer handling ----------------------------------------------------- */
@@ -1133,7 +1144,9 @@ function init() {
       repopulateSimSchemes();
     });
   }
-  composerInput.focus();
+  // preventScroll so focusing the pinned composer doesn't yank the view down
+  // and re-hide the greeting on load.
+  composerInput.focus({ preventScroll: true });
 }
 
 init();
